@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NISEL ONLINE EDUCATION</title>
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+background:#f4f6f9;
+}
+
+/* Navigation */
+
+nav{
+background:#0d47a1;
+color:white;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 50px;
+}
+
+.logo{
+font-size:28px;
+font-weight:bold;
+}
+
+nav ul{
+display:flex;
+list-style:none;
+}
+
+nav ul li{
+margin-left:25px;
+}
+
+nav ul li a{
+color:white;
+text-decoration:none;
+font-weight:bold;
+transition:.3s;
+}
+
+nav ul li a:hover{
+color:gold;
+}
+
+/* Hero */
+
+.hero{
+height:500px;
+background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,.6)),
+url("https://images.unsplash.com/photo-1522202176988-66273c2fd55f");
+background-size:cover;
+background-position:center;
+display:flex;
+justify-content:center;
+align-items:center;
+text-align:center;
+color:white;
+}
+
+.hero h1{
+font-size:55px;
+margin-bottom:20px;
+}
+
+.hero p{
+font-size:20px;
+margin-bottom:30px;
+}
+
+.hero a{
+background:#ff9800;
+padding:15px 35px;
+text-decoration:none;
+color:white;
+font-size:18px;
+border-radius:5px;
+font-weight:bold;
+}
+
+.hero a:hover{
+background:#ff6f00;
+}
+
+/* Dashboard Cards */
+
+.dashboard{
+padding:60px;
+}
+
+.dashboard h2{
+text-align:center;
+margin-bottom:40px;
+font-size:40px;
+color:#0d47a1;
+}
+
+.cards{
+
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+gap:30px;
+
+}
+
+.card{
+
+background:white;
+padding:30px;
+border-radius:12px;
+box-shadow:0 5px 15px rgba(0,0,0,.15);
+text-align:center;
+transition:.4s;
+
+}
+
+.card:hover{
+
+transform:translateY(-10px);
+
+}
+
+.card i{
+
+font-size:60px;
+color:#0d47a1;
+margin-bottom:20px;
+
+}
+
+.card h3{
+
+margin-bottom:15px;
+
+}
+
+.card p{
+
+margin-bottom:25px;
+color:#555;
+
+}
+
+.card button{
+
+padding:12px 25px;
+background:#0d47a1;
+color:white;
+border:none;
+cursor:pointer;
+border-radius:5px;
+font-size:16px;
+
+}
+
+.card button:hover{
+
+background:#08306b;
+
+}
+
+/* Features */
+
+.features{
+
+background:white;
+padding:60px;
+
+}
+
+.features h2{
+
+text-align:center;
+color:#0d47a1;
+margin-bottom:40px;
+
+}
+
+.feature-grid{
+
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+gap:30px;
+
+}
+
+.feature{
+
+padding:25px;
+background:#eef4ff;
+border-radius:10px;
+text-align:center;
+
+}
+
+.feature i{
+
+font-size:50px;
+color:#ff9800;
+margin-bottom:20px;
+
+}
+
+/* Footer */
+
+footer{
+
+background:#0d47a1;
+color:white;
+text-align:center;
+padding:20px;
+margin-top:50px;
+
+}
+
+</style>
+
+</head>
+<body>
+
+<nav>
+
+<div class="logo">
+NISEL ONLINE EDUCATION
+</div>
+
+<ul>
+
+<li><a href="#">Home</a></li>
+<li><a href="#">Courses</a></li>
+<li><a href="#">Teachers</a></li>
+<li><a href="#">Students</a></li>
+<li><a href="#">Login</a></li>
+<li><a href="#">Contact</a></li>
+
+</ul>
+
+</nav>
+
+<section class="hero">
+
+<div>
+
+<h1>Welcome to NISEL ONLINE EDUCATION</h1>
+
+<p>
+Learn from qualified teachers anywhere in the world.
+Book online classes and study at your own pace.
+</p>
+
+<a href="#">Get Started</a>
+
+</div>
+
+</section>
+
+<section class="dashboard">
+
+<h2>Dashboard</h2>
+
+<div class="cards">
+
+<div class="card">
+
+<i class="fas fa-user-graduate"></i>
+
+<h3>Student Registration</h3>
+
+<p>
+Register as a student and start learning online.
+</p>
+
+<button>Register</button>
+
+</div>
+
+<div class="card">
+
+<i class="fas fa-chalkboard-teacher"></i>
+
+<h3>Teacher Registration</h3>
+
+<p>
+Become a tutor and teach students online.
+</p>
+
+<button>Register</button>
+
+</div>
+
+<div class="card">
+
+<i class="fas fa-calendar-check"></i>
+
+<h3>Book a Class</h3>
+
+<p>
+Choose your preferred teacher and schedule a lesson.
+</p>
+
+<button>Book Now</button>
+
+</div>
+
+<div class="card">
+
+<i class="fas fa-credit-card"></i>
+
+<h3>Online Payment</h3>
+
+<p>
+Pay securely using Visa Card or MTN Mobile Money.
+</p>
+
+<button>Pay Now</button>
+
+</div>
+
+<div class="card">
+
+<i class="fas fa-video"></i>
+
+<h3>Join Live Class</h3>
+
+<p>
+Attend your online lessons through live video classes.
+</p>
+
+<button>Join</button>
+
+</div>
+
+<div class="card">
+
+<i class="fas fa-book-open"></i>
+
+<h3>Learning Materials</h3>
+
+<p>
+Download notes, assignments and recorded lessons.
+</p>
+
+<button>Open</button>
+
+</div>
+
+</div>
+
+</section>
+
+<section class="features">
+
+<h2>Why Choose Us?</h2>
+
+<div class="feature-grid">
+
+<div class="feature">
+
+<i class="fas fa-laptop"></i>
+
+<h3>100% Online</h3>
+
+<p>Learn from anywhere.</p>
+
+</div>
+
+<div class="feature">
+
+<i class="fas fa-clock"></i>
+
+<h3>Flexible Time</h3>
+
+<p>Book classes anytime.</p>
+
+</div>
+
+<div class="feature">
+
+<i class="fas fa-award"></i>
+
+<h3>Qualified Teachers</h3>
+
+<p>Experienced and certified tutors.</p>
+
+</div>
+
+<div class="feature">
+
+<i class="fas fa-lock"></i>
+
+<h3>Secure Payment</h3>
+
+<p>Visa Card & MTN Mobile Money supported.</p>
+
+</div>
+
+</div>
+
+</section>
+
+<footer>
+
+<h3>NISEL ONLINE EDUCATION</h3>
+
+<p>Empowering Education Through Technology</p>
+
+<p>© 2026 All Rights Reserved.</p>
+
+</footer>
+
+</body>
+</html>
