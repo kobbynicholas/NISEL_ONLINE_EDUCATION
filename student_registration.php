@@ -1,52 +1,3 @@
-<?php
-
-$host="localhost";
-$user="root";
-$password="";
-$database="nisel_online_education";
-
-$conn=new mysqli($host,$user,$password,$database);
-
-if($conn->connect_error){
-die("Connection Failed");
-}
-
-$message="";
-
-if(isset($_POST['register'])){
-
-$name=trim($_POST['fullname']);
-$dob=$_POST['dob'];
-$institution=trim($_POST['institution']);
-$phone=trim($_POST['phone']);
-$email=trim($_POST['email']);
-$class=trim($_POST['class_year']);
-
-$stmt=$conn->prepare("INSERT INTO students(fullname,dob,institution,phone,email,class_year)
-VALUES(?,?,?,?,?,?)");
-
-$stmt->bind_param("ssssss",$name,$dob,$institution,$phone,$email,$class);
-
-if($stmt->execute()){
-
-$message="<div class='success'>
-Student Registered Successfully.
-</div>";
-
-}else{
-
-$message="<div class='error'>
-".$stmt->error."
-</div>";
-
-}
-
-$stmt->close();
-
-}
-
-?>
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -297,3 +248,59 @@ Register Student
 </body>
 
 </html>
+
+
+
+
+
+
+<?php
+
+$host="localhost";
+$user="root";
+$password="";
+$database="nisel_online_education";
+
+$conn=new mysqli($host,$user,$password,$database);
+
+if($conn->connect_error){
+die("Connection Failed");
+}
+
+$message="";
+
+if(isset($_POST['register'])){
+
+$name=trim($_POST['fullname']);
+$dob=$_POST['dob'];
+$institution=trim($_POST['institution']);
+$phone=trim($_POST['phone']);
+$email=trim($_POST['email']);
+$class=trim($_POST['class_year']);
+
+$stmt=$conn->prepare("INSERT INTO students(fullname,dob,institution,phone,email,class_year)
+VALUES(?,?,?,?,?,?)");
+
+$stmt->bind_param("ssssss",$name,$dob,$institution,$phone,$email,$class);
+
+if($stmt->execute()){
+
+$message="<div class='success'>
+Student Registered Successfully.
+</div>";
+
+}else{
+
+$message="<div class='error'>
+".$stmt->error."
+</div>";
+
+}
+
+$stmt->close();
+
+}
+
+?>
+
+
