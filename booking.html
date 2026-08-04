@@ -180,7 +180,7 @@ text-align:center;
 <div class="subjects">
 
 <label class="subject-item">
-<input type="hidden" value="Mathematics" class="subject">
+<input type="checkbox" value="Mathematics" class="subject">
 Mathematics
 </label>
 
@@ -289,32 +289,7 @@ checkboxes.forEach(box=>{
 
 box.addEventListener("change",calculate);
 
-});
-
-
-
-
-
-
-  
-let selected=[];
-
-document.querySelectorAll(".subject:checked")
-.forEach(function(item){
-
-selected.push(item.value);
-
-});
-
-
-document.getElementById("subjects").value =
-selected.join(",");
-
-
-
-
-
-  
+}); 
   
 </script>
 
