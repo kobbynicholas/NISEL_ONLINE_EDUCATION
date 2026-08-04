@@ -150,7 +150,7 @@ text-align:center;
 
 <div class="form-group">
 <label>Phone Number</label>
-<input type="tel" name="phone" required>
+<input type="tel" name="phone" required> 
 </div>
 
 <div class="form-group">
@@ -185,12 +185,12 @@ Mathematics
 </label>
 
 <label class="subject-item">
-<input type="hidden" value="English Language" class="subject">
+<input type="checkbox" value="English Language" class="subject">
 English Language
 </label>
 
 <label class="subject-item">
-<input type="hidden" value="Physics" class="subject">
+<input type="checkbox" value="Physics" class="subject">
 Physics
 </label>
 
@@ -291,6 +291,31 @@ box.addEventListener("change",calculate);
 
 });
 
+
+
+
+
+
+  
+let selected=[];
+
+document.querySelectorAll(".subject:checked")
+.forEach(function(item){
+
+selected.push(item.value);
+
+});
+
+
+document.getElementById("subjects").value =
+selected.join(",");
+
+
+
+
+
+  
+  
 </script>
 
 </body>
