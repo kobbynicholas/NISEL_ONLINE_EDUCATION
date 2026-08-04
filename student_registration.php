@@ -27,8 +27,85 @@ VALUES(?,?,?,?,?,?)");
 
 $stmt->bind_param("ssssss",$name,$dob,$institution,$phone,$email,$class);
 
-if($stmt->execute()){
+if($stmt->execute(
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require 'vendor/autoload.php';
+
+$mail = new PHPMailer(true);
+
+try {
+
+    $mail->isSMTP();
+    $mail->Host       = 'smtp.gmail.com';
+    $mail->SMTPAuth   = true;
+
+    $mail->Username   = 'nicholaskobby.nk@gmail.com';
+    $mail->Password   = 'Kwabenawusu.1';
+
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    $mail->Port       = 587;
+
+    $mail->setFrom('your-email@gmail.com', 'NISEL ONLINE EDUCATION');
+
+    $mail->addAddress($email, $name);
+
+    $mail->isHTML(true);
+
+    $mail->Subject = 'Welcome to NISEL ONLINE EDUCATION';
+
+    $mail->Body = '
+    <h2>Welcome to NISEL ONLINE EDUCATION</h2>
+
+    <p>Dear <strong>'.$name.'</strong>,</p>
+
+    <p>
+    Welcome to <strong>NISEL ONLINE EDUCATION</strong>.
+    </p>
+
+    <p>
+    You can now book for a lesson.
+    </p>
+
+    <p>
+    A personal tutor will be assigned to you after booking.
+    </p>
+
+    <p>
+    Enjoy a quality online education at NISEL.
+    </p>
+
+    <br>
+
+    <p>
+    <strong>Thank You.</strong>
+    </p>
+
+    <hr>
+
+    <p>
+    NISEL ONLINE EDUCATION<br>
+    Empowering Learners Worldwide
+    </p>
+
+    ';
+
+    $mail->send();
+
+}
+catch (Exception $e) {
+
+}
+  
+)){
+
+
+
+
+
+  
 $message="<div class='success'>
 Student Registered Successfully.
 </div>";
