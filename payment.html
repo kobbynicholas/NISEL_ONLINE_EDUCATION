@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NISEL ONLINE EDUCATION | Payment</title>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Poppins',sans-serif;
+}
+
+body{
+background:#eef3f8;
+}
+
+.container{
+width:90%;
+max-width:700px;
+margin:40px auto;
+background:white;
+padding:40px;
+border-radius:15px;
+box-shadow:0 10px 25px rgba(0,0,0,.12);
+}
+
+h1{
+text-align:center;
+color:#003366;
+margin-bottom:10px;
+}
+
+.subtitle{
+text-align:center;
+color:#666;
+margin-bottom:30px;
+}
+
+.summary{
+background:#f7f9fc;
+padding:20px;
+border-radius:10px;
+margin-bottom:25px;
+border-left:5px solid #003366;
+}
+
+.summary h3{
+color:#003366;
+margin-bottom:15px;
+}
+
+.summary p{
+margin:8px 0;
+font-size:16px;
+}
+
+.total{
+font-size:24px;
+font-weight:bold;
+color:green;
+margin-top:15px;
+}
+
+.payment-methods{
+display:flex;
+gap:15px;
+margin:25px 0;
+flex-wrap:wrap;
+}
+
+.method{
+flex:1;
+min-width:220px;
+padding:20px;
+border:2px solid #ddd;
+border-radius:10px;
+text-align:center;
+cursor:pointer;
+transition:.3s;
+}
+
+.method:hover{
+border-color:#003366;
+background:#f0f6ff;
+}
+
+.method.active{
+border-color:#003366;
+background:#e8f1ff;
+}
+
+.method img{
+width:60px;
+margin-bottom:10px;
+}
+
+button{
+width:100%;
+padding:16px;
+background:#003366;
+color:white;
+border:none;
+font-size:18px;
+border-radius:8px;
+cursor:pointer;
+transition:.3s;
+}
+
+button:hover{
+background:#0055aa;
+}
+
+.note{
+margin-top:15px;
+font-size:14px;
+color:#666;
+text-align:center;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>NISEL ONLINE EDUCATION</h1>
+<p class="subtitle">Secure Online Payment</p>
+
+<!-- Booking Summary -->
+<div class="summary">
+
+<h3>Booking Summary</h3>
+
+<p><strong>Student:</strong> Nicholas Sakyi</p>
+<p><strong>Curriculum:</strong> Cambridge</p>
+<p><strong>Class:</strong> IGCSE Year 10</p>
+<p><strong>Subjects:</strong> Mathematics, Chemistry</p>
+
+<p class="total">
+Total: GHC 2,000
+</p>
+
+</div>
+
+<!-- Payment Methods -->
+<h3>Select Payment Method</h3>
+
+<div class="payment-methods">
+
+<div class="method active" id="momo" onclick="selectMethod('momo')">
+
+<img src="https://upload.wikimedia.org/wikipedia/commons/7/71/MTN_Logo.svg" alt="MTN MoMo">
+
+<h4>MTN Mobile Money</h4>
+<p>Pay with MTN MoMo</p>
+
+</div>
+
+<div class="method" id="card" onclick="selectMethod('card')">
+
+<img src="https://upload.wikimedia.org/wikipedia/commons/4/41/Visa_Logo.png" alt="Visa Card">
+
+<h4>Visa Card</h4>
+<p>Pay with Visa Card</p>
+
+</div>
+
+</div>
+
+<button onclick="payWithPaystack()">
+Pay Now
+</button>
+
+<p class="note">
+Payments are processed securely by Paystack.
+</p>
+
+</div>
+
+<script>
+
+let paymentMethod = 'momo';
+
+function selectMethod(method){
+
+paymentMethod = method;
+
+document.getElementById('momo').classList.remove('active');
+document.getElementById('card').classList.remove('active');
+
+document.getElementById(method).classList.add('active');
+
+}
+
+function payWithPaystack(){
+
+let handler = PaystackPop.setup({
+
+key: 'pk_test_xxxxxxxxxxxxxxxxxxxxx', // Replace with your Paystack Public Key
+
+email: 'student@example.com',
+
+amount: 2000 * 100, // Amount in pesewas
+
+currency: 'GHS',
+
+ref: 'NISEL_' + Math.floor((Math.random() * 1000000000) + 1),
+
+metadata: {
+
+custom_fields: [
+
+{
+display_name: 'Student Name',
+variable_name: 'student_name',
+value: 'Nicholas Sakyi'
+},
+
+{
+display_name: 'Curriculum',
+variable_name: 'curriculum',
+value: 'Cambridge'
+},
+
+{
+display_name: 'Subjects',
+variable_name: 'subjects',
+value: 'Mathematics, Chemistry'
+},
+
+{
+display_name: 'Payment Method',
+variable_name: 'payment_method',
+value: paymentMethod === 'momo' ? 'MTN Mobile Money' : 'Visa Card'
+}
+
+]
+
+},
+
+callback: function(response){
+
+alert('Payment successful. Reference: ' + response.reference);
+
+// Redirect after payment
+
+window.location.href = 'success.html?reference=' + response.reference;
+
+},
+
+onClose: function(){
+
+alert('Payment window closed.');
+
+}
+
+});
+
+handler.openIframe();
+
+}
+
+</script>
+
+</body>
+</html>
