@@ -264,13 +264,24 @@ const selected = document.getElementById('selectedSubjects');
 
 function calculate(){
 
-let subjects=[];
 
-checkboxes.forEach(box=>{
 
-if(box.checked){
+let selected=[];
+document.querySelectorAll(".subject:checked")
+.forEach(function(item){
+selected.push(item.value);
 
-subjects.push(box.value);
+});
+
+document.getElementById("subjects").value =
+selected.join(",");
+
+
+  
+//let subjects=[];
+//checkboxes.forEach(box=>{
+//if(box.checked){
+//subjects.push(box.value);
 
 }
 
@@ -292,25 +303,7 @@ box.addEventListener("change",calculate);
 }); 
 
 
-
-let selected=[];
-
-document.querySelectorAll(".subject:checked")
-.forEach(function(item){
-
-selected.push(item.value);
-
-});
-
-
-document.getElementById("subjects").value =
-selected.join(",");
-
-
-
-
-
-  
+ 
 </script>
 
 </body>
