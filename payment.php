@@ -32,19 +32,32 @@ $secret_key = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
 // RECEIVE FORM DATA
 
 
-$name = $_POST['student_name'];
+if(!isset($_GET['booking'])){
+    die("Invalid booking reference.");
+}
 
-$dob = $_POST['dob'];
+$bookingReference = $_GET['booking'];
 
-$phone = $_POST['phone'];
+$stmt = $conn->prepare("SELECT * FROM bookings WHERE booking_reference=?");
+$stmt->bind_param("s", $bookingReference);
+$stmt->execute();
 
-$email = $_POST['email'];
+$result = $stmt->get_result();
 
-$curriculum = $_POST['curriculum'];
+if($result->num_rows == 0){
+    die("Booking not found.");
+}
 
-$class = $_POST['class'];
+$row = $result->fetch_assoc();
 
-$subjects = $_POST['subjects'];
+$name = $row['student_name'];
+$email = $row['email'];
+$amount = $row['amount'];
+$subjects = $row['subjects'];
+$curriculum = $row['curriculum'];
+$class = $row['class_year'];
+$phone = $row['phone'];
+$dob = $row['dob'];
 
 
 
@@ -64,7 +77,7 @@ $amount = $number_of_subjects * $price_per_subject;
 // Convert Ghana Cedis to Pesewas for Paystack
 
 $paystack_amount = $amount * 100;
-
+$paystack_amount = $amount * 100;
 
 
 // CREATE BOOKING REFERENCE
