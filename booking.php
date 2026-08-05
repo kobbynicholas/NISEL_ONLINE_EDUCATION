@@ -80,9 +80,7 @@ $amount
 
 );
 
-
 if($stmt->execute()){
-
 
 header("Location: payment.php?
 booking=".$bookingReference);
