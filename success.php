@@ -1,6 +1,6 @@
 <?php
 
-require "config/db.php";
+require "db.php";
 
 if(!isset($_GET['booking'])){
     die("Invalid Booking.");
