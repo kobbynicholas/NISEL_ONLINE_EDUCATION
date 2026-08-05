@@ -21,11 +21,15 @@ $email=$_POST['email'];
 
 $curriculum=$_POST['curriculum'];
 
-$class=$_POST['class'];
+$class = $_POST['class_year'];
 
-$subjects=$_POST['subjects'];
+$subjects = implode(", ", $_POST['subjects']);
 
-$amount=$_POST['amount'];
+$pricePerSubject = 1000;
+
+$subjectCount = count($_POST['subjects']);
+
+$amount = $subjectCount * $pricePerSubject;
 
 
 
@@ -84,9 +88,7 @@ $amount
 if($stmt->execute()){
 
 
-header("Location: booking.php?
-booking=".$bookingReference);
-
+header("Location: payment.php?booking=" . urlencode($bookingReference));
 exit();
 
 
