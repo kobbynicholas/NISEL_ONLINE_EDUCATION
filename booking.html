@@ -183,47 +183,65 @@ text-align:center;
 <div class="subjects">
 
 <label class="subject-item">
-<input type="checkbox" value="Mathematics" class="subject">
+<input type="checkbox" 
+  value="Mathematics" 
+  class="subject">
 Mathematics
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="English Language" class="subject">
+<input type="checkbox" 
+  value="English Language" 
+  class="subject">
 English Language
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="Physics" class="subject">
+<input type="checkbox" 
+  value="Physics" 
+  class="subject">
 Physics
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="Chemistry" class="subject">
+<input type="checkbox" 
+  value="Chemistry" 
+  class="subject">
 Chemistry
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="Biology" class="subject">
+<input type="checkbox" 
+  value="Biology" 
+  class="subject">
 Biology
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="ICT" class="subject">
+<input type="checkbox" 
+  value="ICT" 
+  class="subject">
 ICT
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="Economics" class="subject">
+<input type="checkbox" 
+  value="Economics" 
+  class="subject">
 Economics
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="Business Studies" class="subject">
+<input type="checkbox" 
+  value="Business Studies" 
+  class="subject">
 Business Studies
 </label>
 
 <label class="subject-item">
-<input type="checkbox" value="Accounting" class="subject">
+<input type="checkbox" 
+  value="Accounting" 
+  class="subject">
 Accounting
 </label>
 
@@ -312,6 +330,21 @@ box.addEventListener("change",calculate);
 
 });
 
+
+document.querySelector("form").addEventListener("submit", function(e){
+
+if(subjectField.value==""){
+
+alert("Please select at least one subject.");
+
+e.preventDefault();
+
+}
+
+});
+
+
+  
 </script>
 
 
