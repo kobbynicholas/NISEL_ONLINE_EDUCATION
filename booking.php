@@ -11,27 +11,25 @@ exit();
 }
 
 
-$name=$_POST['student_name'];
+$name = trim($_POST['student_name']);
 
-$dob=$_POST['dob'];
+$dob = $_POST['dob'];
 
-$phone=$_POST['phone'];
+$phone = trim($_POST['phone']);
 
-$email=$_POST['email'];
+$email = trim($_POST['email']);
 
-$curriculum=$_POST['curriculum'];
+$curriculum = trim($_POST['curriculum']);
 
-$class = $_POST['class'];
+$class = trim($_POST['class']);
 
-$subjects = $_POST['subjects'];
+$subjects = trim($_POST['subjects']);
 
-$subjectArray = explode(",", $subjects);
+$subjectArray = array_filter(explode(",", $subjects));
 
 $amount = count($subjectArray) * 1000;
 
-
-
-$bookingReference="NISEL".date("YmdHis").rand(100,999);
+$bookingReference = "NISEL-BK-" . date("YmdHis") . rand(100,999);
 
 
 
