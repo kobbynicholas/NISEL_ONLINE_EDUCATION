@@ -20,7 +20,7 @@ if ($conn->connect_error) {
 // PAYSTACK SECRET KEY
 // =============================
 
-$secretKey = "YOUR_PAYSTACK_SECRET_KEY";
+$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
 
 
 // =============================
@@ -146,13 +146,13 @@ try {
     $mail->Host       = 'smtp.gmail.com';
     $mail->SMTPAuth   = true;
 
-    $mail->Username   = 'your-email@gmail.com';
-    $mail->Password   = 'YOUR_APP_PASSWORD';
+    $mail->Username   = 'kobbynicholas.kn@gmail.com';
+    $mail->Password   = 'Kwabenawusu.1';
 
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
     $mail->Port       = 587;
 
-    $mail->setFrom('your-email@gmail.com', 'NISEL ONLINE EDUCATION');
+    $mail->setFrom('kobbynicholas.kn@gmail.com', 'NISEL ONLINE EDUCATION');
 
     $mail->addAddress($email, $name);
 
