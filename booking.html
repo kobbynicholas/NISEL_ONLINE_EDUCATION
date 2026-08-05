@@ -136,7 +136,10 @@ text-align:center;
 <h1>NISEL ONLINE EDUCATION</h1>
 <p class="subtitle">Online Lesson Booking Form</p>
 
-<form action="#" method="post">
+
+  ////// booking ////
+  
+<form action="booking.php" method="POST">
 
 <div class="form-group">
 <label>Student Name</label>
@@ -248,10 +251,20 @@ Proceed to Payment
 Each subject costs <strong>GHC 1,000</strong>.
 </p>
 
+
+<input type="hidden" id="subjects" name="subjects">
+<input type="hidden" id="amount" name="amount">
+
+  
 </form>
 
 </div>
 
+
+
+
+
+  
 <script>
 
 const pricePerSubject = 1000;
