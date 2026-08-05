@@ -290,6 +290,26 @@ checkboxes.forEach(box=>{
 box.addEventListener("change",calculate);
 
 }); 
+
+
+
+let selected=[];
+
+document.querySelectorAll(".subject:checked")
+.forEach(function(item){
+
+selected.push(item.value);
+
+});
+
+
+document.getElementById("subjects").value =
+selected.join(",");
+
+
+
+
+
   
 </script>
 
