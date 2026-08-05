@@ -267,38 +267,46 @@ Each subject costs <strong>GHC 1,000</strong>.
   
 <script>
 
-const pricePerSubject = 1000;
+const price=1000;
 
-const checkboxes = document.querySelectorAll('.subject');
+const checks=document.querySelectorAll(".subject");
 
-const total = document.getElementById('total');
+const total=document.getElementById("total");
 
-const selected = document.getElementById('selectedSubjects');
+const subjectField=document.getElementById("subjects");
+
+const amountField=document.getElementById("amount");
+
+const list=document.getElementById("selectedSubjects");
+
 
 function calculate(){
 
-let subjects=[];
+let selected=[];
 
-checkboxes.forEach(box=>{
+checks.forEach(function(box){
 
 if(box.checked){
 
-subjects.push(box.value);
+selected.push(box.value);
 
 }
 
 });
 
-selected.innerHTML = subjects.length ?
-"<strong>Selected Subjects:</strong><br>"+subjects.join(", ")
-:
-"No subject selected.";
+list.innerHTML=selected.join(", ");
 
-total.innerHTML = subjects.length * pricePerSubject;
+let amount=selected.length*price;
+
+total.innerHTML=amount;
+
+subjectField.value=selected.join(",");
+
+amountField.value=amount;
 
 }
 
-checkboxes.forEach(box=>{
+checks.forEach(function(box){
 
 box.addEventListener("change",calculate);
 
@@ -306,5 +314,7 @@ box.addEventListener("change",calculate);
 
 </script>
 
+
+  
 </body>
 </html>
