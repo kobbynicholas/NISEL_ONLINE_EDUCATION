@@ -265,26 +265,22 @@ const selected = document.getElementById('selectedSubjects');
 function calculate(){
 
 
-
-//let selected=[];
-//document.querySelectorAll(".subject:checked")
-//.forEach(function(item){
-//selected.push(item.value);
-
-//});
-
-
-
-  
 let subjects=[];
 checkboxes.forEach(box=>{
 if(box.checked){
 subjects.push(box.value);
 
+}
+
+  
+let selected=[];
+  document.querySelectorAll(".subject:checked")
+.forEach(function(item){
+selected.push(item.value);
+});
 
 document.getElementById("subjects").value =
 selected.join(",");
-
   
 }
 
