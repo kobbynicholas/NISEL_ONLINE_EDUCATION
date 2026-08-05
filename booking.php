@@ -4,7 +4,7 @@ require "db.php";
 
 if($_SERVER["REQUEST_METHOD"]!="POST"){
 
-header("Location:payment.html");
+header("Location:booking.html");
 
 exit();
 
