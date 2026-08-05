@@ -445,4 +445,7 @@ Please try again.
 
 $conn->close();
 
+header("Location: success.php?booking=".$bookingReference);
+exit();
+
 ?>
