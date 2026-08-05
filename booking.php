@@ -80,18 +80,18 @@ $amount
 
 );
 
-if($stmt->execute()){
+// if($stmt->execute()){
 
-header("Location: payment.php?
-booking=".$bookingReference);
+// header("Location: payment.php?
+// booking=".$bookingReference);
 
-exit();
-
-
-}else{
+// exit();
 
 
-echo "Booking Failed";
+// }else{
+
+
+// echo "Booking Failed";
 
 }
 
