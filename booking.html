@@ -270,17 +270,20 @@ checkboxes.forEach(box=>{
 if(box.checked){
 subjects.push(box.value);
 
-}
-
-  
-let selected=[];
-  document.querySelectorAll(".subject:checked")
-.forEach(function(item){
-selected.push(item.value);
-});
 
 document.getElementById("subjects").value =
 selected.join(",");
+  
+}
+ 
+//let selected=[];
+// document.querySelectorAll(".subject:checked")
+//.forEach(function(item){
+//selected.push(item.value);
+  
+});
+
+
   
 }
 
