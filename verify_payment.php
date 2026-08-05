@@ -1,5 +1,13 @@
 <?php
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require "config/db.php";
+
+require "vendor/autoload.php";
+
+
 // =============================
 // DATABASE CONNECTION
 // =============================
@@ -133,8 +141,7 @@ if (
     // =============================
     // SEND EMAIL
     // =============================
-   use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
+
 
 require 'vendor/autoload.php';
 
