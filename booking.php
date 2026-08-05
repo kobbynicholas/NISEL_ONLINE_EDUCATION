@@ -84,7 +84,7 @@ $amount
 if($stmt->execute()){
 
 
-header("Location:payment.php?
+header("Location: booking.html?
 booking=".$bookingReference);
 
 exit();
