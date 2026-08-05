@@ -21,15 +21,13 @@ $email=$_POST['email'];
 
 $curriculum=$_POST['curriculum'];
 
-$class = $_POST['class_year'];
+$class = $_POST['class'];
 
-$subjects = implode(", ", $_POST['subjects']);
+$subjects = $_POST['subjects'];
 
-$pricePerSubject = 1000;
+$subjectArray = explode(",", $subjects);
 
-$subjectCount = count($_POST['subjects']);
-
-$amount = $subjectCount * $pricePerSubject;
+$amount = count($subjectArray) * 1000;
 
 
 
