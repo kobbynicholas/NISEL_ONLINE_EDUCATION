@@ -136,7 +136,7 @@ text-align:center;
 <h1>NISEL ONLINE EDUCATION</h1>
 <p class="subtitle">Online Lesson Booking Form</p>
 
-<form action="payment.html" method="post">
+<form action="#" method="post">
 
 <div class="form-group">
 <label>Student Name</label>
@@ -150,7 +150,7 @@ text-align:center;
 
 <div class="form-group">
 <label>Phone Number</label>
-<input type="tel" name="phone" required> 
+<input type="tel" name="phone" required>
 </div>
 
 <div class="form-group">
@@ -264,18 +264,18 @@ const selected = document.getElementById('selectedSubjects');
 
 function calculate(){
 
-
 let subjects=[];
+
 checkboxes.forEach(box=>{
+
 if(box.checked){
+
 subjects.push(box.value);
-  
+
 }
 
 });
 
-
-  
 selected.innerHTML = subjects.length ?
 "<strong>Selected Subjects:</strong><br>"+subjects.join(", ")
 :
@@ -289,10 +289,8 @@ checkboxes.forEach(box=>{
 
 box.addEventListener("change",calculate);
 
-}); 
+});
 
-
- 
 </script>
 
 </body>
