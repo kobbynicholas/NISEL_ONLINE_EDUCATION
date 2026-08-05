@@ -93,6 +93,6 @@ $amount
 
 // echo "Booking Failed";
 
-}
+// }
 
 ?>
