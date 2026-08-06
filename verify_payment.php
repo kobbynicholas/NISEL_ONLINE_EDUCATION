@@ -5,25 +5,10 @@ use PHPMailer\PHPMailer\Exception;
 
 require __DIR__ . "/config/db.php";
 
-require __DIR__ . "/PHPMailer/src/Exception.php";
-require __DIR__ . "/PHPMailer/src/PHPMailer.php";
-require __DIR__ . "/PHPMailer/src/SMTP.php";
+require_once __DIR__ . "/PHPMailer/src/Exception.php";
+require_once __DIR__ . "/PHPMailer/src/PHPMailer.php";
+require_once __DIR__ . "/PHPMailer/src/SMTP.php";
 
-
-// =============================
-// DATABASE CONNECTION
-// =============================
-
-$host = "localhost";
-$user = "root";
-$password = "";
-$database = "nisel_online_education";
-
-$conn = new mysqli($host, $user, $password, $database);
-
-if ($conn->connect_error) {
-    die("Database connection failed.");
-}
 
 // =============================
 // PAYSTACK SECRET KEY
