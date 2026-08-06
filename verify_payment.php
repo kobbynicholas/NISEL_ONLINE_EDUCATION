@@ -3,7 +3,7 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require "config/db.php";
+require "db.php";
 
 require "vendor/autoload.php";
 
