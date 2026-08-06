@@ -6,9 +6,6 @@ require "../config/db.php";
 
 
 
-require "../config/db.php";
-
-
 if(isset($_POST['assign'])){
 
 
