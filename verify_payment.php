@@ -22,7 +22,6 @@ if ($conn->connect_error) {
     die("Database connection failed.");
 }
 
-
 // =============================
 // PAYSTACK SECRET KEY
 // =============================
