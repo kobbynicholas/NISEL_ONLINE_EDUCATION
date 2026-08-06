@@ -3,9 +3,9 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-require "config/db.php";
+require __DIR__ . "/config/db.php";
 
-require "vendor/autoload.php";
+require __DIR__ . "/vendor/autoload.php";
 
 // =============================
 // DATABASE CONNECTION
