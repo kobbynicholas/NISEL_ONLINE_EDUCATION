@@ -7,7 +7,6 @@ require "db.php";
 
 require "vendor/autoload.php";
 
-
 // =============================
 // DATABASE CONNECTION
 // =============================
