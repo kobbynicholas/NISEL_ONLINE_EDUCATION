@@ -1,5 +1,11 @@
 <?php
 
+require "../admin_auth.php";
+
+require "../config/db.php";
+
+
+
 // Later we will connect this to MySQL
 
 $total_students = 0;
