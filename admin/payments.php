@@ -17,20 +17,32 @@ $result=$conn->query("SELECT * FROM payments ORDER BY id DESC");
 <table border="1" width="100%">
 
 
+$payments = $conn->query("
+SELECT student_name,amount,payment_method,status
+FROM payments
+ORDER BY id DESC
+LIMIT 10
+");
+
+while($p = $payments->fetch_assoc()){
+
+?>
+
 <tr>
 
-<th>Student</th>
+<td><?php echo htmlspecialchars($p['student_name']); ?></td>
 
-<th>Amount</th>
+<td>GHC <?php echo number_format($p['amount'],2); ?></td>
 
-<th>Method</th>
+<td><?php echo htmlspecialchars($p['payment_method']); ?></td>
 
-<th>Status</th>
-
-<th>Date</th>
+<td><?php echo htmlspecialchars($p['status']); ?></td>
 
 </tr>
 
+<?php
+
+}
 
 <?php while($p=$result->fetch_assoc()){ ?>
 
