@@ -442,8 +442,6 @@ Return to Home
 
 else {
 
-?>
-
 <!DOCTYPE html>
 
 <html>
@@ -452,6 +450,8 @@ else {
 
 <title>Payment Failed</title>
 }
+
+    
 <style>
 
 body{
