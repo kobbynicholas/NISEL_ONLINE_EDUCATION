@@ -94,11 +94,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         // CHECK FOR EXISTING EMAIL
         // --------------------------------
 
-        $check = $pdo->prepare(
-            "SELECT id FROM teachers WHERE email = ? LIMIT 1"
-        );
+        // $check = $pdo->prepare(
+         //   "SELECT id FROM teachers WHERE email = ? LIMIT 1"
+       // );
 
-        $check->execute([$email]);
+       // $check->execute([$email]);
 
         if ($check->fetch()) {
 
