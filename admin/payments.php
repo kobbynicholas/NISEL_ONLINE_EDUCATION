@@ -1,43 +1,148 @@
 <?php
-
 require "../admin_auth.php";
 require "../config/db.php";
 
-$payments = $conn->query("
-SELECT *
+/* =============================
+   SEARCH & FILTER
+============================= */
+
+$search = $_GET['search'] ?? '';
+$status = $_GET['status'] ?? '';
+$method = $_GET['method'] ?? '';
+
+$sql = "SELECT * FROM payments WHERE 1=1";
+
+$params = [];
+$types = "";
+
+if ($search != "") {
+    $sql .= " AND (student_name LIKE ? OR email LIKE ?)";
+    $searchLike = "%$search%";
+    $params[] = $searchLike;
+    $params[] = $searchLike;
+    $types .= "ss";
+}
+
+if ($status != "") {
+    $sql .= " AND status=?";
+    $params[] = $status;
+    $types .= "s";
+}
+
+if ($method != "") {
+    $sql .= " AND payment_method=?";
+    $params[] = $method;
+    $types .= "s";
+}
+
+$sql .= " ORDER BY payment_date DESC";
+
+$stmt = $conn->prepare($sql);
+
+if ($types != "") {
+    $stmt->bind_param($types, ...$params);
+}
+
+$stmt->execute();
+
+$payments = $stmt->get_result();
+
+/* =============================
+   DASHBOARD CARDS
+============================= */
+
+$totalRevenue = $conn->query("
+SELECT SUM(amount) total
 FROM payments
-ORDER BY payment_date DESC
-");
+WHERE status='success'
+")->fetch_assoc()['total'] ?? 0;
+
+$totalPayments = $conn->query("
+SELECT COUNT(*) total
+FROM payments
+")->fetch_assoc()['total'];
+
+$totalPaid = $conn->query("
+SELECT COUNT(*) total
+FROM payments
+WHERE status='success'
+")->fetch_assoc()['total'];
+
+$totalPending = $conn->query("
+SELECT COUNT(*) total
+FROM payments
+WHERE status='pending'
+")->fetch_assoc()['total'];
 
 ?>
-
 <!DOCTYPE html>
-
 <html>
-
 <head>
 
 <meta charset="UTF-8">
 
-<title>Payment Records</title>
+<title>NISEL Payment Records</title>
 
 <style>
 
 body{
-    font-family:Arial;
+    margin:0;
     background:#eef3f8;
-    padding:30px;
+    font-family:Arial;
 }
 
 .container{
+    width:95%;
+    margin:25px auto;
+}
+
+.cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+    margin-bottom:25px;
+}
+
+.card{
     background:white;
-    padding:25px;
-    border-radius:10px;
+    padding:20px;
+    border-radius:12px;
+    box-shadow:0 4px 10px rgba(0,0,0,.1);
+}
+
+.card h3{
+    color:#003366;
+    margin:0;
+}
+
+.card h1{
+    margin-top:10px;
+}
+
+.filter-box{
+    background:white;
+    padding:20px;
+    border-radius:12px;
+    margin-bottom:20px;
+}
+
+input,select{
+    padding:10px;
+    margin:5px;
+}
+
+button{
+    padding:10px 20px;
+    background:#003366;
+    color:white;
+    border:none;
+    cursor:pointer;
 }
 
 table{
     width:100%;
     border-collapse:collapse;
+    background:white;
 }
 
 th{
@@ -51,7 +156,7 @@ td{
     border-bottom:1px solid #ddd;
 }
 
-.paid{
+.success{
     color:green;
     font-weight:bold;
 }
@@ -66,6 +171,10 @@ td{
     font-weight:bold;
 }
 
+.top-buttons{
+    margin-bottom:20px;
+}
+
 </style>
 
 </head>
@@ -74,35 +183,102 @@ td{
 
 <div class="container">
 
-<h2>Payment Records</h2>
+<h2>Payment Management</h2>
+
+<div class="cards">
+
+<div class="card">
+<h3>Total Revenue</h3>
+<h1>GHC <?php echo number_format($totalRevenue,2); ?></h1>
+</div>
+
+<div class="card">
+<h3>Total Transactions</h3>
+<h1><?php echo $totalPayments; ?></h1>
+</div>
+
+<div class="card">
+<h3>Paid</h3>
+<h1><?php echo $totalPaid; ?></h1>
+</div>
+
+<div class="card">
+<h3>Pending</h3>
+<h1><?php echo $totalPending; ?></h1>
+</div>
+
+</div>
+
+<div class="filter-box">
+
+<form method="GET">
+
+<input
+type="text"
+name="search"
+placeholder="Search Student"
+value="<?php echo htmlspecialchars($search); ?>">
+
+<select name="status">
+
+<option value="">All Status</option>
+<option value="success">Paid</option>
+<option value="pending">Pending</option>
+<option value="failed">Failed</option>
+
+</select>
+
+<select name="method">
+
+<option value="">All Methods</option>
+<option value="MTN MoMo">MTN MoMo</option>
+<option value="Visa">Visa Card</option>
+
+</select>
+
+<button>Search</button>
+
+</form>
+
+</div>
+
+<div class="top-buttons">
+
+<button onclick="window.print()">
+🖨 Print
+</button>
+
+</div>
 
 <table>
 
 <tr>
 
+<th>Reference</th>
 <th>Student</th>
-
+<th>Email</th>
 <th>Amount</th>
-
 <th>Method</th>
-
 <th>Status</th>
-
 <th>Date</th>
 
 </tr>
 
 <?php
 
-if($payments->num_rows > 0){
+if($payments->num_rows>0){
 
-while($p = $payments->fetch_assoc()){
+while($p=$payments->fetch_assoc()){
 
 ?>
 
 <tr>
 
+<td><?php echo htmlspecialchars($p['transaction_reference']); ?></td>
+
 <td><?php echo htmlspecialchars($p['student_name']); ?></td>
+
+<td><?php echo htmlspecialchars($p['email']); ?></td>
 
 <td>GHC <?php echo number_format($p['amount'],2); ?></td>
 
@@ -114,9 +290,9 @@ while($p = $payments->fetch_assoc()){
 
 $status = strtolower($p['status']);
 
-if($status=="success" || $status=="paid"){
+if($status=="success"){
 
-echo "<span class='paid'>Paid</span>";
+echo "<span class='success'>Paid</span>";
 
 }elseif($status=="pending"){
 
@@ -146,8 +322,10 @@ echo "<span class='failed'>Failed</span>";
 
 <tr>
 
-<td colspan="5" style="text-align:center;">
+<td colspan="7" align="center">
+
 No payment records found.
+
 </td>
 
 </tr>
@@ -165,5 +343,3 @@ No payment records found.
 </body>
 
 </html>
-
-</table>
