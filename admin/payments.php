@@ -11,22 +11,8 @@ $result=$conn->query("SELECT * FROM payments ORDER BY id DESC");
 ?>
 
 
-<h2>Payment Records</h2>
-
-
 <table border="1" width="100%">
 
-
-$payments = $conn->query("
-SELECT student_name,amount,payment_method,status
-FROM payments
-ORDER BY id DESC
-LIMIT 10
-");
-
-while($p = $payments->fetch_assoc()){
-
-?>
 
 <tr>
 
