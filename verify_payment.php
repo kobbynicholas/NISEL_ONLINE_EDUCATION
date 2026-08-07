@@ -30,31 +30,56 @@ $reference = $_GET['reference'];
 
 
 // =============================
-// VERIFY PAYMENT WITH PAYSTACK
+// INSERT INTO PAYMENTS TABLE
 // =============================
 
-$url = "https://api.paystack.co/transaction/verify/" . urlencode($reference);
+$insertPayment = $conn->prepare("
 
-$ch = curl_init();
+INSERT INTO payments
 
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+(
+booking_reference,
+student_name,
+email,
+amount,
+payment_method,
+transaction_reference,
+status
+)
 
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Authorization: Bearer " . $secretKey,
-    "Cache-Control: no-cache"
-]);
+VALUES (?,?,?,?,?,?,?)
 
-$response = curl_exec($ch);
+");
 
-if (curl_errno($ch)) {
-    die("Unable to contact Paystack.");
-}
 
-curl_close($ch);
+$status = "success";
 
-$result = json_decode($response, true);
 
+$insertPayment->bind_param(
+
+"ssdssss",
+
+$bookingReference,
+
+$student['student_name'],
+
+$student['email'],
+
+$amountPaid,
+
+$paymentMethod,
+
+$paystackReference,
+
+$status
+
+);
+
+
+$insertPayment->execute();
+
+
+$insertPayment->close();
 
 // =============================
 // CHECK PAYMENT STATUS
@@ -483,17 +508,4 @@ Please try again.
 
 <?php
 
-}
 
-if(payment successful){
-
-    header("Location: success.php?booking=".$bookingReference);
-    exit();
-
-}
-else{
-
-    header("Location: payment_failed.php");
-    exit();
-
-}
