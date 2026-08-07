@@ -436,9 +436,9 @@ Return to Home
 
 </html>
 
-<?php
 
- ?>   
+  
+ 
 <style>
 
 body{
