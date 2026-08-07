@@ -438,7 +438,9 @@ Return to Home
 
 <?php
 
-} else {
+}
+
+else {
 
 ?>
 
@@ -449,7 +451,7 @@ Return to Home
 <head>
 
 <title>Payment Failed</title>
-
+}
 <style>
 
 body{
@@ -478,6 +480,7 @@ color:red;
 
 }
 
+    
 </style>
 
 </head>
