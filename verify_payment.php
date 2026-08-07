@@ -9,18 +9,19 @@ require_once __DIR__ . "/PHPMailer/src/Exception.php";
 require_once __DIR__ . "/PHPMailer/src/PHPMailer.php";
 require_once __DIR__ . "/PHPMailer/src/SMTP.php";
 
-
-
-// =============================
-// PAYSTACK SECRET KEY
-// =============================
+/*
+==========================================
+PAYSTACK SECRET KEY
+==========================================
+*/
 
 $secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
 
-
-// =============================
-// GET PAYSTACK REFERENCE
-// =============================
+/*
+==========================================
+CHECK PAYMENT REFERENCE
+==========================================
+*/
 
 if (!isset($_GET['reference'])) {
     die("Payment reference not found.");
@@ -28,68 +29,47 @@ if (!isset($_GET['reference'])) {
 
 $reference = $_GET['reference'];
 
+/*
+==========================================
+VERIFY PAYMENT WITH PAYSTACK
+==========================================
+*/
 
-// =============================
-// INSERT INTO PAYMENTS TABLE
-// =============================
+$url = "https://api.paystack.co/transaction/verify/" . urlencode($reference);
 
-$insertPayment = $conn->prepare("
+$ch = curl_init();
 
-INSERT INTO payments
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-(
-booking_reference,
-student_name,
-email,
-amount,
-payment_method,
-transaction_reference,
-status
-)
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    "Authorization: Bearer " . $secretKey,
+    "Cache-Control: no-cache"
+]);
 
-VALUES (?,?,?,?,?,?,?)
+$response = curl_exec($ch);
 
-");
+if (curl_errno($ch)) {
+    die("Unable to connect to Paystack.");
+}
 
+curl_close($ch);
 
-$status = "success";
+$result = json_decode($response, true);
 
-
-$insertPayment->bind_param(
-
-"ssdssss",
-
-$bookingReference,
-
-$student['student_name'],
-
-$student['email'],
-
-$amountPaid,
-
-$paymentMethod,
-
-$paystackReference,
-
-$status
-
-);
-
-
-$insertPayment->execute();
-
-
-$insertPayment->close();
-
-// =============================
-// CHECK PAYMENT STATUS
-// =============================
+/*
+==========================================
+CHECK PAYMENT STATUS
+==========================================
+*/
 
 if (
+
     isset($result['status']) &&
     $result['status'] === true &&
     isset($result['data']['status']) &&
     $result['data']['status'] === "success"
+
 ) {
 
     $bookingReference = $result['data']['metadata']['booking_reference'];
@@ -100,21 +80,20 @@ if (
 
     $amountPaid = $result['data']['amount'] / 100;
 
+    /*
+    ==========================================
+    UPDATE BOOKINGS TABLE
+    ==========================================
+    */
 
-
-    // =============================
-    // UPDATE BOOKING
-    // =============================
-
-    $stmt = $conn->prepare(
-
-        "UPDATE bookings
-         SET payment_status='Paid',
-             paystack_reference=?,
-             amount=?
-         WHERE booking_reference=?"
-
-    );
+    $stmt = $conn->prepare("
+        UPDATE bookings
+        SET
+            payment_status='Paid',
+            paystack_reference=?,
+            amount=?
+        WHERE booking_reference=?
+    ");
 
     $stmt->bind_param(
         "sds",
@@ -127,17 +106,17 @@ if (
 
     $stmt->close();
 
+    /*
+    ==========================================
+    GET STUDENT DETAILS
+    ==========================================
+    */
 
- // =============================
-    // GET STUDENT DETAILS
-    // =============================
-
-    $stmt = $conn->prepare(
-
-        "SELECT * FROM bookings
-         WHERE booking_reference=?"
-
-    );
+    $stmt = $conn->prepare("
+        SELECT *
+        FROM bookings
+        WHERE booking_reference=?
+    ");
 
     $stmt->bind_param("s", $bookingReference);
 
@@ -147,133 +126,236 @@ if (
 
     $stmt->close();
 
+    if (!$student) {
+        die("Booking record not found.");
+    }
+
+    /*
+    ==========================================
+    PREVENT DUPLICATE PAYMENT RECORDS
+    ==========================================
+    */
+
+    $check = $conn->prepare("
+        SELECT id
+        FROM payments
+        WHERE transaction_reference=?
+    ");
+
+    $check->bind_param("s", $paystackReference);
+
+    $check->execute();
+
+    $exists = $check->get_result();
+
+    if ($exists->num_rows == 0) {
+
+        /*
+        ==========================================
+        INSERT PAYMENT RECORD
+        ==========================================
+        */
+
+        $status = "success";
+
+        $insert = $conn->prepare("
+            INSERT INTO payments
+            (
+                booking_reference,
+                student_name,
+                email,
+                amount,
+                payment_method,
+                transaction_reference,
+                status
+            )
+            VALUES
+            (?,?,?,?,?,?,?)
+        ");
+
+        $insert->bind_param(
+
+            "ssdssss",
+
+            $bookingReference,
+
+            $student['student_name'],
+
+            $student['email'],
+
+            $amountPaid,
+
+            $paymentMethod,
+
+            $paystackReference,
+
+            $status
+
+        );
+
+        $insert->execute();
+
+        $insert->close();
+
+    }
+
+    $check->close();
+
+    /*
+    ==========================================
+    STUDENT DETAILS
+    ==========================================
+    */
+
+    $name = $student['student_name'];
+
+    $email = $student['email'];
+
+    $subjects = $student['subjects'];
+
+    $curriculum = $student['curriculum'];
 
 
-    
-
-// =============================
-// SAVE PAYMENT RECORD
-// =============================
-
-$insertPayment = $conn->prepare("
-
-INSERT INTO payments
-(
-booking_reference,
-student_name,
-email,
-amount,
-payment_method,
-transaction_reference,
-status
-)
-VALUES (?,?,?,?,?,?,?)
-
-");
 
 
-$status = "success";
+    /*
+    ==========================================
+    SEND CONFIRMATION EMAIL
+    ==========================================
+    */
 
+    $mail = new PHPMailer(true);
 
-$insertPayment->bind_param(
-"ssdssss",
-$bookingReference,
-$student['student_name'],
-$student['email'],
-$amountPaid,
-$paymentMethod,
-$paystackReference,
-$status
-);
+    try {
 
+        $mail->isSMTP();
 
-$insertPayment->execute();
+        $mail->Host = 'smtp.gmail.com';
 
-$insertPayment->close();
+        $mail->SMTPAuth = true;
 
+        $mail->Username = 'kobbynicholas.kn@gmail.com';
 
+        $mail->Password = '';
 
-   
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
 
+        $mail->Port = 587;
 
-    // =============================
-    // SEND EMAIL
-    // =============================
+        $mail->setFrom(
+            'kobbynicholas.kn@gmail.com',
+            'NISEL ONLINE EDUCATION'
+        );
 
+        $mail->addAddress($email, $name);
 
+        $mail->isHTML(true);
 
-$mail = new PHPMailer(true);
+        $mail->Subject = "Payment Successful - NISEL ONLINE EDUCATION";
 
-try {
+        $mail->Body = "
 
-    $mail->isSMTP();
-    $mail->Host       = 'smtp.gmail.com';
-    $mail->SMTPAuth   = true;
+        <h2>Welcome to NISEL ONLINE EDUCATION</h2>
 
-    $mail->Username   = 'kobbynicholas.kn@gmail.com';
-    $mail->Password   = 'Kwabenawusu.1';
+        <p>Dear <strong>$name</strong>,</p>
 
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-    $mail->Port       = 587;
+        <p>
 
-    $mail->setFrom('kobbynicholas.kn@gmail.com', 'NISEL ONLINE EDUCATION');
+        Thank you for your successful payment.
 
-   $mail->addAddress(
-    $student['email'],
-    $student['student_name']
-);
+        </p>
 
-    $mail->isHTML(true);
+        <p>
 
-    $mail->Subject = 'Welcome to NISEL ONLINE EDUCATION';
+        Your lesson booking has been confirmed.
 
-    $mail->Body = '
-    <h2>Welcome to NISEL ONLINE EDUCATION</h2>
+        </p>
 
-    <p>Dear <strong>'.$name.'</strong>,</p>
+        <table
+        border='1'
+        cellpadding='8'
+        cellspacing='0'
+        style='border-collapse:collapse;'>
 
-    <p>
-    Welcome to <strong>NISEL ONLINE EDUCATION</strong>.
-    </p>
+        <tr>
 
-    <p>
-    You can now book for a lesson.
-    </p>
+        <td><strong>Booking Reference</strong></td>
 
-    <p>
-    A personal tutor will be assigned to you after booking.
-    </p>
+        <td>$bookingReference</td>
 
-    <p>
-    Enjoy a quality online education at NISEL.
-    </p>
+        </tr>
 
-    <br>
+        <tr>
 
-    <p>
-    <strong>Thank You.</strong>
-    </p>
+        <td><strong>Subjects</strong></td>
 
-    <hr>
+        <td>$subjects</td>
 
-    <p>
-    NISEL ONLINE EDUCATION<br>
-    Empowering Learners Worldwide
-    </p>
+        </tr>
 
-    ';
+        <tr>
 
-    $mail->send();
+        <td><strong>Curriculum</strong></td>
+
+        <td>$curriculum</td>
+
+        </tr>
+
+        <tr>
+
+        <td><strong>Amount Paid</strong></td>
+
+        <td>GHS " . number_format($amountPaid,2) . "</td>
+
+        </tr>
+
+        </table>
+
+        <br>
+
+        <p>
+
+        A qualified tutor will be assigned to you shortly.
+
+        </p>
+
+        <p>
+
+        Thank you for choosing
+
+        <strong>NISEL ONLINE EDUCATION.</strong>
+
+        </p>
+
+        ";
+
+        $mail->send();
+
+    }
+
+    catch(Exception $e){
+
+        // Ignore email errors
+
+    }
+
+    $conn->close();
+
+    header("Location: success.php?booking=" . urlencode($bookingReference));
+
+    exit();
 
 }
-catch (Exception $e) {
 
-}
-    //
-    // =============================
+/*
+==========================================
+PAYMENT FAILED
+==========================================
+*/
 
+$conn->close();
 
-    ?>
+?>
 
 <!DOCTYPE html>
 
@@ -283,60 +365,64 @@ catch (Exception $e) {
 
 <meta charset="UTF-8">
 
-<title>Payment Successful</title>
+<title>Payment Failed</title>
 
 <style>
 
 body{
 
 font-family:Arial;
-background:#eef7ee;
-text-align:center;
-padding:60px;
+
+background:#f4f4f4;
+
+display:flex;
+
+justify-content:center;
+
+align-items:center;
+
+height:100vh;
+
+margin:0;
 
 }
 
-.box{
+.card{
 
 background:white;
+
 padding:40px;
-max-width:700px;
-margin:auto;
+
 border-radius:10px;
-box-shadow:0 5px 20px rgba(0,0,0,.15);
+
+box-shadow:0 5px 15px rgba(0,0,0,.2);
+
+text-align:center;
+
+max-width:500px;
 
 }
 
 h1{
 
-color:green;
+color:#d9534f;
 
 }
 
-table{
-
-width:100%;
-margin-top:25px;
-border-collapse:collapse;
-
-}
-
-td{
-
-padding:12px;
-border-bottom:1px solid #ddd;
-text-align:left;
-
-}
-
-.button{
+a{
 
 display:inline-block;
-margin-top:30px;
-padding:15px 30px;
+
+margin-top:25px;
+
+padding:12px 25px;
+
 background:#003366;
+
 color:white;
+
 text-decoration:none;
+
 border-radius:5px;
 
 }
@@ -347,86 +433,27 @@ border-radius:5px;
 
 <body>
 
-<div class="box">
+<div class="card">
 
-<h1>Payment Successful</h1>
+<h1>Payment Verification Failed</h1>
 
 <p>
-Thank you for booking with
-<strong>NISEL ONLINE EDUCATION</strong>.
+
+Unfortunately we could not verify your payment.
+
 </p>
 
-<table>
+<p>
 
-<tr>
+If your account has already been debited,
 
-<td><strong>Booking Reference</strong></td>
+please contact NISEL ONLINE EDUCATION.
 
-<td><?php echo htmlspecialchars($bookingReference); ?></td>
+</p>
 
-</tr>
+<a href="payment.php">
 
-<tr>
-
-<td><strong>Student</strong></td>
-
-<td><?php echo htmlspecialchars($student['student_name']); ?></td>
-
-</tr>
-
-<tr>
-
-<td><strong>Email</strong></td>
-
-<td><?php echo htmlspecialchars($student['email']); ?></td>
-
-</tr>
-
-<tr>
-
-<td><strong>Subjects</strong></td>
-
-<td><?php echo htmlspecialchars($student['subjects']); ?></td>
-
-</tr>
-
-<tr>
-
-<td><strong>Curriculum</strong></td>
-
-<td><?php echo htmlspecialchars($student['curriculum']); ?></td>
-
-</tr>
-
-<tr>
-
-<td><strong>Amount Paid</strong></td>
-
-<td>GHS <?php echo number_format($amountPaid,2); ?></td>
-
-</tr>
-
-<tr>
-
-<td><strong>Payment Method</strong></td>
-
-<td><?php echo htmlspecialchars($paymentMethod); ?></td>
-
-</tr>
-
-<tr>
-
-<td><strong>Status</strong></td>
-
-<td><span style="color:green;font-weight:bold;">PAID</span></td>
-
-</tr>
-
-</table>
-
-<a href="index.html" class="button">
-
-Return to Home
+Try Again
 
 </a>
 
@@ -435,87 +462,4 @@ Return to Home
 </body>
 
 </html>
-
-
- <?php
-
-} else {
-
-?>
-
-<!DOCTYPE html>
-
-<html>
-
-<head>
-
-<title>Payment Failed</title>
-
-
- 
- 
-<style>
-
-body{
-
-font-family:Arial;
-background:#fff4f4;
-text-align:center;
-padding:60px;
-
-}
-
-.box{
-
-background:white;
-padding:40px;
-max-width:600px;
-margin:auto;
-border-radius:10px;
-box-shadow:0 5px 20px rgba(0,0,0,.15);
-
-}
-
-h1{
-
-color:red;
-
-}
-
-    
-</style>
-
-</head>
-
-<body>
-
-<div class="box">
-
-<h1>Payment Failed</h1>
-
-<p>
-
-Unfortunately your payment could not be verified.
-
-</p>
-
-<p>
-
-Please try again.
-
-</p>
-
-</div>
-
-</body>
-
-</html>
-
-<?php
-    
-}
-
-$conn->close();
-
-?>
 
