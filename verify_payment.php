@@ -103,8 +103,7 @@ if (
     $stmt->close();
 
 
-
-    // =============================
+ // =============================
     // GET STUDENT DETAILS
     // =============================
 
@@ -123,6 +122,65 @@ if (
 
     $stmt->close();
 
+
+
+    
+
+// =============================
+// INSERT INTO PAYMENTS TABLE
+// =============================
+
+$insertPayment = $conn->prepare("
+
+INSERT INTO payments
+
+(
+booking_reference,
+student_name,
+email,
+amount,
+payment_method,
+transaction_reference,
+status
+)
+
+VALUES (?,?,?,?,?,?,?)
+
+");
+
+
+$status = "success";
+
+
+$insertPayment->bind_param(
+
+"ssdssss",
+
+$bookingReference,
+
+$student['student_name'],
+
+$student['email'],
+
+$amountPaid,
+
+$paymentMethod,
+
+$paystackReference,
+
+$status
+
+);
+
+
+$insertPayment->execute();
+
+
+$insertPayment->close();
+
+
+
+   
 
 
     // =============================
@@ -147,7 +205,10 @@ try {
 
     $mail->setFrom('kobbynicholas.kn@gmail.com', 'NISEL ONLINE EDUCATION');
 
-    $mail->addAddress($email, $name);
+   $mail->addAddress(
+    $student['email'],
+    $student['student_name']
+);
 
     $mail->isHTML(true);
 
@@ -436,9 +497,15 @@ Please try again.
 
 }
 
-$conn->close();
+if(payment successful){
 
-header("Location: success.php?booking=".$bookingReference);
-exit();
+    header("Location: success.php?booking=".$bookingReference);
+    exit();
 
-?>
+}
+else{
+
+    header("Location: payment_failed.php");
+    exit();
+
+}
