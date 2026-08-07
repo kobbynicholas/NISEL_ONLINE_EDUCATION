@@ -440,17 +440,6 @@ Return to Home
 
 
 
-else {
-
-<!DOCTYPE html>
-
-<html>
-
-<head>
-
-<title>Payment Failed</title>
-}
-
     
 <style>
 
