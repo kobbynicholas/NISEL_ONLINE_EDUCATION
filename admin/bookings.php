@@ -40,15 +40,26 @@ $bookings=$conn->query("SELECT * FROM bookings");
 <table border="1" width="100%">
 
 
+$bookings = $conn->query("
+SELECT student_name,subjects,curriculum,payment_status
+FROM bookings
+ORDER BY id DESC
+LIMIT 10
+");
+
+while($b = $bookings->fetch_assoc()){
+
+?>
+
 <tr>
 
-<th>Student</th>
+<td><?php echo htmlspecialchars($b['student_name']); ?></td>
 
-<th>Subjects</th>
+<td><?php echo htmlspecialchars($b['subjects']); ?></td>
 
-<th>Status</th>
+<td><?php echo htmlspecialchars($b['curriculum']); ?></td>
 
-<th>Assign Tutor</th>
+<td><?php echo htmlspecialchars($b['payment_status']); ?></td>
 
 </tr>
 
