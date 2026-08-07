@@ -2,6 +2,18 @@
 require "../admin_auth.php";
 require "../config/db.php";
 
+
+echo "Database Connected<br>";
+
+$count = $conn->query("SELECT COUNT(*) AS total FROM payments");
+
+$data = $count->fetch_assoc();
+
+echo "Payment Records: ".$data['total'];
+
+exit();
+
+
 /* =============================
    SEARCH & FILTER
 ============================= */
