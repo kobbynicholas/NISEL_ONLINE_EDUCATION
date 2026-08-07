@@ -127,13 +127,12 @@ if (
     
 
 // =============================
-// INSERT INTO PAYMENTS TABLE
+// SAVE PAYMENT RECORD
 // =============================
 
 $insertPayment = $conn->prepare("
 
 INSERT INTO payments
-
 (
 booking_reference,
 student_name,
@@ -143,7 +142,6 @@ payment_method,
 transaction_reference,
 status
 )
-
 VALUES (?,?,?,?,?,?,?)
 
 ");
@@ -153,28 +151,18 @@ $status = "success";
 
 
 $insertPayment->bind_param(
-
 "ssdssss",
-
 $bookingReference,
-
 $student['student_name'],
-
 $student['email'],
-
 $amountPaid,
-
 $paymentMethod,
-
 $paystackReference,
-
 $status
-
 );
 
 
 $insertPayment->execute();
-
 
 $insertPayment->close();
 
