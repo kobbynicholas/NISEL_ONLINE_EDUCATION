@@ -8,12 +8,30 @@ require "../config/db.php";
 
 // Later we will connect this to MySQL
 
-$total_students = 0;
-$total_teachers = 0;
-$total_bookings = 0;
-$total_revenue = 0;
+
+
+require "../admin_auth.php";
+require "../config/db.php";
+
+// Total Students
+$result = $conn->query("SELECT COUNT(*) AS total FROM students");
+$total_students = $result->fetch_assoc()['total'];
+
+// Total Teachers
+$result = $conn->query("SELECT COUNT(*) AS total FROM teachers");
+$total_teachers = $result->fetch_assoc()['total'];
+
+// Total Bookings
+$result = $conn->query("SELECT COUNT(*) AS total FROM bookings");
+$total_bookings = $result->fetch_assoc()['total'];
+
+// Total Revenue
+$result = $conn->query("SELECT SUM(amount) AS total FROM payments WHERE status='success'");
+$row = $result->fetch_assoc();
+$total_revenue = $row['total'] ?? 0;
 
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
