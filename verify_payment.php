@@ -437,7 +437,22 @@ Return to Home
 </html>
 
 
-  
+ <?php
+
+} else {
+
+?>
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<title>Payment Failed</title>
+
+
+ 
  
 <style>
 
@@ -497,5 +512,10 @@ Please try again.
 </html>
 
 <?php
+    
+}
 
+$conn->close();
+
+?>
 
