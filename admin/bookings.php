@@ -224,6 +224,10 @@ button:hover{
 
 <th>Assign Teacher</th>
 
+<th>Amount</th>
+
+<th>Reference</th>
+   
 </tr>
 
 <?php while($row = $bookings->fetch_assoc()){ ?>
@@ -240,6 +244,10 @@ button:hover{
 
 <td><?php echo htmlspecialchars($row['subjects']); ?></td>
 
+<td><?php echo number_format($row['amount']); ?></td>
+
+<td><?php echo htmlspecialchars($row['booking_reference']); ?></td>
+   
 <td>
 
 <?php
