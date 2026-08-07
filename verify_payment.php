@@ -11,6 +11,25 @@ require_once __DIR__ . "/PHPMailer/src/SMTP.php";
 
 
 // =============================
+// PAYMENT
+// =============================
+
+INSERT INTO payments
+(
+booking_reference,
+student_name,
+email,
+amount,
+payment_method,
+transaction_reference,
+status
+)
+VALUES
+(?,?,?,?,?,?,?)
+
+
+
+// =============================
 // PAYSTACK SECRET KEY
 // =============================
 
