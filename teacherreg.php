@@ -17,6 +17,11 @@ $user="root";
 $password="";
 $database="nisel_online_education";
 
+$conn=new mysqli($host,$user,$password,$database);
+
+if($conn->connect_error){
+die("Connection Failed");
+}
 
 try {
     $pdo = new PDO(
