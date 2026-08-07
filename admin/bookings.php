@@ -220,13 +220,14 @@ button:hover{
 
 <th>Payment</th>
 
-<th>Assigned Teacher</th>
-
-<th>Assign Teacher</th>
+<th>Reference</th>
+   
+<th>Payment Status</th>
 
 <th>Amount</th>
+   
+<th>Assign Teacher</th>
 
-<th>Reference</th>
    
 </tr>
 
