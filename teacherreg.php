@@ -12,10 +12,11 @@ session_start();
 // DATABASE CONFIGURATION
 // ===============================
 
-$host = "localhost";
-$dbname = "Nisel Online Education";
-$username = "root";
-$password = "";
+$host="localhost";
+$user="root";
+$password="";
+$database="nisel_online_education";
+
 
 try {
     $pdo = new PDO(
