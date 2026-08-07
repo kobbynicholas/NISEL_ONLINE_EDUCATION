@@ -5,138 +5,100 @@ require "../admin_auth.php";
 require "../config/db.php";
 
 
+// ASSIGN TEACHER
 
-if(isset($_POST['save'])){
-
-
-$teacher_id="TCH".rand(1000,9999);
+if(isset($_POST['assign'])){
 
 
-$name=$_POST['name'];
+$booking_id=$_POST['booking_id'];
 
-$email=$_POST['email'];
-
-$phone=$_POST['phone'];
-
-$qualification=$_POST['qualification'];
-
-$subjects=$_POST['subjects'];
-
-$curriculum=$_POST['curriculum'];
-
-$experience=$_POST['experience'];
-
-$bio=$_POST['bio'];
-
-$availability=$_POST['availability'];
+$teacher_id=$_POST['teacher_id'];
 
 
+// GET TEACHER NAME
 
-// IMAGE UPLOAD
+$getTeacher=$conn->prepare(
+"SELECT teacher_name FROM teachers WHERE teacher_id=?"
+);
 
-$photo="";
+$getTeacher->bind_param(
+"s",
+$teacher_id
+);
+
+$getTeacher->execute();
+
+$result=$getTeacher->get_result();
 
 
-if(isset($_FILES['photo'])){
+$teacher=$result->fetch_assoc();
 
 
-$file=$_FILES['photo'];
-
-
-$filename=time()."_".$file['name'];
-
-
-$location="../uploads/teachers/".$filename;
+$teacher_name=$teacher['teacher_name'];
 
 
 
-if(move_uploaded_file(
-$file['tmp_name'],
-$location
-)){
+// UPDATE BOOKING
 
 
-$photo=$filename;
+$sql=$conn->prepare("
+
+UPDATE bookings SET
+
+teacher_id=?,
+
+teacher_name=?,
+
+assignment_status='Assigned'
+
+WHERE id=?
+
+");
 
 
-}
+$sql->bind_param(
 
-
-}
-
-
-
-
-$sql="INSERT INTO teachers
-
-(
-teacher_id,
-teacher_name,
-photo,
-phone,
-email,
-qualification,
-subjects,
-curriculum,
-experience,
-bio,
-availability
-)
-
-VALUES
-(?,?,?,?,?,?,?,?,?,?,?)
-
-";
-
-
-
-$stmt=$conn->prepare($sql);
-
-
-
-$stmt->bind_param(
-
-"sssssssssss",
+"ssi",
 
 $teacher_id,
 
-$name,
+$teacher_name,
 
-$photo,
-
-$phone,
-
-$email,
-
-$qualification,
-
-$subjects,
-
-$curriculum,
-
-$experience,
-
-$bio,
-
-$availability
+$booking_id
 
 );
 
 
-
-$stmt->execute();
+$sql->execute();
 
 
 }
 
 
 
+// GET TEACHERS
 
 $teachers=$conn->query(
 
-"SELECT * FROM teachers ORDER BY id DESC"
+"SELECT teacher_id, teacher_name 
+FROM teachers
+WHERE status='Active'"
 
 );
+
+
+
+// GET BOOKINGS
+
+$bookings=$conn->query("
+
+SELECT *
+
+FROM bookings
+
+ORDER BY id DESC
+
+");
 
 
 ?>
@@ -149,10 +111,11 @@ $teachers=$conn->query(
 
 <head>
 
-<title>NISEL Teachers</title>
+<title>Assign Teachers</title>
 
 
 <style>
+
 
 body{
 
@@ -165,39 +128,14 @@ padding:30px;
 }
 
 
+
 .container{
 
 background:white;
 
-padding:30px;
+padding:25px;
 
 border-radius:15px;
-
-}
-
-
-
-input,textarea{
-
-width:100%;
-
-padding:12px;
-
-margin:8px 0;
-
-}
-
-
-
-button{
-
-background:#003366;
-
-color:white;
-
-padding:12px 20px;
-
-border:0;
 
 }
 
@@ -206,8 +144,6 @@ border:0;
 table{
 
 width:100%;
-
-margin-top:30px;
 
 border-collapse:collapse;
 
@@ -221,29 +157,49 @@ background:#003366;
 
 color:white;
 
+padding:12px;
+
 }
 
 
 
-td,th{
+td{
 
 padding:12px;
 
-border:1px solid #ddd;
+border-bottom:1px solid #ddd;
 
 }
 
 
 
-.teacher-img{
+select,button{
 
-width:70px;
+padding:8px;
 
-height:70px;
+}
 
-border-radius:50%;
 
-object-fit:cover;
+
+button{
+
+background:#003366;
+
+color:white;
+
+border:0;
+
+border-radius:5px;
+
+}
+
+
+
+.status{
+
+color:green;
+
+font-weight:bold;
 
 }
 
@@ -261,72 +217,11 @@ object-fit:cover;
 
 
 <h2>
-Register Teacher
+Student Lesson Bookings
 </h2>
 
 
-<form method="POST" enctype="multipart/form-data">
-
-
-<input name="name" placeholder="Teacher Name" required>
-
-
-<input name="email" placeholder="Email" required>
-
-
-<input name="phone" placeholder="Phone Number">
-
-
-<input name="qualification" placeholder="Qualification">
-
-
-<input name="subjects" placeholder="Subjects">
-
-
-<input name="curriculum" placeholder="Curriculum (Cambridge/IB/GES)">
-
-
-
-<input name="experience" placeholder="Teaching Experience">
-
-
-
-<textarea name="bio"
-placeholder="Teacher Profile Description"></textarea>
-
-
-
-<input name="availability"
-placeholder="Available Days/Times">
-
-
-
-<label>
-Teacher Photo
-</label>
-
-
-<input type="file" name="photo" required>
-
-
-
-<button name="save">
-
-Register Teacher
-
-</button>
-
-
-
-</form>
-
-
-
-
-
-<h2>
-Registered Teachers
-</h2>
+<br>
 
 
 <table>
@@ -334,20 +229,23 @@ Registered Teachers
 
 <tr>
 
-<th>Photo</th>
+<th>Student</th>
 
-<th>Name</th>
-
-<th>Subjects</th>
+<th>Subject</th>
 
 <th>Curriculum</th>
 
-<th>Email</th>
+<th>Payment</th>
+
+<th>Assigned Teacher</th>
+
+<th>Action</th>
 
 </tr>
 
 
-<?php while($t=$teachers->fetch_assoc()){ ?>
+
+<?php while($b=$bookings->fetch_assoc()){ ?>
 
 
 <tr>
@@ -355,39 +253,125 @@ Registered Teachers
 
 <td>
 
+<?php echo $b['student_name']; ?>
 
-<img class="teacher-img"
+<br>
 
-src="../uploads/teachers/<?php echo $t['photo'];?>">
+<?php echo $b['email']; ?>
+
+</td>
+
+
+
+<td>
+
+<?php echo $b['subjects']; ?>
+
+</td>
+
+
+
+<td>
+
+<?php echo $b['curriculum']; ?>
+
+</td>
+
+
+
+<td>
+
+<?php echo $b['payment_status']; ?>
+
+</td>
+
+
+
+<td>
+
+
+<?php
+
+if($b['teacher_name']){
+
+echo $b['teacher_name'];
+
+}
+
+else{
+
+echo "Not Assigned";
+
+}
+
+?>
 
 
 </td>
 
 
+
 <td>
+
+
+<form method="POST">
+
+
+<input type="hidden"
+
+name="booking_id"
+
+value="<?php echo $b['id'];?>">
+
+
+<select name="teacher_id">
+
+
+<option>
+Select Teacher
+</option>
+
+
+<?php
+
+
+$teachers=$conn->query(
+
+"SELECT teacher_id,teacher_name FROM teachers"
+
+);
+
+
+while($t=$teachers->fetch_assoc()){
+
+
+?>
+
+
+<option value="<?php echo $t['teacher_id'];?>">
+
 
 <?php echo $t['teacher_name'];?>
 
-</td>
+
+</option>
 
 
-<td>
-
-<?php echo $t['subjects'];?>
-
-</td>
+<?php } ?>
 
 
-<td>
-
-<?php echo $t['curriculum'];?>
-
-</td>
+</select>
 
 
-<td>
+<button name="assign">
 
-<?php echo $t['email'];?>
+Assign
+
+</button>
+
+
+</form>
+
 
 </td>
 
@@ -405,5 +389,6 @@ src="../uploads/teachers/<?php echo $t['photo'];?>">
 
 
 </body>
+
 
 </html>
