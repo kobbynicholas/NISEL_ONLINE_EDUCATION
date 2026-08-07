@@ -15,6 +15,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign'])) {
 
     // Get teacher details
     $teacher = $conn->prepare("SELECT teacher_name FROM teachers WHERE teacher_id=?");
+
+if (!$teacher) {
+    die("Teacher query error: " . $conn->error);
+}
     $teacher->bind_param("s", $teacher_id);
     $teacher->execute();
 
