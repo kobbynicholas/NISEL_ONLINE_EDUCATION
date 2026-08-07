@@ -222,7 +222,7 @@ button:hover{
 
 <th>Reference</th>
    
-<th>Payment Status</th>
+<th>Status</th>
 
 <th>Amount</th>
    
