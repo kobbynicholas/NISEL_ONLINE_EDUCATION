@@ -22,10 +22,11 @@ $conn=new mysqli($host,$user,$password,$database);
 if($conn->connect_error){
 die("Connection Failed");
 }
+}
 
 try {
     $pdo = new PDO(
-        "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
+        "mysqli($host,$user,$password,$database);",
         $username,
         $password,
         [
