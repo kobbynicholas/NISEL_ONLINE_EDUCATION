@@ -1,6 +1,6 @@
 <?php
 
-// require "../teacher_auth.php";
+require "../teacher_auth.php";
 require "../config/db.php";
 
 $teacher_id = $_SESSION['teacher_id'];
