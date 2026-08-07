@@ -40,16 +40,9 @@ $bookings=$conn->query("SELECT * FROM bookings");
 <table border="1" width="100%">
 
 
-$bookings = $conn->query("
-SELECT student_name,subjects,curriculum,payment_status
-FROM bookings
-ORDER BY id DESC
-LIMIT 10
-");
 
-while($b = $bookings->fetch_assoc()){
+<?php while($b=$bookings->fetch_assoc()){ ?>
 
-?>
 
 <tr>
 
@@ -62,21 +55,6 @@ while($b = $bookings->fetch_assoc()){
 <td><?php echo htmlspecialchars($b['payment_status']); ?></td>
 
 </tr>
-
-
-<?php while($b=$bookings->fetch_assoc()){ ?>
-
-
-<tr>
-
-<td><?=$b['student_name']?></td>
-
-<td><?=$b['subjects']?></td>
-
-<td><?=$b['payment_status']?></td>
-
-
-<td>
 
 
 <form method="POST">
