@@ -21,10 +21,11 @@ $stmt=$conn->prepare(
 );
 
 
-$stmt->bind_param(
-"s",
-$email
-);
+$stmt = $conn->prepare("SELECT * FROM admins WHERE email=?");
+
+if (!$stmt) {
+    die("Prepare failed: " . $conn->error);
+}
 
 
 $stmt->execute();
