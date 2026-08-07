@@ -18,7 +18,6 @@ if (isset($_GET['search'])) {
     $search = trim($_GET['search']);
 }
 
-
 /*
 ==================================================
 GET ASSIGNED STUDENTS
