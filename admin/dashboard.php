@@ -356,7 +356,12 @@ Payments
 Subjects
 </a>
 
+<a href="teacher_applications.php">
+<i class="fa fa-book"></i>
+Teaching Applications
+</a>
 
+  
 <a href="reports.php">
 <i class="fa fa-chart-line"></i>
 Reports
