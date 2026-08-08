@@ -1,4 +1,3 @@
-```php
 <?php
 session_start();
 
@@ -9,7 +8,7 @@ session_start();
 */
 
 $host = "localhost";
-$dbname = "nise_online_education";
+$dbname = "nisel_online_education";
 $username = "root";
 $password = "";
 
@@ -396,4 +395,3 @@ function togglePassword() {
 </body>
 
 </html>
-```
