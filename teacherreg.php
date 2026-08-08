@@ -88,31 +88,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $message = "Password must contain at least 8 characters.";
         $message_type = "error";
 
-    } else {
+    } 
 
-        // --------------------------------
-        // CHECK FOR EXISTING EMAIL
-        // --------------------------------
-
-        // $check = $pdo->prepare(
-         //   "SELECT id FROM teachers WHERE email = ? LIMIT 1"
-       // );
-
-       // $check->execute([$email]);
-
-       // if ($check->fetch()) {
-
-         //   $message = "A teacher account with this email already exists.";
-         //   $message_type = "error";
-
-    //    } else {
-
-
-        
-            // --------------------------------
-            // GENERATE UNIQUE TEACHER ID
-            // --------------------------------
-
+    
             do {
 
                 $teacher_id = "NISEL-T-" . strtoupper(
