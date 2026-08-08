@@ -1,22 +1,25 @@
 <?php
 
 $host = "localhost";
-$user = "root";
+$dbname = "nisel_online_education";
+$username = "root";
 $password = "";
-$database = "nisel_online_education";
 
-$conn = new mysqli(
-    $host,
-    $user,
-    $password,
-    $database
-);
+try {
 
-if ($conn->connect_error) {
-    die(
-        "Database connection failed: "
-        . $conn->connect_error
+    $pdo = new PDO(
+        "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
+        $username,
+        $password,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false
+        ]
     );
-}
 
-$conn->set_charset("utf8mb4");
+} catch (PDOException $e) {
+
+    die("Database connection failed: " . $e->getMessage());
+
+}
