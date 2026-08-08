@@ -25,7 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         if ($action === "approve") {
 
-            $stmt = $conn->prepare("
+            $stmt = $pdo->prepare("
                 UPDATE teacher_applications
                 SET application_status = 'Approved'
                 WHERE id = ?
