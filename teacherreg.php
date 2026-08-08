@@ -91,21 +91,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     } 
 
     
-            do {
+           // do {
 
-                $teacher_id = "NISEL-T-" . strtoupper(
-                    substr(bin2hex(random_bytes(4)), 0, 8)
-                );
+           //     $teacher_id = "NISEL-T-" . strtoupper(
+           //         substr(bin2hex(random_bytes(4)), 0, 8)
+           //     );
 
-                $check_id = $pdo->prepare(
-                    "SELECT id FROM teachers WHERE teacher_id = ? LIMIT 1"
-                );
+           //     $check_id = $pdo->prepare(
+           //         "SELECT id FROM teachers WHERE teacher_id = ? LIMIT 1"
+           //     );
 
-                $check_id->execute([$teacher_id]);
+          //      $check_id->execute([$teacher_id]);
 
-            } while ($check_id->fetch());
+        //    } while ($check_id->fetch());
 
 
+
+    
             // --------------------------------
             // HANDLE PHOTO UPLOAD
             // --------------------------------
