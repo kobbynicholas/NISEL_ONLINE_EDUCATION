@@ -77,7 +77,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             } else {
 
-                header("Location: teacher_dashboard.php");
+                header("Location:teacher/dashboard.php");
                 exit;
             }
 
