@@ -47,39 +47,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
-        /*
-        | Search using either Teacher ID or Email
-        */
-       $sql = "SELECT *
-        FROM teachers
-        WHERE teacher_id = :teacher_id
-        OR email = :email
-        LIMIT 1";
+        $sql = "SELECT *
+                FROM teachers
+                WHERE teacher_id = :teacher_id
+                OR email = :email
+                LIMIT 1";
 
-$stmt = $pdo->prepare($sql);
+        $stmt = $pdo->prepare($sql);
 
-$stmt->execute([
-    ':teacher_id' => $login,
-    ':email' => $login
-]);
+        $stmt->execute([
+            ':teacher_id' => $login,
+            ':email' => $login
+        ]);
 
-$teacher = $stmt->fetch();
+        $teacher = $stmt->fetch();
 
-        /*
-        | Verify teacher and password
-        */
         if ($teacher && password_verify($loginPassword, $teacher["password"])) {
 
-            /*
-            | Store teacher information in session
-            */
             $_SESSION["teacher_id"] = $teacher["teacher_id"];
             $_SESSION["teacher_name"] = $teacher["name"];
             $_SESSION["teacher_email"] = $teacher["email"];
 
-            /*
-            | Optional status check
-            */
             if (isset($teacher["status"]) && $teacher["status"] !== "approved") {
 
                 session_unset();
@@ -89,9 +77,6 @@ $teacher = $stmt->fetch();
 
             } else {
 
-                /*
-                | Redirect to Teacher Dashboard
-                */
                 header("Location: teacher_dashboard.php");
                 exit;
             }
