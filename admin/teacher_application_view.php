@@ -16,12 +16,13 @@ if ($application_id <= 0) {
 
 
 /* =========================================================
-   APPROVE / REJECT APPLICATION
+   APPROVE / REJECT / PENDING APPLICATION
 ========================================================= */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $action = $_POST['action'] ?? "";
+
 
     /* =====================================================
        APPROVE APPLICATION
@@ -29,7 +30,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($action === "approve") {
 
-        /* Get the application again */
+        /*
+         * Get the application
+         */
 
         $stmt = $conn->prepare("
             SELECT *
@@ -38,19 +41,30 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             LIMIT 1
         ");
 
-        $stmt->bind_param("i", $application_id);
+        $stmt->bind_param(
+            "i",
+            $application_id
+        );
+
         $stmt->execute();
 
         $result = $stmt->get_result();
 
+
         if ($result->num_rows === 0) {
 
-            $message = "Teacher application not found.";
-            $message_type = "error";
+            $message =
+                "Teacher application not found.";
+
+            $message_type =
+                "error";
+
+            $stmt->close();
 
         } else {
 
-            $application = $result->fetch_assoc();
+            $application =
+                $result->fetch_assoc();
 
             $stmt->close();
 
@@ -59,39 +73,127 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                CHECK WHETHER ALREADY APPROVED
             ============================================= */
 
-            if ($application['application_status'] === "Approved") {
+            if (
+                $application['application_status']
+                === "Approved"
+            ) {
 
                 $message =
-                    "This teacher application has already been approved.";
+                    "This application has already been approved.";
 
-                $message_type = "error";
+                $message_type =
+                    "error";
 
             } else {
 
 
-                /* =============================================
-                   GET TEACHER INFORMATION
-                ============================================= */
+                /* =========================================
+                   GET APPLICATION INFORMATION
+                ========================================= */
 
                 $teacher_name =
-                    trim($application['full_name']);
+                    trim(
+                        $application['full_name']
+                    );
 
                 $email =
-                    trim($application['email']);
+                    trim(
+                        $application['email']
+                    );
 
                 $phone =
-                    trim($application['phone']);
+                    trim(
+                        $application['phone']
+                    );
+
+                $qualification =
+                    trim(
+                        $application['qualification']
+                    );
 
                 $subjects =
-                    trim($application['subjects']);
+                    trim(
+                        $application['subjects']
+                    );
 
                 $curriculum =
-                    trim($application['curricula']);
+                    trim(
+                        $application['curricula']
+                    );
+
+                $experience =
+                    trim(
+                        $application['teaching_experience']
+                    );
+
+                $bio =
+                    trim(
+                        $application['professional_statement']
+                    );
 
 
-                /* =============================================
-                   CHECK IF EMAIL ALREADY EXISTS
-                ============================================= */
+                /*
+                 * Your application table may contain
+                 * preferred_days / preferred_times.
+                 *
+                 * We combine them into the teachers
+                 * availability field.
+                 */
+
+                $preferred_days =
+                    trim(
+                        $application['preferred_days'] ?? ""
+                    );
+
+                $preferred_times =
+                    trim(
+                        $application['preferred_times'] ?? ""
+                    );
+
+
+                $availability = "";
+
+
+                if (
+                    $preferred_days !== "" &&
+                    $preferred_times !== ""
+                ) {
+
+                    $availability =
+                        $preferred_days .
+                        " | " .
+                        $preferred_times;
+
+                } elseif (
+                    $preferred_days !== ""
+                ) {
+
+                    $availability =
+                        $preferred_days;
+
+                } elseif (
+                    $preferred_times !== ""
+                ) {
+
+                    $availability =
+                        $preferred_times;
+
+                }
+
+
+                /* =========================================
+                   PHOTO
+                ========================================= */
+
+                $photo =
+                    trim(
+                        $application['photo_filename'] ?? ""
+                    );
+
+
+                /* =========================================
+                   CHECK EXISTING TEACHER EMAIL
+                ========================================= */
 
                 $check = $conn->prepare("
                     SELECT teacher_id
@@ -110,55 +212,90 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 $existing =
                     $check->get_result();
 
+
                 if ($existing->num_rows > 0) {
 
                     $existingTeacher =
                         $existing->fetch_assoc();
 
+                    $check->close();
+
+
                     $message =
-                        "A teacher account already exists for this email. Teacher ID: "
+                        "A teacher account already exists "
+                        . "for this email. Teacher ID: "
                         . $existingTeacher['teacher_id'];
 
-                    $message_type = "error";
+                    $message_type =
+                        "error";
 
-                    $check->close();
 
                 } else {
 
                     $check->close();
 
 
-                    /* =========================================
+                    /* =====================================
                        GENERATE TEACHER ID
-                    ========================================= */
+                    ===================================== */
 
-                    $teacher_id =
-                        "NISEL-T-" .
-                        date("Y") .
-                        "-" .
-                        strtoupper(
-                            substr(
-                                bin2hex(
-                                    random_bytes(4)
-                                ),
-                                0,
-                                6
-                            )
+                    do {
+
+                        $teacher_id =
+                            "NISEL-T-" .
+                            date("Y") .
+                            "-" .
+                            strtoupper(
+                                substr(
+                                    bin2hex(
+                                        random_bytes(4)
+                                    ),
+                                    0,
+                                    6
+                                )
+                            );
+
+
+                        $idCheck =
+                            $conn->prepare("
+                                SELECT id
+                                FROM teachers
+                                WHERE teacher_id = ?
+                                LIMIT 1
+                            ");
+
+                        $idCheck->bind_param(
+                            "s",
+                            $teacher_id
                         );
 
+                        $idCheck->execute();
 
-                    /* =========================================
+                        $idResult =
+                            $idCheck->get_result();
+
+                        $idExists =
+                            $idResult->num_rows > 0;
+
+                        $idCheck->close();
+
+                    } while ($idExists);
+
+
+                    /* =====================================
                        GENERATE TEMPORARY PASSWORD
-                    ========================================= */
+                    ===================================== */
 
                     $temporary_password =
                         "Nisel@" .
-                        random_int(1000, 9999);
+                        random_int(
+                            1000,
+                            9999
+                        );
 
 
                     /*
-                     * IMPORTANT:
-                     * Store a HASHED password.
+                     * NEVER store the password as plain text.
                      */
 
                     $password_hash =
@@ -168,24 +305,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         );
 
 
-                    /* =========================================
+                    /* =====================================
                        CREATE TEACHER ACCOUNT
-                    ========================================= */
+                    ===================================== */
 
                     $teacher = $conn->prepare("
                         INSERT INTO teachers
                         (
                             teacher_id,
                             teacher_name,
-                            email,
                             phone,
+                            email,
+                            qualification,
                             subjects,
                             curriculum,
+                            experience,
+                            bio,
+                            availability,
+                            photo,
                             password,
                             status
                         )
                         VALUES
                         (
+                            ?,
+                            ?,
+                            ?,
+                            ?,
+                            ?,
                             ?,
                             ?,
                             ?,
@@ -199,31 +346,41 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
                     $teacher->bind_param(
-                        "sssssss",
+                        "ssssssssssss",
                         $teacher_id,
                         $teacher_name,
-                        $email,
                         $phone,
+                        $email,
+                        $qualification,
                         $subjects,
                         $curriculum,
+                        $experience,
+                        $bio,
+                        $availability,
+                        $photo,
                         $password_hash
                     );
 
+
+                    /* =====================================
+                       EXECUTE
+                    ===================================== */
 
                     if ($teacher->execute()) {
 
                         $teacher->close();
 
 
-                        /* =====================================
+                        /* =================================
                            UPDATE APPLICATION
-                        ===================================== */
+                        ================================= */
 
-                        $update = $conn->prepare("
-                            UPDATE teacher_applications
-                            SET application_status = 'Approved'
-                            WHERE id = ?
-                        ");
+                        $update =
+                            $conn->prepare("
+                                UPDATE teacher_applications
+                                SET application_status = 'Approved'
+                                WHERE id = ?
+                            ");
 
                         $update->bind_param(
                             "i",
@@ -235,13 +392,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         $update->close();
 
 
-                        /* =====================================
-                           SUCCESS MESSAGE
-                        ===================================== */
+                        /* =================================
+                           SUCCESS
+                        ================================= */
 
                         $message =
-                            "Teacher application approved successfully. "
-                            . "Teacher ID: "
+                            "Teacher account created successfully!"
+                            . " Teacher ID: "
                             . $teacher_id
                             . " | Temporary Password: "
                             . $temporary_password;
@@ -253,7 +410,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     } else {
 
                         $message =
-                            "Unable to create the teacher account. "
+                            "Unable to create teacher account: "
                             . $teacher->error;
 
                         $message_type =
@@ -289,6 +446,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $application_id
         );
 
+
         if ($stmt->execute()) {
 
             $message =
@@ -304,8 +462,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $message_type =
                 "error";
-
         }
+
 
         $stmt->close();
 
@@ -329,6 +487,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $application_id
         );
 
+
         if ($stmt->execute()) {
 
             $message =
@@ -344,8 +503,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $message_type =
                 "error";
-
         }
+
 
         $stmt->close();
 
