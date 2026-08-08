@@ -901,6 +901,6 @@ function togglePassword() {
 
 <?php
 
-$conn->close();
+$pdo->close();
 
 ?>
