@@ -176,13 +176,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             )
                         );
 
-                        $photo_name =
-                            $teacher_id . "_" .
-                            time() . "." .
-                            $extension;
+                     //   $photo_name =
+                     //       $teacher_id . "_" .
+                     //       time() . "." .
+                      //      $extension;
 
-                        $photo_path =
-                            $upload_directory . $photo_name;
+                       // $photo_path =
+                        //    $upload_directory . $photo_name;
 
 
                         // --------------------------------
