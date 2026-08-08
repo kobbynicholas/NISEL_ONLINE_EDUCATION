@@ -3,9 +3,118 @@
 require "../admin_auth.php";
 require "../config/db.php";
 
+$message = "";
+$message_type = "";
+
 
 /* =========================================================
-   GET TEACHER APPLICATIONS
+   APPROVE / DENY APPLICATION
+========================================================= */
+
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    &&
+    isset($_POST['action'])
+    &&
+    isset($_POST['application_id'])
+) {
+
+    $application_id = (int) $_POST['application_id'];
+    $action = $_POST['action'];
+
+
+    /* =====================================================
+       APPROVE
+    ===================================================== */
+
+    if ($action === "approve") {
+
+        /*
+         * Send the administrator to the detailed approval
+         * page where the teacher account will be created.
+         */
+
+        header(
+            "Location: teacher_application_view.php?id="
+            . $application_id
+        );
+
+        exit;
+    }
+
+
+    /* =====================================================
+       DENY
+    ===================================================== */
+
+    if ($action === "deny") {
+
+        try {
+
+            $stmt = $pdo->prepare("
+                UPDATE teacher_applications
+                SET application_status = 'Rejected'
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                $application_id
+            ]);
+
+            $message =
+                "Teacher application denied successfully.";
+
+            $message_type = "success";
+
+        } catch (PDOException $e) {
+
+            $message =
+                "Unable to deny application: "
+                . $e->getMessage();
+
+            $message_type = "error";
+        }
+    }
+
+
+    /* =====================================================
+       SET PENDING
+    ===================================================== */
+
+    if ($action === "pending") {
+
+        try {
+
+            $stmt = $pdo->prepare("
+                UPDATE teacher_applications
+                SET application_status = 'Pending'
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                $application_id
+            ]);
+
+            $message =
+                "Application returned to Pending.";
+
+            $message_type = "success";
+
+        } catch (PDOException $e) {
+
+            $message =
+                "Unable to change application status: "
+                . $e->getMessage();
+
+            $message_type = "error";
+        }
+    }
+
+}
+
+
+/* =========================================================
+   GET APPLICATIONS
 ========================================================= */
 
 try {
@@ -31,99 +140,348 @@ try {
 
 ?>
 
+
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
 
-<title>Teacher Applications | NISEL ONLINE EDUCATION</title>
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
+
+<title>
+Teacher Applications |
+NISEL ONLINE EDUCATION
+</title>
+
 
 <style>
 
-body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #eef3f8;
+* {
+    box-sizing: border-box;
 }
+
+
+body {
+
+    margin: 0;
+
+    font-family: Arial, sans-serif;
+
+    background: #eef3f8;
+
+}
+
 
 .container {
-    width: 95%;
+
+    width: 96%;
+
+    max-width: 1400px;
+
     margin: 30px auto;
+
     background: white;
+
     padding: 25px;
+
     border-radius: 12px;
-    box-shadow: 0 5px 20px rgba(0,0,0,.1);
+
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.10);
+
 }
+
+
+.header {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 20px;
+
+}
+
 
 h2 {
+
+    margin: 0;
+
     color: #003366;
+
 }
+
+
+.message {
+
+    padding: 12px;
+
+    border-radius: 6px;
+
+    margin-bottom: 20px;
+
+}
+
+
+.success {
+
+    background: #d4edda;
+
+    color: #155724;
+
+}
+
+
+.error {
+
+    background: #f8d7da;
+
+    color: #721c24;
+
+}
+
 
 table {
+
     width: 100%;
+
     border-collapse: collapse;
-    margin-top: 20px;
+
 }
+
 
 th {
+
     background: #003366;
+
     color: white;
+
     padding: 12px;
+
     text-align: left;
+
+    white-space: nowrap;
+
 }
+
 
 td {
-    padding: 10px;
+
+    padding: 11px;
+
     border-bottom: 1px solid #ddd;
+
+    vertical-align: middle;
+
 }
+
+
+tr:hover {
+
+    background: #f7faff;
+
+}
+
+
+/* =========================
+   STATUS
+========================= */
 
 .status {
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 13px;
-}
 
-.pending {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.approved {
-    background: #d4edda;
-    color: #155724;
-}
-
-.rejected {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.view {
     display: inline-block;
-    padding: 7px 12px;
-    background: #003366;
-    color: white;
-    text-decoration: none;
-    border-radius: 5px;
+
+    padding: 6px 12px;
+
+    border-radius: 20px;
+
+    font-size: 13px;
+
+    font-weight: bold;
+
 }
 
-.view:hover {
+
+.status-pending {
+
+    background: #fff3cd;
+
+    color: #856404;
+
+}
+
+
+.status-approved {
+
+    background: #d4edda;
+
+    color: #155724;
+
+}
+
+
+.status-rejected {
+
+    background: #f8d7da;
+
+    color: #721c24;
+
+}
+
+
+/* =========================
+   BUTTONS
+========================= */
+
+.actions {
+
+    display: flex;
+
+    gap: 6px;
+
+    flex-wrap: wrap;
+
+}
+
+
+button {
+
+    border: none;
+
+    padding: 8px 12px;
+
+    border-radius: 5px;
+
+    cursor: pointer;
+
+    color: white;
+
+    font-size: 13px;
+
+}
+
+
+button:hover {
+
+    opacity: .85;
+
+}
+
+
+.btn-approve {
+
+    background: #198754;
+
+}
+
+
+.btn-pending {
+
+    background: #f0ad4e;
+
+}
+
+
+.btn-deny {
+
+    background: #dc3545;
+
+}
+
+
+.btn-view {
+
+    display: inline-block;
+
+    padding: 8px 12px;
+
+    background: #003366;
+
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 5px;
+
+    font-size: 13px;
+
+}
+
+
+.btn-view:hover {
+
     background: #0055aa;
+
+}
+
+
+.empty {
+
+    text-align: center;
+
+    padding: 30px;
+
+    color: #777;
+
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+.table-wrapper {
+
+    overflow-x: auto;
+
 }
 
 </style>
 
 </head>
 
+
 <body>
+
 
 <div class="container">
 
-<h2>Teacher Applications</h2>
+
+<div class="header">
+
+<h2>
+Teacher Applications
+</h2>
+
+</div>
+
+
+<?php if ($message !== ""): ?>
+
+<div class="message <?php echo $message_type; ?>">
+
+<?php
+echo htmlspecialchars($message);
+?>
+
+</div>
+
+<?php endif; ?>
+
+
+<div class="table-wrapper">
+
 
 <table>
+
+
+<thead>
 
 <tr>
 
@@ -131,7 +489,7 @@ td {
 
 <th>Application Reference</th>
 
-<th>Name</th>
+<th>Teacher Name</th>
 
 <th>Email</th>
 
@@ -147,108 +505,290 @@ td {
 
 </tr>
 
+</thead>
+
+
+<tbody>
+
 
 <?php if (count($applications) > 0): ?>
 
+
 <?php foreach ($applications as $application): ?>
 
-<tr>
-
-<td>
-<?php echo htmlspecialchars($application['id']); ?>
-</td>
-
-<td>
-<?php
-echo htmlspecialchars(
-    $application['application_reference'] ?? ''
-);
-?>
-</td>
-
-<td>
-<?php
-echo htmlspecialchars(
-    $application['full_name'] ?? ''
-);
-?>
-</td>
-
-<td>
-<?php
-echo htmlspecialchars(
-    $application['email'] ?? ''
-);
-?>
-</td>
-
-<td>
-<?php
-echo htmlspecialchars(
-    $application['phone'] ?? ''
-);
-?>
-</td>
-
-<td>
-<?php
-echo htmlspecialchars(
-    $application['subjects'] ?? ''
-);
-?>
-</td>
-
-<td>
-<?php
-echo htmlspecialchars(
-    $application['curricula'] ?? ''
-);
-?>
-</td>
-
-<td>
 
 <?php
 
 $status =
-    $application['application_status']
-    ?? 'Pending';
+    trim(
+        $application['application_status']
+        ?? 'Pending'
+    );
 
-$statusClass =
+
+$statusLower =
     strtolower($status);
 
+
+if ($statusLower === "approved") {
+
+    $statusClass =
+        "status-approved";
+
+} elseif (
+    $statusLower === "rejected"
+    ||
+    $statusLower === "denied"
+) {
+
+    $statusClass =
+        "status-rejected";
+
+} else {
+
+    $statusClass =
+        "status-pending";
+
+}
+
 ?>
+
+
+<tr>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['id']
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['application_reference']
+    ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['full_name']
+    ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['email']
+    ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['phone']
+    ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['subjects']
+    ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['curricula']
+    ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
 
 <span class="status <?php echo $statusClass; ?>">
 
 <?php
-echo htmlspecialchars($status);
+
+echo htmlspecialchars(
+    $status
+);
+
 ?>
 
 </span>
 
 </td>
 
+
 <td>
 
+
+<div class="actions">
+
+
+<!-- VIEW -->
+
 <a
-    class="view"
     href="teacher_application_view.php?id=<?php echo $application['id']; ?>"
+    class="btn-view"
 >
     View
 </a>
 
+
+<!-- APPROVE -->
+
+<form
+    method="POST"
+    style="display:inline;"
+>
+
+<input
+    type="hidden"
+    name="application_id"
+    value="<?php echo $application['id']; ?>"
+>
+
+
+<button
+    type="submit"
+    name="action"
+    value="approve"
+    class="btn-approve"
+    onclick="return confirm('Open this application for approval?');"
+>
+    Approve
+</button>
+
+</form>
+
+
+<!-- PENDING -->
+
+<form
+    method="POST"
+    style="display:inline;"
+>
+
+<input
+    type="hidden"
+    name="application_id"
+    value="<?php echo $application['id']; ?>"
+>
+
+
+<button
+    type="submit"
+    name="action"
+    value="pending"
+    class="btn-pending"
+    onclick="return confirm('Set this application back to Pending?');"
+>
+    Pending
+</button>
+
+</form>
+
+
+<!-- DENY -->
+
+<form
+    method="POST"
+    style="display:inline;"
+>
+
+<input
+    type="hidden"
+    name="application_id"
+    value="<?php echo $application['id']; ?>"
+>
+
+
+<button
+    type="submit"
+    name="action"
+    value="deny"
+    class="btn-deny"
+    onclick="return confirm('Are you sure you want to deny this application?');"
+>
+    Deny
+</button>
+
+</form>
+
+
+</div>
+
+
 </td>
+
 
 </tr>
 
+
 <?php endforeach; ?>
+
 
 <?php else: ?>
 
+
 <tr>
 
-<td colspan="9" style="text-align:center;">
+<td
+    colspan="9"
+    class="empty"
+>
 
 No teacher applications found.
 
@@ -256,11 +796,21 @@ No teacher applications found.
 
 </tr>
 
+
 <?php endif; ?>
+
+
+</tbody>
+
 
 </table>
 
+
 </div>
+
+
+</div>
+
 
 </body>
 
