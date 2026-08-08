@@ -4,7 +4,6 @@ session_start();
 
 require "../config/db.php";
 
-
 /* =========================================================
    IF TEACHER IS ALREADY LOGGED IN
 ========================================================= */
@@ -14,15 +13,11 @@ if (isset($_SESSION['teacher_id'])) {
     header("Location: dashboard.php");
     exit;
 
-}
-
-
 /* =========================================================
    VARIABLES
 ========================================================= */
 
 $error = "";
-
 
 /* =========================================================
    LOGIN PROCESS
@@ -32,7 +27,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $login = trim($_POST['login'] ?? "");
     $password = $_POST['password'] ?? "";
-
 
     /* =============================================
        VALIDATION
@@ -51,7 +45,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
            LOGIN CAN BE TEACHER ID OR EMAIL
         ============================================= */
 
-        $stmt = $conn->prepare("
+        $stmt = $pdo->prepare("
             SELECT
                 id,
                 teacher_id,
