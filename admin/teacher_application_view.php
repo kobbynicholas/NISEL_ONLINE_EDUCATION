@@ -3,21 +3,28 @@
 require "../admin_auth.php";
 require "../config/db.php";
 
+$message = "";
+$message_type = "";
+
 
 /* =========================================================
    GET APPLICATION ID
 ========================================================= */
 
-$application_id = intval($_GET['id'] ?? 0);
+$application_id = isset($_GET['id'])
+    ? intval($_GET['id'])
+    : intval($_POST['application_id'] ?? 0);
+
 
 if ($application_id <= 0) {
-    die("Invalid application ID.");
+
+    die("Invalid teacher application.");
+
 }
 
 
-
 /* =========================================================
-   APPROVE / REJECT / PENDING APPLICATION
+   APPROVE / REJECT APPLICATION
 ========================================================= */
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -32,7 +39,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($action === "approve") {
 
         /*
-         * Get the application
+         * Get application
          */
 
         $stmt = $conn->prepare("
@@ -54,105 +61,74 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         if ($result->num_rows === 0) {
 
-            $message =
-                "Teacher application not found.";
-
-            $message_type =
-                "error";
+            $message = "Teacher application not found.";
+            $message_type = "error";
 
             $stmt->close();
 
         } else {
 
-            $application =
-                $result->fetch_assoc();
+            $application = $result->fetch_assoc();
 
             $stmt->close();
 
 
             /* =============================================
-               CHECK WHETHER ALREADY APPROVED
+               CHECK IF ALREADY APPROVED
             ============================================= */
 
             if (
-                $application['application_status']
-                === "Approved"
+                strtolower(
+                    trim($application['application_status'])
+                ) === "approved"
             ) {
 
                 $message =
-                    "This application has already been approved.";
+                    "This teacher application has already been approved.";
 
-                $message_type =
-                    "error";
+                $message_type = "error";
 
             } else {
 
 
                 /* =========================================
-                   GET APPLICATION INFORMATION
+                   GET APPLICATION DATA
                 ========================================= */
 
                 $teacher_name =
-                    trim(
-                        $application['full_name']
-                    );
-
-                $email =
-                    trim(
-                        $application['email']
-                    );
+                    trim($application['full_name']);
 
                 $phone =
-                    trim(
-                        $application['phone']
-                    );
+                    trim($application['phone']);
+
+                $email =
+                    trim($application['email']);
 
                 $qualification =
-                    trim(
-                        $application['qualification']
-                    );
+                    trim($application['qualification']);
 
                 $subjects =
-                    trim(
-                        $application['subjects']
-                    );
+                    trim($application['subjects']);
 
                 $curriculum =
-                    trim(
-                        $application['curricula']
-                    );
+                    trim($application['curricula']);
 
                 $experience =
-                    trim(
-                        $application['teaching_experience']
-                    );
+                    trim($application['teaching_experience']);
 
                 $bio =
-                    trim(
-                        $application['professional_statement']
-                    );
+                    trim($application['professional_statement']);
 
 
-                /*
-                 * Your application table may contain
-                 * preferred_days / preferred_times.
-                 *
-                 * We combine them into the teachers
-                 * availability field.
-                 */
+                /* =========================================
+                   CREATE AVAILABILITY
+                ========================================= */
 
                 $preferred_days =
-                    trim(
-                        $application['preferred_days'] ?? ""
-                    );
+                    trim($application['preferred_days'] ?? "");
 
                 $preferred_times =
-                    trim(
-                        $application['preferred_times'] ?? ""
-                    );
-
-
-                $availability = "";
+                    trim($application['preferred_times'] ?? "");
 
 
                 if (
@@ -165,19 +141,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                         " | " .
                         $preferred_times;
 
-                } elseif (
-                    $preferred_days !== ""
-                ) {
+                } elseif ($preferred_days !== "") {
 
                     $availability =
                         $preferred_days;
 
-                } elseif (
-                    $preferred_times !== ""
-                ) {
+                } elseif ($preferred_times !== "") {
 
                     $availability =
                         $preferred_times;
+
+                } else {
+
+                    $availability = "";
 
                 }
 
@@ -187,17 +163,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 ========================================= */
 
                 $photo =
-                    trim(
-                        $application['photo_filename'] ?? ""
-                    );
+                    trim($application['photo_filename'] ?? "");
 
 
                 /* =========================================
-                   CHECK EXISTING TEACHER EMAIL
+                   CHECK EXISTING EMAIL
                 ========================================= */
 
                 $check = $conn->prepare("
-                    SELECT teacher_id
+                    SELECT id, teacher_id
                     FROM teachers
                     WHERE email = ?
                     LIMIT 1
@@ -224,11 +198,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     $message =
                         "A teacher account already exists "
-                        . "for this email. Teacher ID: "
+                        . "with this email. Teacher ID: "
                         . $existingTeacher['teacher_id'];
 
-                    $message_type =
-                        "error";
+                    $message_type = "error";
 
 
                 } else {
@@ -237,7 +210,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
                     /* =====================================
-                       GENERATE TEACHER ID
+                       GENERATE UNIQUE TEACHER ID
                     ===================================== */
 
                     do {
@@ -257,13 +230,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                             );
 
 
-                        $idCheck =
-                            $conn->prepare("
-                                SELECT id
-                                FROM teachers
-                                WHERE teacher_id = ?
-                                LIMIT 1
-                            ");
+                        $idCheck = $conn->prepare("
+                            SELECT id
+                            FROM teachers
+                            WHERE teacher_id = ?
+                            LIMIT 1
+                        ");
 
                         $idCheck->bind_param(
                             "s",
@@ -289,15 +261,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
                     $temporary_password =
                         "Nisel@" .
-                        random_int(
-                            1000,
-                            9999
-                        );
+                        random_int(1000, 9999);
 
 
-                    /*
-                     * NEVER store the password as plain text.
-                     */
+                    /* =====================================
+                       HASH PASSWORD
+                    ===================================== */
 
                     $password_hash =
                         password_hash(
@@ -307,7 +276,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
                     /* =====================================
-                       CREATE TEACHER ACCOUNT
+                       INSERT TEACHER
                     ===================================== */
 
                     $teacher = $conn->prepare("
@@ -346,6 +315,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                     ");
 
 
+                    if (!$teacher) {
+
+                        die(
+                            "Teacher INSERT preparation failed: "
+                            . htmlspecialchars($conn->error)
+                        );
+
+                    }
+
+
                     $teacher->bind_param(
                         "ssssssssssss",
                         $teacher_id,
@@ -364,7 +343,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
 
                     /* =====================================
-                       EXECUTE
+                       INSERT ACCOUNT
                     ===================================== */
 
                     if ($teacher->execute()) {
@@ -376,36 +355,51 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                            UPDATE APPLICATION
                         ================================= */
 
-                        $update =
-                            $conn->prepare("
-                                UPDATE teacher_applications
-                                SET application_status = 'Approved'
-                                WHERE id = ?
-                            ");
+                        $update = $conn->prepare("
+                            UPDATE teacher_applications
+                            SET application_status = 'Approved'
+                            WHERE id = ?
+                        ");
+
+
+                        if (!$update) {
+
+                            die(
+                                "Application update preparation failed: "
+                                . htmlspecialchars($conn->error)
+                            );
+
+                        }
+
 
                         $update->bind_param(
                             "i",
                             $application_id
                         );
 
-                        $update->execute();
+
+                        if ($update->execute()) {
+
+                            $message =
+                                "Teacher application approved successfully.";
+
+                            $message_type =
+                                "success";
+
+
+                        } else {
+
+                            $message =
+                                "Teacher account was created, "
+                                . "but application status could not be updated.";
+
+                            $message_type =
+                                "error";
+
+                        }
+
 
                         $update->close();
-
-
-                        /* =================================
-                           SUCCESS
-                        ================================= */
-
-                        $message =
-                            "Teacher account created successfully!"
-                            . " Teacher ID: "
-                            . $teacher_id
-                            . " | Temporary Password: "
-                            . $temporary_password;
-
-                        $message_type =
-                            "success";
 
 
                     } else {
@@ -442,6 +436,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             WHERE id = ?
         ");
 
+
         $stmt->bind_param(
             "i",
             $application_id
@@ -454,15 +449,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                 "Teacher application rejected.";
 
             $message_type =
-                "error";
+                "success";
 
         } else {
 
             $message =
-                "Unable to reject the application.";
+                "Unable to reject application.";
 
             $message_type =
                 "error";
+
         }
 
 
@@ -483,6 +479,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             WHERE id = ?
         ");
 
+
         $stmt->bind_param(
             "i",
             $application_id
@@ -500,10 +497,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } else {
 
             $message =
-                "Unable to update the application.";
+                "Unable to update application.";
 
             $message_type =
                 "error";
+
         }
 
 
@@ -534,63 +532,18 @@ $stmt->execute();
 
 $result = $stmt->get_result();
 
-if ($result->num_rows === 0) {
 
-    $stmt->close();
+if ($result->num_rows === 0) {
 
     die("Teacher application not found.");
 
 }
 
-$application = $result->fetch_assoc();
+
+$application =
+    $result->fetch_assoc();
 
 $stmt->close();
-
-
-/* =========================================================
-   VARIABLES
-========================================================= */
-
-$status =
-    $application['application_status'];
-
-$status_class =
-    strtolower($status);
-
-
-$photo_file =
-    $application['photo_filename'];
-
-$cv_file =
-    $application['cv_filename'];
-
-
-$photo_path =
-    "../uploads/teacher_applications/photos/"
-    . $photo_file;
-
-
-$cv_path =
-    "../uploads/teacher_applications/cv/"
-    . $cv_file;
-
-
-$photo_exists =
-    !empty($photo_file) &&
-    file_exists(
-        __DIR__ .
-        "/../uploads/teacher_applications/photos/"
-        . $photo_file
-    );
-
-
-$cv_exists =
-    !empty($cv_file) &&
-    file_exists(
-        __DIR__ .
-        "/../uploads/teacher_applications/cv/"
-        . $cv_file
-    );
 
 ?>
 
@@ -608,692 +561,225 @@ content="width=device-width, initial-scale=1.0"
 >
 
 <title>
-Teacher Application |
-NISEL ONLINE EDUCATION
+Teacher Application | NISEL ONLINE EDUCATION
 </title>
 
 
 <style>
 
-* {
+*{
+    box-sizing:border-box;
+}
 
-    box-sizing: border-box;
+body{
+
+    margin:0;
+
+    font-family:Arial,sans-serif;
+
+    background:#eef3f8;
+
+    color:#333;
 
 }
 
+.container{
 
-body {
+    width:95%;
 
-    margin: 0;
+    max-width:1000px;
 
-    font-family:
-        Arial,
-        sans-serif;
-
-    background:
-        #eef3f8;
-
-    color: #333;
+    margin:30px auto;
 
 }
 
+.card{
 
-/* =========================================================
-   HEADER
-========================================================= */
+    background:white;
 
-.header {
+    padding:30px;
 
-    background:
-        #003366;
-
-    color: white;
-
-    padding: 20px 30px;
-
-}
-
-
-.header h1 {
-
-    margin: 0;
-
-    font-size: 25px;
-
-}
-
-
-.header p {
-
-    margin:
-        7px 0 0;
-
-    color:
-        #dceaf6;
-
-}
-
-
-/* =========================================================
-   CONTAINER
-========================================================= */
-
-.container {
-
-    width: 94%;
-
-    max-width: 1100px;
-
-    margin:
-        30px auto;
-
-}
-
-
-/* =========================================================
-   TOP BAR
-========================================================= */
-
-.top-bar {
-
-    display: flex;
-
-    justify-content:
-        space-between;
-
-    align-items:
-        center;
-
-    margin-bottom: 20px;
-
-}
-
-
-.back-button {
-
-    background:
-        #003366;
-
-    color: white;
-
-    text-decoration: none;
-
-    padding:
-        10px 18px;
-
-    border-radius:
-        6px;
-
-}
-
-
-.back-button:hover {
-
-    background:
-        #0055a5;
-
-}
-
-
-/* =========================================================
-   MESSAGE
-========================================================= */
-
-.message {
-
-    padding:
-        15px 18px;
-
-    border-radius:
-        7px;
-
-    margin-bottom:
-        20px;
-
-    font-weight:
-        bold;
-
-}
-
-
-.message.success {
-
-    background:
-        #d4edda;
-
-    color:
-        #155724;
-
-}
-
-
-.message.error {
-
-    background:
-        #f8d7da;
-
-    color:
-        #721c24;
-
-}
-
-
-/* =========================================================
-   PROFILE HEADER
-========================================================= */
-
-.profile-header {
-
-    background:
-        white;
-
-    border-radius:
-        12px;
-
-    padding:
-        30px;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    gap:
-        25px;
+    border-radius:12px;
 
     box-shadow:
-        0 5px 18px
-        rgba(0,0,0,.08);
-
-    margin-bottom:
-        20px;
+        0 5px 20px rgba(0,0,0,.1);
 
 }
 
+h1{
 
-.profile-photo {
+    color:#003366;
 
-    width:
-        130px;
-
-    height:
-        130px;
-
-    border-radius:
-        50%;
-
-    object-fit:
-        cover;
-
-    border:
-        4px solid #e1e7ed;
+    margin-top:0;
 
 }
 
+h2{
 
-.no-photo {
-
-    width:
-        130px;
-
-    height:
-        130px;
-
-    border-radius:
-        50%;
-
-    background:
-        #e8eef4;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    font-size:
-        50px;
-
-}
-
-
-.profile-info h2 {
-
-    margin:
-        0 0 8px;
-
-    color:
-        #003366;
-
-    font-size:
-        28px;
-
-}
-
-
-.reference {
-
-    color:
-        #777;
-
-    margin-bottom:
-        10px;
-
-}
-
-
-.status {
-
-    display:
-        inline-block;
-
-    padding:
-        7px 15px;
-
-    border-radius:
-        20px;
-
-    font-size:
-        13px;
-
-    font-weight:
-        bold;
-
-}
-
-
-.status.pending {
-
-    background:
-        #fff3cd;
-
-    color:
-        #856404;
-
-}
-
-
-.status.approved {
-
-    background:
-        #d4edda;
-
-    color:
-        #155724;
-
-}
-
-
-.status.rejected {
-
-    background:
-        #f8d7da;
-
-    color:
-        #721c24;
-
-}
-
-
-/* =========================================================
-   CARD
-========================================================= */
-
-.card {
-
-    background:
-        white;
-
-    border-radius:
-        12px;
-
-    padding:
-        28px;
-
-    margin-bottom:
-        20px;
-
-    box-shadow:
-        0 5px 18px
-        rgba(0,0,0,.07);
-
-}
-
-
-.card h2 {
-
-    color:
-        #003366;
-
-    font-size:
-        20px;
-
-    margin:
-        0 0 20px;
+    color:#003366;
 
     border-bottom:
-        2px solid #eee;
+        1px solid #ddd;
 
-    padding-bottom:
-        10px;
+    padding-bottom:10px;
 
 }
 
+.message{
 
-/* =========================================================
-   INFORMATION GRID
-========================================================= */
+    padding:15px;
 
-.info-grid {
+    border-radius:7px;
 
-    display:
-        grid;
+    margin-bottom:20px;
+
+}
+
+.success{
+
+    background:#d4edda;
+
+    color:#155724;
+
+}
+
+.error{
+
+    background:#f8d7da;
+
+    color:#721c24;
+
+}
+
+.grid{
+
+    display:grid;
 
     grid-template-columns:
-        repeat(2, 1fr);
+        repeat(2,1fr);
 
-    gap:
-        18px 30px;
-
-}
-
-
-.info-item {
-
-    border-bottom:
-        1px solid #eee;
-
-    padding-bottom:
-        12px;
+    gap:20px;
 
 }
 
+.field{
 
-.info-label {
+    background:#f8f9fa;
 
-    font-size:
-        12px;
+    padding:15px;
 
-    color:
-        #777;
-
-    margin-bottom:
-        5px;
-
-    text-transform:
-        uppercase;
-
-    font-weight:
-        bold;
+    border-radius:7px;
 
 }
 
+.field strong{
 
-.info-value {
+    display:block;
 
-    font-size:
-        15px;
+    color:#003366;
 
-    color:
-        #333;
-
-    line-height:
-        1.6;
+    margin-bottom:6px;
 
 }
 
+.full{
 
-/* =========================================================
-   STATEMENT
-========================================================= */
-
-.statement {
-
-    background:
-        #f6f9fc;
-
-    border-left:
-        4px solid #003366;
-
-    padding:
-        18px;
-
-    line-height:
-        1.8;
-
-    white-space:
-        pre-wrap;
+    grid-column:
+        1 / -1;
 
 }
 
+.actions{
 
-/* =========================================================
-   DOCUMENTS
-========================================================= */
+    display:flex;
 
-.documents {
+    gap:10px;
 
-    display:
-        flex;
+    margin-top:30px;
 
-    gap:
-        15px;
-
-    flex-wrap:
-        wrap;
+    flex-wrap:wrap;
 
 }
 
+button{
 
-.document-button {
+    border:none;
 
-    display:
-        inline-block;
+    padding:12px 22px;
 
-    padding:
-        12px 20px;
+    border-radius:6px;
 
-    border-radius:
-        6px;
+    color:white;
 
-    text-decoration:
-        none;
+    cursor:pointer;
 
-    color:
-        white;
-
-    background:
-        #003366;
+    font-size:15px;
 
 }
 
+.approve{
 
-.document-button:hover {
-
-    background:
-        #0055a5;
+    background:#198754;
 
 }
 
+.reject{
 
-.document-disabled {
-
-    color:
-        #888;
-
-    background:
-        #eee;
-
-    padding:
-        12px 20px;
-
-    border-radius:
-        6px;
+    background:#dc3545;
 
 }
 
+.pending{
 
-/* =========================================================
-   ACTIONS
-========================================================= */
-
-.actions {
-
-    background:
-        white;
-
-    border-radius:
-        12px;
-
-    padding:
-        25px;
-
-    box-shadow:
-        0 5px 18px
-        rgba(0,0,0,.07);
-
-    display:
-        flex;
-
-    gap:
-        12px;
-
-    flex-wrap:
-        wrap;
+    background:#f0ad4e;
 
 }
 
+.back{
 
-.action-button {
+    display:inline-block;
 
-    border:
-        none;
+    margin-bottom:20px;
 
-    padding:
-        13px 24px;
+    text-decoration:none;
 
-    border-radius:
-        6px;
+    color:#003366;
 
-    color:
-        white;
-
-    cursor:
-        pointer;
-
-    font-size:
-        14px;
-
-    font-weight:
-        bold;
+    font-weight:bold;
 
 }
 
+.photo{
 
-.approve {
+    width:150px;
 
-    background:
-        #198754;
+    height:150px;
 
-}
+    object-fit:cover;
 
+    border-radius:10px;
 
-.reject {
-
-    background:
-        #dc3545;
+    border:1px solid #ddd;
 
 }
 
+.status{
 
-.pending-button {
+    display:inline-block;
 
-    background:
-        #f0ad4e;
+    padding:6px 12px;
 
-}
+    border-radius:20px;
 
-
-.action-button:hover {
-
-    opacity:
-        .85;
+    background:#eee;
 
 }
 
+@media(max-width:700px){
 
-/* =========================================================
-   FOOTER
-========================================================= */
+    .grid{
 
-.footer {
-
-    text-align:
-        center;
-
-    color:
-        #777;
-
-    padding:
-        25px;
-
-    font-size:
-        13px;
-
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media(max-width: 700px) {
-
-    .profile-header {
-
-        flex-direction:
-            column;
-
-        text-align:
-            center;
-
-    }
-
-
-    .info-grid {
-
-        grid-template-columns:
-            1fr;
-
-    }
-
-
-    .top-bar {
-
-        flex-direction:
-            column;
-
-        align-items:
-            flex-start;
-
-        gap:
-            15px;
-
-    }
-
-
-    .profile-photo,
-    .no-photo {
-
-        width:
-            110px;
-
-        height:
-            110px;
+        grid-template-columns:1fr;
 
     }
 
@@ -1307,57 +793,37 @@ body {
 <body>
 
 
-<!-- =======================================================
-     HEADER
-======================================================= -->
-
-<div class="header">
-
-    <h1>
-        NISEL ONLINE EDUCATION
-    </h1>
-
-    <p>
-        Teacher Application Review
-    </p>
-
-</div>
-
-
-
 <div class="container">
 
 
-<!-- =======================================================
-     TOP BAR
-======================================================= -->
-
-<div class="top-bar">
-
 <a
 href="teacher_applications.php"
-class="back-button"
+class="back"
 >
-
-← Back to Applications
-
+← Back to Teacher Applications
 </a>
 
-</div>
+
+<div class="card">
 
 
+<h1>
+NISEL ONLINE EDUCATION
+</h1>
 
-<!-- =======================================================
-     MESSAGE
-======================================================= -->
+<p>
+Teacher Application Details
+</p>
+
 
 <?php if ($message !== ""): ?>
 
-<div class="message
-<?php echo htmlspecialchars(
-    $message_type
-);
-?>">
+<div
+class="message
+<?php echo $message_type === 'success'
+    ? 'success'
+    : 'error'; ?>"
+>
 
 <?php
 
@@ -1372,85 +838,41 @@ echo htmlspecialchars(
 <?php endif; ?>
 
 
-
-<!-- =======================================================
-     PROFILE HEADER
-======================================================= -->
-
-<div class="profile-header">
-
-
-<?php if ($photo_exists): ?>
-
-<img
-src="<?php
-echo htmlspecialchars(
-    $photo_path
-);
-?>"
-class="profile-photo"
-alt="Teacher Photograph"
->
-
-<?php else: ?>
-
-<div class="no-photo">
-
-👤
-
-</div>
-
-<?php endif; ?>
-
-
-
-<div class="profile-info">
-
 <h2>
-
-<?php
-
-echo htmlspecialchars(
-    $application['full_name']
-);
-
-?>
-
+Applicant Information
 </h2>
 
 
-<div class="reference">
+<div class="grid">
 
-Application Reference:
+
+<div class="field">
 
 <strong>
+Application Reference
+</strong>
 
 <?php
-
 echo htmlspecialchars(
-    $application[
-        'application_reference'
-    ]
+    $application['application_reference']
 );
-
 ?>
-
-</strong>
 
 </div>
 
 
-<span class="status
-<?php
-echo $status_class;
-?>">
+<div class="field">
+
+<strong>
+Application Status
+</strong>
+
+<span class="status">
 
 <?php
-
 echo htmlspecialchars(
-    $status
+    $application['application_status']
 );
-
 ?>
 
 </span>
@@ -1458,552 +880,354 @@ echo htmlspecialchars(
 </div>
 
 
-</div>
+<div class="field">
 
-
-
-<!-- =======================================================
-     PERSONAL INFORMATION
-======================================================= -->
-
-<div class="card">
-
-<h2>
-Personal Information
-</h2>
-
-
-<div class="info-grid">
-
-
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Full Name
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
 echo htmlspecialchars(
     $application['full_name']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Date of Birth
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
 echo htmlspecialchars(
     $application['dob']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Gender
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
 echo htmlspecialchars(
     $application['gender']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Phone
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
 echo htmlspecialchars(
     $application['phone']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Email
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
 echo htmlspecialchars(
     $application['email']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Location
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
-echo !empty(
-    $application['location']
-)
-    ? htmlspecialchars(
-        $application['location']
-    )
-    : "Not provided";
-
-?>
-
-</div>
-
-</div>
-
-
-</div>
-
-</div>
-
-
-
-<!-- =======================================================
-     PROFESSIONAL INFORMATION
-======================================================= -->
-
-<div class="card">
-
-<h2>
-Professional Information
-</h2>
-
-
-<div class="info-grid">
-
-
-<div class="info-item">
-
-<div class="info-label">
-Institution / School
-</div>
-
-<div class="info-value">
-
-<?php
-
-echo !empty(
-    $application['institution']
-)
-    ? htmlspecialchars(
-        $application['institution']
-    )
-    : "Not provided";
-
-?>
-
-</div>
-
-</div>
-
-
-<div class="info-item">
-
-<div class="info-label">
-Highest Qualification
-</div>
-
-<div class="info-value">
-
-<?php
-
 echo htmlspecialchars(
-    $application[
-        'qualification'
-    ]
+    $application['location'] ?? ""
 );
-
 ?>
 
 </div>
 
+
+<div class="field">
+
+<strong>
+Institution
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['institution'] ?? ""
+);
+?>
+
 </div>
 
 
-<div class="info-item">
+<div class="field">
 
-<div class="info-label">
+<strong>
+Qualification
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['qualification']
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
 Teaching Experience
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
-echo !empty(
-    $application[
-        'teaching_experience'
-    ]
-)
-    ? htmlspecialchars(
-        $application[
-            'teaching_experience'
-        ]
-    )
-    : "Not provided";
-
-?>
-
-</div>
-
-</div>
-
-
-<div class="info-item">
-
-<div class="info-label">
-Application Date
-</div>
-
-<div class="info-value">
-
-<?php
-
-echo date(
-    "d F Y, h:i A",
-    strtotime(
-        $application[
-            'application_date'
-        ]
-    )
+echo htmlspecialchars(
+    $application['teaching_experience'] ?? ""
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-</div>
-
-</div>
-
-
-
-<!-- =======================================================
-     CURRICULUM AND SUBJECTS
-======================================================= -->
-
-<div class="card">
-
-<h2>
-Teaching Information
-</h2>
-
-
-<div class="info-grid">
-
-
-<div class="info-item">
-
-<div class="info-label">
-Curriculum(s)
-</div>
-
-<div class="info-value">
+<strong>
+Curriculum
+</strong>
 
 <?php
-
-echo nl2br(
-    htmlspecialchars(
-        $application[
-            'curricula'
-        ]
-    )
+echo htmlspecialchars(
+    $application['curricula']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field full">
 
-<div class="info-item">
-
-<div class="info-label">
+<strong>
 Subjects
-</div>
-
-<div class="info-value">
+</strong>
 
 <?php
-
-echo nl2br(
-    htmlspecialchars(
-        $application[
-            'subjects'
-        ]
-    )
+echo htmlspecialchars(
+    $application['subjects']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field full">
 
-<div class="info-item">
-
-<div class="info-label">
-Classes / Years / Grades
-</div>
-
-<div class="info-value">
+<strong>
+Classes Taught
+</strong>
 
 <?php
-
-echo nl2br(
-    htmlspecialchars(
-        $application[
-            'classes_taught'
-        ]
-    )
+echo htmlspecialchars(
+    $application['classes_taught']
 );
-
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
-Preferred Teaching Days
-</div>
-
-<div class="info-value">
+<strong>
+Preferred Days
+</strong>
 
 <?php
-
-echo !empty(
-    $application[
-        'preferred_days'
-    ]
-)
-    ? nl2br(
-        htmlspecialchars(
-            $application[
-                'preferred_days'
-            ]
-        )
-    )
-    : "Not provided";
-
+echo htmlspecialchars(
+    $application['preferred_days'] ?? ""
+);
 ?>
 
 </div>
 
-</div>
 
+<div class="field">
 
-<div class="info-item">
-
-<div class="info-label">
-Preferred Teaching Times
-</div>
-
-<div class="info-value">
+<strong>
+Preferred Times
+</strong>
 
 <?php
-
-echo !empty(
-    $application[
-        'preferred_times'
-    ]
-)
-    ? htmlspecialchars(
-        $application[
-            'preferred_times'
-        ]
-    )
-    : "Not provided";
-
+echo htmlspecialchars(
+    $application['preferred_times'] ?? ""
+);
 ?>
 
 </div>
 
-</div>
 
+<div class="field full">
 
-</div>
-
-</div>
-
-
-
-<!-- =======================================================
-     PROFESSIONAL STATEMENT
-======================================================= -->
-
-<div class="card">
-
-<h2>
+<strong>
 Professional Statement
-</h2>
+</strong>
+
+<?php
+echo nl2br(
+    htmlspecialchars(
+        $application['professional_statement']
+    )
+);
+?>
+
+</div>
 
 
-<div class="statement">
+<div class="field full">
+
+<strong>
+CV
+
+</strong>
 
 <?php
 
-echo htmlspecialchars(
-    $application[
-        'professional_statement'
-    ]
+if (
+    !empty(
+        $application['cv_filename']
+    )
+) {
+
+?>
+
+<a
+href="../uploads/teachers/cv/<?php
+echo rawurlencode(
+    $application['cv_filename']
 );
+?>"
+target="_blank"
+>
+
+View CV
+
+</a>
+
+<?php
+
+} else {
+
+echo "No CV uploaded.";
+
+}
 
 ?>
 
 </div>
 
-</div>
 
+<div class="field full">
 
+<strong>
+Photo
+</strong>
 
-<!-- =======================================================
-     DOCUMENTS
-======================================================= -->
+<?php
 
-<div class="card">
+if (
+    !empty(
+        $application['photo_filename']
+    )
+) {
 
-<h2>
-Supporting Documents
-</h2>
+?>
 
+<br>
 
-<div class="documents">
-
-
-<?php if ($cv_exists): ?>
-
-<a
-href="<?php
-echo htmlspecialchars(
-    $cv_path
+<img
+src="../uploads/teachers/photos/<?php
+echo rawurlencode(
+    $application['photo_filename']
 );
 ?>"
-target="_blank"
-class="document-button"
+class="photo"
+alt="Teacher Photo"
 >
 
-View / Download CV
+<?php
 
-</a>
+} else {
 
-<?php else: ?>
+echo "No photo uploaded.";
 
-<span class="document-disabled">
+}
 
-No CV uploaded
-
-</span>
-
-<?php endif; ?>
-
-
-
-<?php if ($photo_exists): ?>
-
-<a
-href="<?php
-echo htmlspecialchars(
-    $photo_path
-);
-?>"
-target="_blank"
-class="document-button"
->
-
-View Photograph
-
-</a>
-
-<?php endif; ?>
-
-
-</div>
+?>
 
 </div>
 
 
+</div>
 
-<!-- =======================================================
-     ADMIN ACTIONS
-======================================================= -->
+
+<!-- =====================================================
+     ACTION BUTTONS
+===================================================== -->
+
+<?php
+
+if (
+    strtolower(
+        trim(
+            $application['application_status']
+        )
+    ) !== "approved"
+) {
+
+?>
 
 <div class="actions">
 
 
-<?php if ($status !== "Approved"): ?>
+<form method="POST">
 
-<form
-method="POST"
+<input
+type="hidden"
+name="application_id"
+value="<?php
+echo $application_id;
+?>"
 >
 
 <button
 type="submit"
 name="action"
 value="approve"
-class="action-button approve"
+class="approve"
 onclick="
 return confirm(
 'Are you sure you want to approve this teacher application?'
@@ -2017,24 +1241,25 @@ return confirm(
 
 </form>
 
-<?php endif; ?>
 
+<form method="POST">
 
-
-<?php if ($status !== "Rejected"): ?>
-
-<form
-method="POST"
+<input
+type="hidden"
+name="application_id"
+value="<?php
+echo $application_id;
+?>"
 >
 
 <button
 type="submit"
 name="action"
 value="reject"
-class="action-button reject"
+class="reject"
 onclick="
 return confirm(
-'Are you sure you want to reject this teacher application?'
+'Are you sure you want to reject this application?'
 );
 "
 >
@@ -2045,52 +1270,55 @@ return confirm(
 
 </form>
 
-<?php endif; ?>
 
+<?php
 
+}
 
-<?php if ($status !== "Pending"): ?>
+if (
+    strtolower(
+        trim(
+            $application['application_status']
+        )
+    ) === "rejected"
+) {
 
-<form
-method="POST"
+?>
+
+<form method="POST">
+
+<input
+type="hidden"
+name="application_id"
+value="<?php
+echo $application_id;
+?>"
 >
 
 <button
 type="submit"
 name="action"
 value="pending"
-class="action-button pending-button"
+class="pending"
 >
 
-↻ Return to Pending
+Return to Pending
 
 </button>
 
 </form>
 
-<?php endif; ?>
+<?php
+
+}
+
+?>
 
 
 </div>
 
 
 </div>
-
-
-
-<!-- =======================================================
-     FOOTER
-======================================================= -->
-
-<div class="footer">
-
-© <?php echo date("Y"); ?>
-
-NISEL ONLINE EDUCATION
-
-<br>
-
-Teacher Application Management
 
 </div>
 
@@ -2098,10 +1326,3 @@ Teacher Application Management
 </body>
 
 </html>
-
-
-<?php
-
-$conn->close();
-
-?>
