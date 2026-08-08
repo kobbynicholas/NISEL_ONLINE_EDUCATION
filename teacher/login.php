@@ -50,18 +50,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         /*
         | Search using either Teacher ID or Email
         */
-        $sql = "SELECT *
-                FROM teachers
-                WHERE teacher_id = :login
-                OR email = :login
-                LIMIT 1";
+       $sql = "SELECT *
+        FROM teachers
+        WHERE teacher_id = :teacher_id
+        OR email = :email
+        LIMIT 1";
 
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            ":login" => $login
-        ]);
+$stmt = $pdo->prepare($sql);
 
-        $teacher = $stmt->fetch();
+$stmt->execute([
+    ':teacher_id' => $login,
+    ':email' => $login
+]);
+
+$teacher = $stmt->fetch();
 
         /*
         | Verify teacher and password
