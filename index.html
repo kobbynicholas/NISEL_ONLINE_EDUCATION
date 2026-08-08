@@ -226,6 +226,236 @@ margin-top:50px;
 
 }
 
+
+/* =========================================
+   TEACHER APPLICATION
+========================================= */
+
+.teacher-application {
+
+    padding: 80px 20px;
+
+    background: #eef5fb;
+
+}
+
+.teacher-application-container {
+
+    max-width: 1100px;
+
+    margin: auto;
+
+    background: white;
+
+    border-radius: 18px;
+
+    overflow: hidden;
+
+    display: grid;
+
+    grid-template-columns: 1.5fr 1fr;
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.10);
+
+}
+
+.teacher-application-content {
+
+    padding: 50px;
+
+}
+
+.application-tag {
+
+    display: inline-block;
+
+    background: #e6f0fa;
+
+    color: #003366;
+
+    padding: 7px 14px;
+
+    border-radius: 20px;
+
+    font-size: 13px;
+
+    font-weight: bold;
+
+    margin-bottom: 15px;
+
+}
+
+.teacher-application-content h2 {
+
+    color: #003366;
+
+    font-size: 34px;
+
+    margin: 0 0 20px;
+
+    line-height: 1.25;
+
+}
+
+.teacher-application-content h2 span {
+
+    color: #0055a5;
+
+}
+
+.teacher-application-content p {
+
+    color: #666;
+
+    line-height: 1.8;
+
+    font-size: 16px;
+
+}
+
+.teacher-features {
+
+    margin: 25px 0;
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+    gap: 15px;
+
+}
+
+.teacher-features div {
+
+    color: #444;
+
+    font-size: 14px;
+
+}
+
+.teacher-features strong {
+
+    color: #008000;
+
+    margin-right: 7px;
+
+}
+
+.apply-teacher-btn {
+
+    display: inline-block;
+
+    background: #003366;
+
+    color: white;
+
+    padding: 15px 30px;
+
+    border-radius: 7px;
+
+    text-decoration: none;
+
+    font-weight: bold;
+
+    transition: .3s;
+
+}
+
+.apply-teacher-btn:hover {
+
+    background: #0055a5;
+
+    transform: translateY(-2px);
+
+}
+
+
+/* =========================================
+   TEACHER APPLICATION RIGHT SIDE
+========================================= */
+
+.teacher-application-image {
+
+    background: #003366;
+
+    color: white;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    text-align: center;
+
+    padding: 40px;
+
+}
+
+.teacher-icon {
+
+    font-size: 90px;
+
+    margin-bottom: 20px;
+
+}
+
+.teacher-application-image h3 {
+
+    font-size: 25px;
+
+    margin-bottom: 10px;
+
+}
+
+.teacher-application-image p {
+
+    color: #dbe9f5;
+
+}
+
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media(max-width: 750px) {
+
+    .teacher-application-container {
+
+        grid-template-columns: 1fr;
+
+    }
+
+    .teacher-application-content {
+
+        padding: 30px;
+
+    }
+
+    .teacher-application-content h2 {
+
+        font-size: 27px;
+
+    }
+
+    .teacher-features {
+
+        grid-template-columns: 1fr;
+
+    }
+
+}
+
+
+
+
+
+  
 </style>
 
 </head>
@@ -362,6 +592,92 @@ Download notes, assignments and recorded lessons.
 </div>
 
 </section>
+
+
+
+<!-- =========================================
+     TEACHER APPLICATION SECTION
+========================================= -->
+
+<section class="teacher-application">
+
+    <div class="teacher-application-container">
+
+        <div class="teacher-application-content">
+
+            <span class="application-tag">
+                JOIN OUR TEACHING TEAM
+            </span>
+
+            <h2>
+                Become a Teacher at
+                <span>NISEL ONLINE EDUCATION</span>
+            </h2>
+
+            <p>
+                Are you a qualified and passionate teacher?
+                Join NISEL ONLINE EDUCATION and help students
+                achieve their academic goals through quality
+                online education.
+            </p>
+
+            <div class="teacher-features">
+
+                <div>
+                    <strong>✓</strong>
+                    Teach Students Online
+                </div>
+
+                <div>
+                    <strong>✓</strong>
+                    Choose Your Subjects
+                </div>
+
+                <div>
+                    <strong>✓</strong>
+                    Cambridge, IB & GES
+                </div>
+
+                <div>
+                    <strong>✓</strong>
+                    Flexible Teaching Opportunities
+                </div>
+
+            </div>
+
+            <a
+                href="teacher_apply.php"
+                class="apply-teacher-btn"
+            >
+                Apply to Teach
+            </a>
+
+        </div>
+
+
+        <div class="teacher-application-image">
+
+            <div class="teacher-icon">
+                👨‍🏫
+            </div>
+
+            <h3>
+                Teach. Inspire. Transform.
+            </h3>
+
+            <p>
+                Become part of the NISEL
+                teaching community.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+
 
 <section class="features">
 
