@@ -25,15 +25,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         if ($action === "approve") {
 
-            $stmt = $pdo->prepare("
-                UPDATE teacher_applications
-                SET application_status = 'Approved'
-                WHERE id = ?
-            ");
+            $stmt = $pdo->prepare("SELECT * FROM teachers");
+$stmt->execute();
 
-            $stmt->bind_param(
-                "i",
-                $application_id
+$teachers = $stmt->fetchAll();
             );
 
             if ($stmt->execute()) {
