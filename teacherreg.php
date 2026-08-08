@@ -100,13 +100,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
        // $check->execute([$email]);
 
-        if ($check->fetch()) {
+       // if ($check->fetch()) {
 
-            $message = "A teacher account with this email already exists.";
-            $message_type = "error";
+         //   $message = "A teacher account with this email already exists.";
+         //   $message_type = "error";
 
-        } else {
+    //    } else {
 
+
+        
             // --------------------------------
             // GENERATE UNIQUE TEACHER ID
             // --------------------------------
