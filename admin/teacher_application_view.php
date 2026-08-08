@@ -19,87 +19,73 @@ if ($application_id <= 0) {
    APPROVE APPLICATION
 ========================================================= */
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
-
-    /*
-     * Start transaction.
-     * This means BOTH operations must succeed.
-     */
-    $conn->begin_transaction();
-
-    try {
-
-        /* =================================================
-           GET APPLICATION
-        ================================================= */
-
-        $stmt = $conn->prepare("
-            SELECT
-                id,
-                application_reference,
-                full_name,
-                phone,
-                email,
-                qualification,
-                teaching_experience,
-                curricula,
-                subjects,
-                preferred_days,
-                preferred_times,
-                professional_statement,
-                photo_filename,
-                application_status
-            FROM teacher_applications
-            WHERE id = ?
-            LIMIT 1
-        ");
-
-        if (!$stmt) {
-            throw new Exception(
-                "Application query failed: " . $conn->error
-            );
-        }
-
-        $stmt->bind_param(
-            "i",
-            $application_id
-        );
-
-        if (!$stmt->execute()) {
-            throw new Exception(
-                "Unable to retrieve application: "
-                . $stmt->error
-            );
-        }
-
-        $result = $stmt->get_result();
-
-        if ($result->num_rows === 0) {
-            throw new Exception(
-                "Teacher application was not found."
-            );
-        }
-
-        $application = $result->fetch_assoc();
-
-        $stmt->close();
+$isApproveRequest =
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    &&
+    (
+        isset($_POST['approve'])
+        ||
+        (
+            isset($_POST['action'])
+            &&
+            $_POST['action'] === 'approve'
+        )
+    );
 
 
-        /* =================================================
-           CHECK APPLICATION STATUS
-        ================================================= */
+if ($isApproveRequest) {
 
-        if (
-            strtolower(
-                trim($application['application_status'])
-            ) === "approved"
-        ) {
+    /* =====================================================
+       GET APPLICATION
+    ===================================================== */
 
-            throw new Exception(
-                "This application has already been approved."
-            );
+    $stmt = $conn->prepare("
+        SELECT *
+        FROM teacher_applications
+        WHERE id = ?
+        LIMIT 1
+    ");
 
-        }
+    if (!$stmt) {
+        die("Database error: " . $conn->error);
+    }
+
+    $stmt->bind_param(
+        "i",
+        $application_id
+    );
+
+    if (!$stmt->execute()) {
+        die("Unable to retrieve application: " . $stmt->error);
+    }
+
+    $result = $stmt->get_result();
+
+    if ($result->num_rows == 0) {
+        die("Teacher application not found.");
+    }
+
+    $application = $result->fetch_assoc();
+
+    $stmt->close();
+
+
+    /* =====================================================
+       CHECK IF ALREADY APPROVED
+    ===================================================== */
+
+    if (
+        strtolower(
+            trim($application['application_status'])
+        ) === "approved"
+    ) {
+
+        $message =
+            "This application has already been approved.";
+
+        $message_type = "error";
+
+    } else {
 
 
         /* =================================================
@@ -125,34 +111,46 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
             trim($application['curricula']);
 
         $experience =
-            trim($application['teaching_experience'] ?? "");
+            trim(
+                $application['teaching_experience'] ?? ""
+            );
 
         $bio =
-            trim($application['professional_statement']);
+            trim(
+                $application['professional_statement']
+            );
 
         $photo =
-            trim($application['photo_filename'] ?? "");
+            trim(
+                $application['photo_filename'] ?? ""
+            );
 
 
         /* =================================================
-           CREATE AVAILABILITY
+           AVAILABILITY
         ================================================= */
 
         $preferred_days =
-            trim($application['preferred_days'] ?? "");
+            trim(
+                $application['preferred_days'] ?? ""
+            );
 
         $preferred_times =
-            trim($application['preferred_times'] ?? "");
+            trim(
+                $application['preferred_times'] ?? ""
+            );
+
 
         if (
-            $preferred_days !== "" &&
+            $preferred_days !== ""
+            &&
             $preferred_times !== ""
         ) {
 
             $availability =
-                $preferred_days .
-                " | " .
-                $preferred_times;
+                $preferred_days
+                . " | "
+                . $preferred_times;
 
         } elseif ($preferred_days !== "") {
 
@@ -172,19 +170,20 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
 
 
         /* =================================================
-           CHECK EMAIL
+           CHECK EXISTING TEACHER
         ================================================= */
 
         $check = $conn->prepare("
-            SELECT id, teacher_id, teacher_name
+            SELECT id, teacher_id
             FROM teachers
             WHERE email = ?
             LIMIT 1
         ");
 
         if (!$check) {
-            throw new Exception(
-                "Email check failed: " . $conn->error
+            die(
+                "Email check failed: "
+                . $conn->error
             );
         }
 
@@ -193,14 +192,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
             $email
         );
 
-        if (!$check->execute()) {
-            throw new Exception(
-                "Email check failed: " . $check->error
-            );
-        }
+        $check->execute();
 
         $existing =
             $check->get_result();
+
 
         if ($existing->num_rows > 0) {
 
@@ -209,30 +205,27 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
 
             $check->close();
 
-            throw new Exception(
+            $message =
                 "A teacher account already exists "
-                . "for this email. Existing Teacher ID: "
-                . $existingTeacher['teacher_id']
-            );
+                . "for this email. Teacher ID: "
+                . $existingTeacher['teacher_id'];
 
-        }
+            $message_type = "error";
 
-        $check->close();
+        } else {
+
+            $check->close();
 
 
-        /* =================================================
-           GENERATE UNIQUE TEACHER ID
-        ================================================= */
-
-        $teacher_id = "";
-
-        for ($attempt = 1; $attempt <= 10; $attempt++) {
+            /* =============================================
+               GENERATE TEACHER ID
+            ============================================= */
 
             $teacher_id =
-                "NISEL-T-" .
-                date("Y") .
-                "-" .
-                strtoupper(
+                "NISEL-T-"
+                . date("Y")
+                . "-"
+                . strtoupper(
                     substr(
                         bin2hex(
                             random_bytes(4)
@@ -243,284 +236,186 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
                 );
 
 
-            $idCheck = $conn->prepare("
-                SELECT id
-                FROM teachers
-                WHERE teacher_id = ?
-                LIMIT 1
+            /* =============================================
+               GENERATE PASSWORD
+            ============================================= */
+
+            $temporary_password =
+                "Nisel@"
+                . random_int(1000, 9999);
+
+
+            /* =============================================
+               HASH PASSWORD
+            ============================================= */
+
+            $password_hash =
+                password_hash(
+                    $temporary_password,
+                    PASSWORD_DEFAULT
+                );
+
+
+            /* =============================================
+               STATUS
+            ============================================= */
+
+            $status = "Active";
+
+
+            /* =============================================
+               INSERT TEACHER
+            ============================================= */
+
+            $teacher = $conn->prepare("
+                INSERT INTO teachers
+                (
+                    teacher_id,
+                    teacher_name,
+                    phone,
+                    email,
+                    qualification,
+                    subjects,
+                    curriculum,
+                    experience,
+                    bio,
+                    availability,
+                    photo,
+                    password,
+                    status
+                )
+                VALUES
+                (
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?
+                )
             ");
 
-            if (!$idCheck) {
-                throw new Exception(
-                    "Teacher ID check failed: "
+
+            if (!$teacher) {
+
+                die(
+                    "Teacher INSERT failed: "
                     . $conn->error
                 );
+
             }
 
-            $idCheck->bind_param(
-                "s",
-                $teacher_id
+
+            $teacher->bind_param(
+                "sssssssssssss",
+                $teacher_id,
+                $teacher_name,
+                $phone,
+                $email,
+                $qualification,
+                $subjects,
+                $curriculum,
+                $experience,
+                $bio,
+                $availability,
+                $photo,
+                $password_hash,
+                $status
             );
 
-            $idCheck->execute();
 
-            $idResult =
-                $idCheck->get_result();
+            /* =============================================
+               EXECUTE INSERT
+            ============================================= */
 
-            $idCheck->close();
+            if (!$teacher->execute()) {
+
+                $message =
+                    "Teacher account was NOT created. "
+                    . "MySQL says: "
+                    . $teacher->error;
+
+                $message_type = "error";
+
+                $teacher->close();
+
+            } else {
 
 
-            if ($idResult->num_rows === 0) {
-                break;
+                /* =========================================
+                   TEACHER SUCCESSFULLY CREATED
+                ========================================= */
+
+                $new_teacher_id =
+                    $teacher->insert_id;
+
+                $teacher->close();
+
+
+                /* =========================================
+                   UPDATE APPLICATION
+                ========================================= */
+
+                $update = $conn->prepare("
+                    UPDATE teacher_applications
+                    SET application_status = 'Approved'
+                    WHERE id = ?
+                ");
+
+
+                if (!$update) {
+
+                    $message =
+                        "Teacher account created, "
+                        . "but application could not be updated: "
+                        . $conn->error;
+
+                    $message_type = "error";
+
+                } else {
+
+                    $update->bind_param(
+                        "i",
+                        $application_id
+                    );
+
+                    if ($update->execute()) {
+
+                        $message =
+                            "Teacher approved successfully! "
+                            . "Teacher ID: "
+                            . $teacher_id
+                            . " | Temporary Password: "
+                            . $temporary_password;
+
+                        $message_type = "success";
+
+                    } else {
+
+                        $message =
+                            "Teacher account was created, "
+                            . "but application status could not "
+                            . "be updated: "
+                            . $update->error;
+
+                        $message_type = "error";
+
+                    }
+
+                    $update->close();
+
+                }
+
             }
 
-            $teacher_id = "";
         }
-
-
-        if ($teacher_id === "") {
-
-            throw new Exception(
-                "Unable to generate a unique Teacher ID."
-            );
-
-        }
-
-
-        /* =================================================
-           GENERATE TEMPORARY PASSWORD
-        ================================================= */
-
-        $temporary_password =
-            "Nisel@" .
-            random_int(1000, 9999);
-
-
-        /* =================================================
-           HASH PASSWORD
-        ================================================= */
-
-        $password_hash =
-            password_hash(
-                $temporary_password,
-                PASSWORD_DEFAULT
-            );
-
-
-        if ($password_hash === false) {
-
-            throw new Exception(
-                "Unable to create secure password."
-            );
-
-        }
-
-
-        /* =================================================
-           INSERT INTO TEACHERS
-        ================================================= */
-
-        $teacher = $conn->prepare("
-            INSERT INTO teachers
-            (
-                teacher_id,
-                teacher_name,
-                phone,
-                email,
-                qualification,
-                subjects,
-                curriculum,
-                experience,
-                bio,
-                availability,
-                photo,
-                password,
-                status
-            )
-            VALUES
-            (
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?,
-                ?
-            )
-        ");
-
-
-        if (!$teacher) {
-
-            throw new Exception(
-                "Teacher INSERT preparation failed: "
-                . $conn->error
-            );
-
-        }
-
-
-        $status = "Active";
-
-
-        $teacher->bind_param(
-            "sssssssssssss",
-            $teacher_id,
-            $teacher_name,
-            $phone,
-            $email,
-            $qualification,
-            $subjects,
-            $curriculum,
-            $experience,
-            $bio,
-            $availability,
-            $photo,
-            $password_hash,
-            $status
-        );
-
-
-        if (!$teacher->execute()) {
-
-            throw new Exception(
-                "Teacher account could not be created: "
-                . $teacher->error
-            );
-
-        }
-
-
-        $new_teacher_database_id =
-            $teacher->insert_id;
-
-        $teacher->close();
-
-
-        /* =================================================
-           VERIFY INSERT
-        ================================================= */
-
-        $verify = $conn->prepare("
-            SELECT
-                id,
-                teacher_id,
-                teacher_name,
-                email,
-                status
-            FROM teachers
-            WHERE id = ?
-            LIMIT 1
-        ");
-
-        if (!$verify) {
-
-            throw new Exception(
-                "Teacher verification failed: "
-                . $conn->error
-            );
-
-        }
-
-        $verify->bind_param(
-            "i",
-            $new_teacher_database_id
-        );
-
-        $verify->execute();
-
-        $verifyResult =
-            $verify->get_result();
-
-        if ($verifyResult->num_rows !== 1) {
-
-            $verify->close();
-
-            throw new Exception(
-                "Teacher was inserted but could not be verified."
-            );
-
-        }
-
-        $verify->close();
-
-
-        /* =================================================
-           UPDATE APPLICATION STATUS
-        ================================================= */
-
-        $update = $conn->prepare("
-            UPDATE teacher_applications
-            SET application_status = 'Approved'
-            WHERE id = ?
-        ");
-
-        if (!$update) {
-
-            throw new Exception(
-                "Application update failed: "
-                . $conn->error
-            );
-
-        }
-
-        $update->bind_param(
-            "i",
-            $application_id
-        );
-
-
-        if (!$update->execute()) {
-
-            throw new Exception(
-                "Unable to approve application: "
-                . $update->error
-            );
-
-        }
-
-
-        $update->close();
-
-
-        /* =================================================
-           EVERYTHING SUCCESSFUL
-        ================================================= */
-
-        $conn->commit();
-
-
-        $message_type = "success";
-
-        $message =
-            "Teacher account created successfully.";
-
-    }
-
-
-    /* =====================================================
-       ERROR
-    ===================================================== */
-
-    catch (Exception $e) {
-
-        /*
-         * Undo EVERYTHING if something fails.
-         */
-
-        $conn->rollback();
-
-        $message_type = "error";
-
-        $message =
-            "APPROVAL FAILED: " .
-            $e->getMessage();
 
     }
 
@@ -534,7 +429,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['approve'])) {
 if (
     $_SERVER["REQUEST_METHOD"] === "POST"
     &&
-    isset($_POST['reject'])
+    isset($_POST['action'])
+    &&
+    $_POST['action'] === "reject"
 ) {
 
     $stmt = $conn->prepare("
@@ -546,7 +443,7 @@ if (
     if (!$stmt) {
 
         $message =
-            "Unable to prepare rejection: "
+            "Database error: "
             . $conn->error;
 
         $message_type = "error";
@@ -1287,29 +1184,21 @@ if (
 
 <form method="POST">
 
-<input
-type="hidden"
-name="application_id"
-value="<?php
-echo $application_id;
-?>"
->
+    <input
+        type="hidden"
+        name="application_id"
+        value="<?php echo $application_id; ?>"
+    >
 
-<button
-type="submit"
-name="action"
-value="approve"
-class="approve"
-onclick="
-return confirm(
-'Are you sure you want to approve this teacher application?'
-);
-"
->
-
-✓ Approve Application
-
-</button>
+    <button
+        type="submit"
+        name="action"
+        value="approve"
+        class="approve"
+        onclick="return confirm('Are you sure you want to approve this teacher application?');"
+    >
+        ✓ Approve Application
+    </button>
 
 </form>
 
