@@ -1,891 +1,391 @@
+```php
 <?php
-
 session_start();
 
-require "../config/db.php";
+/*
+|--------------------------------------------------------------------------
+| DATABASE CONNECTION - PDO
+|--------------------------------------------------------------------------
+*/
 
-/* =========================================================
-   IF TEACHER IS ALREADY LOGGED IN
-========================================================= */
+$host = "localhost";
+$dbname = "nise_online_education";
+$username = "root";
+$password = "";
 
-if (isset($_SESSION['teacher_id'])) {
-
-    header("Location: dashboard.php");
-    exit;
+try {
+    $pdo = new PDO(
+        "mysql:host=$host;dbname=$dbname;charset=utf8mb4",
+        $username,
+        $password,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false
+        ]
+    );
+} catch (PDOException $e) {
+    die("Database connection failed.");
 }
-/* =========================================================
-   VARIABLES
-========================================================= */
+
+
+/*
+|--------------------------------------------------------------------------
+| LOGIN PROCESS
+|--------------------------------------------------------------------------
+*/
 
 $error = "";
 
-/* =========================================================
-   LOGIN PROCESS
-========================================================= */
-
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
-    $login = trim($_POST['login'] ?? "");
-    $password = $_POST['password'] ?? "";
+    $login = trim($_POST["login"] ?? "");
+    $loginPassword = $_POST["password"] ?? "";
 
-    /* =============================================
-       VALIDATION
-    ============================================= */
+    if (empty($login) || empty($loginPassword)) {
 
-    if ($login === "" || $password === "") {
-
-        $error =
-            "Please enter your Teacher ID/email and password.";
+        $error = "Please enter your Teacher ID/email and password.";
 
     } else {
 
+        /*
+        | Search using either Teacher ID or Email
+        */
+        $sql = "SELECT *
+                FROM teachers
+                WHERE teacher_id = :login
+                OR email = :login
+                LIMIT 1";
 
-        /* =============================================
-           FIND TEACHER
-           LOGIN CAN BE TEACHER ID OR EMAIL
-        ============================================= */
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ":login" => $login
+        ]);
 
-        $stmt = $pdo->prepare("
-            SELECT
-                id,
-                teacher_id,
-                teacher_name,
-                phone,
-                email,
-                qualification,
-                subjects,
-                curriculum,
-                experience,
-                bio,
-                availability,
-                photo,
-                password,
-                status
-            FROM teachers
-            WHERE teacher_id = ?
-               OR email = ?
-            LIMIT 1
-        ");
+        $teacher = $stmt->fetch();
 
+        /*
+        | Verify teacher and password
+        */
+        if ($teacher && password_verify($loginPassword, $teacher["password"])) {
 
-        $stmt->bind_param(
-            "ss",
-            $login,
-            $login
-        );
+            /*
+            | Store teacher information in session
+            */
+            $_SESSION["teacher_id"] = $teacher["teacher_id"];
+            $_SESSION["teacher_name"] = $teacher["name"];
+            $_SESSION["teacher_email"] = $teacher["email"];
 
+            /*
+            | Optional status check
+            */
+            if (isset($teacher["status"]) && $teacher["status"] !== "approved") {
 
-        $stmt->execute();
+                session_unset();
+                session_destroy();
 
-
-        $result =
-            $stmt->get_result();
-
-
-        /* =============================================
-           CHECK ACCOUNT
-        ============================================= */
-
-        if ($result->num_rows === 1) {
-
-            $teacher =
-                $result->fetch_assoc();
-
-
-            /* =========================================
-               CHECK ACCOUNT STATUS
-            ========================================= */
-
-            if (
-                strtolower(
-                    trim($teacher['status'])
-                ) !== "active"
-            ) {
-
-                $error =
-                    "Your teacher account is not active. "
-                    . "Please contact NISEL ONLINE EDUCATION.";
-
-            }
-
-
-            /* =========================================
-               CHECK PASSWORD
-            ========================================= */
-
-            elseif (
-                password_verify(
-                    $password,
-                    $teacher['password']
-                )
-            ) {
-
-
-                /* =====================================
-                   CREATE TEACHER SESSION
-                ===================================== */
-
-                session_regenerate_id(true);
-
-
-                $_SESSION['teacher_id'] =
-                    $teacher['teacher_id'];
-
-                $_SESSION['teacher_db_id'] =
-                    $teacher['id'];
-
-                $_SESSION['teacher_name'] =
-                    $teacher['teacher_name'];
-
-                $_SESSION['teacher_email'] =
-                    $teacher['email'];
-
-                $_SESSION['teacher_subjects'] =
-                    $teacher['subjects'];
-
-                $_SESSION['teacher_curriculum'] =
-                    $teacher['curriculum'];
-
-                $_SESSION['teacher_photo'] =
-                    $teacher['photo'];
-
-
-                /* =====================================
-                   LOGIN SUCCESS
-                ===================================== */
-
-                header(
-                    "Location: dashboard.php"
-                );
-
-                exit;
+                $error = "Your teacher account has not yet been approved.";
 
             } else {
 
-                $error =
-                    "Incorrect Teacher ID/email or password.";
-
+                /*
+                | Redirect to Teacher Dashboard
+                */
+                header("Location: teacher_dashboard.php");
+                exit;
             }
 
         } else {
 
-            $error =
-                "Incorrect Teacher ID/email or password.";
-
+            $error = "Invalid Teacher ID/email or password.";
         }
-
-
-        $stmt->close();
-
     }
-
 }
-
 ?>
 
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
 
-<meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
->
-
-<title>
-Teacher Login | NISEL ONLINE EDUCATION
-</title>
-
-
-<style>
-
-* {
-
-    box-sizing: border-box;
-
-}
-
-
-body {
-
-    margin: 0;
-
-    min-height: 100vh;
-
-    font-family:
-        Arial,
-        sans-serif;
-
-    background:
-        linear-gradient(
-            135deg,
-            #003366,
-            #0055a5
-        );
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    padding:
-        20px;
-
-}
-
-
-/* =========================================================
-   LOGIN CONTAINER
-========================================================= */
-
-.login-container {
-
-    width:
-        100%;
-
-    max-width:
-        430px;
-
-}
-
-
-/* =========================================================
-   LOGIN CARD
-========================================================= */
-
-.login-card {
-
-    background:
-        white;
-
-    border-radius:
-        15px;
-
-    padding:
-        40px;
-
-    box-shadow:
-        0 15px 40px
-        rgba(0,0,0,.25);
-
-}
-
-
-/* =========================================================
-   LOGO
-========================================================= */
-
-.logo {
-
-    text-align:
-        center;
-
-    margin-bottom:
-        25px;
-
-}
-
-
-.logo-icon {
-
-    width:
-        70px;
-
-    height:
-        70px;
-
-    margin:
-        0 auto 15px;
-
-    border-radius:
-        50%;
-
-    background:
-        #003366;
-
-    color:
-        white;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    font-size:
-        30px;
-
-}
-
-
-.logo h1 {
-
-    margin:
-        0;
-
-    color:
-        #003366;
-
-    font-size:
-        24px;
-
-}
-
-
-.logo p {
-
-    margin:
-        7px 0 0;
-
-    color:
-        #777;
-
-    font-size:
-        14px;
-
-}
-
-
-/* =========================================================
-   TITLE
-========================================================= */
-
-.login-title {
-
-    text-align:
-        center;
-
-    color:
-        #333;
-
-    margin-bottom:
-        25px;
-
-}
-
-
-.login-title h2 {
-
-    margin:
-        0 0 7px;
-
-    font-size:
-        22px;
-
-}
-
-
-.login-title p {
-
-    margin:
-        0;
-
-    color:
-        #777;
-
-    font-size:
-        14px;
-
-}
-
-
-/* =========================================================
-   ERROR
-========================================================= */
-
-.error {
-
-    background:
-        #f8d7da;
-
-    color:
-        #721c24;
-
-    border:
-        1px solid #f5c6cb;
-
-    padding:
-        12px 15px;
-
-    border-radius:
-        7px;
-
-    margin-bottom:
-        20px;
-
-    font-size:
-        14px;
-
-}
-
-
-/* =========================================================
-   FORM
-========================================================= */
-
-.form-group {
-
-    margin-bottom:
-        20px;
-
-}
-
-
-.form-group label {
-
-    display:
-        block;
-
-    margin-bottom:
-        8px;
-
-    font-weight:
-        bold;
-
-    color:
-        #333;
-
-}
-
-
-.form-group input {
-
-    width:
-        100%;
-
-    padding:
-        13px;
-
-    border:
-        1px solid #ccc;
-
-    border-radius:
-        7px;
-
-    font-size:
-        15px;
-
-    outline:
-        none;
-
-}
-
-
-.form-group input:focus {
-
-    border-color:
-        #003366;
-
-    box-shadow:
-        0 0 0 3px
-        rgba(0,51,102,.1);
-
-}
-
-
-/* =========================================================
-   PASSWORD
-========================================================= */
-
-.password-wrapper {
-
-    position:
-        relative;
-
-}
-
-
-.password-wrapper input {
-
-    padding-right:
-        75px;
-
-}
-
-
-.show-password {
-
-    position:
-        absolute;
-
-    right:
-        10px;
-
-    top:
-        50%;
-
-    transform:
-        translateY(-50%);
-
-    border:
-        none;
-
-    background:
-        none;
-
-    color:
-        #003366;
-
-    cursor:
-        pointer;
-
-    font-weight:
-        bold;
-
-}
-
-
-/* =========================================================
-   LOGIN BUTTON
-========================================================= */
-
-.login-button {
-
-    width:
-        100%;
-
-    padding:
-        14px;
-
-    background:
-        #003366;
-
-    color:
-        white;
-
-    border:
-        none;
-
-    border-radius:
-        7px;
-
-    font-size:
-        16px;
-
-    font-weight:
-        bold;
-
-    cursor:
-        pointer;
-
-}
-
-
-.login-button:hover {
-
-    background:
-        #0055a5;
-
-}
-
-
-/* =========================================================
-   HELP
-========================================================= */
-
-.help {
-
-    text-align:
-        center;
-
-    margin-top:
-        20px;
-
-    font-size:
-        13px;
-
-    color:
-        #777;
-
-}
-
-
-.help strong {
-
-    color:
-        #003366;
-
-}
-
-
-/* =========================================================
-   FOOTER
-========================================================= */
-
-.footer {
-
-    text-align:
-        center;
-
-    color:
-        rgba(255,255,255,.8);
-
-    margin-top:
-        20px;
-
-    font-size:
-        12px;
-
-}
-
-
-/* =========================================================
-   MOBILE
-========================================================= */
-
-@media(max-width:480px) {
-
-    .login-card {
-
-        padding:
-            30px 22px;
-
-    }
-
-}
-
-</style>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Teacher Login | NISEL ONLINE EDUCATION</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f4f7fb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 430px;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: #ffffff;
+            padding: 35px;
+            border-radius: 12px;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.10);
+        }
+
+        .logo-title {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-title h1 {
+            margin: 0;
+            color: #123c69;
+            font-size: 26px;
+        }
+
+        .logo-title p {
+            margin-top: 8px;
+            color: #777;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        input:focus {
+            border-color: #123c69;
+        }
+
+        .password-wrapper {
+            position: relative;
+        }
+
+        .password-wrapper input {
+            padding-right: 80px;
+        }
+
+        .show-password {
+            position: absolute;
+            right: 8px;
+            top: 7px;
+            border: none;
+            background: transparent;
+            color: #123c69;
+            cursor: pointer;
+            padding: 7px;
+            font-weight: bold;
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 6px;
+            background: #123c69;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .login-button:hover {
+            background: #0d2d50;
+        }
+
+        .error-message {
+            background: #ffe5e5;
+            color: #b30000;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .forgot {
+            text-align: center;
+            margin-top: 20px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .admin-name {
+            font-weight: bold;
+            color: #123c69;
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 25px;
+            color: #888;
+            font-size: 13px;
+        }
+
+    </style>
 
 </head>
 
-
 <body>
-
 
 <div class="login-container">
 
+    <div class="login-box">
 
-<div class="login-card">
+        <div class="logo-title">
 
+            <h1>NISEL ONLINE EDUCATION</h1>
 
-<!-- =======================================================
-     LOGO
-======================================================= -->
+            <p>Teacher Login</p>
 
-<div class="logo">
-
-<div class="logo-icon">
-N
-</div>
-
-<h1>
-NISEL ONLINE EDUCATION
-</h1>
-
-<p>
-Quality Online Education
-</p>
-
-</div>
+        </div>
 
 
+        <?php if (!empty($error)): ?>
 
-<!-- =======================================================
-     TITLE
-======================================================= -->
+            <div class="error-message">
+                <?= htmlspecialchars($error) ?>
+            </div>
 
-<div class="login-title">
-
-<h2>
-Teacher Login
-</h2>
-
-<p>
-Sign in to access your Teacher Dashboard
-</p>
-
-</div>
+        <?php endif; ?>
 
 
+        <form method="POST" action="">
 
-<!-- =======================================================
-     ERROR
-======================================================= -->
+            <div class="form-group">
 
-<?php if ($error !== ""): ?>
+                <label for="login">
+                    Teacher ID or Email
+                </label>
 
-<div class="error">
+                <input
+                    type="text"
+                    id="login"
+                    name="login"
+                    placeholder="Enter Teacher ID or email"
+                    autocomplete="username"
+                    required
+                    value="<?= htmlspecialchars($_POST["login"] ?? "") ?>"
+                >
 
-<?php
-
-echo htmlspecialchars(
-    $error
-);
-
-?>
-
-</div>
-
-<?php endif; ?>
-
+            </div>
 
 
-<!-- =======================================================
-     LOGIN FORM
-======================================================= -->
+            <div class="form-group">
 
-<form
-method="POST"
-action=""
->
+                <label for="password">
+                    Password
+                </label>
 
+                <div class="password-wrapper">
 
-<div class="form-group">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
 
-<label for="login">
+                    <button
+                        type="button"
+                        class="show-password"
+                        onclick="togglePassword()"
+                    >
+                        Show
+                    </button>
 
-Teacher ID or Email
+                </div>
 
-</label>
-
-<input
-type="text"
-id="login"
-name="login"
-placeholder="Enter Teacher ID or email"
-autocomplete="username"
-required
->
-
-</div>
-
-
-
-<div class="form-group">
-
-<label for="password">
-
-Password
-
-</label>
+            </div>
 
 
-<div class="password-wrapper">
+            <button
+                type="submit"
+                class="login-button"
+            >
+                Login to Teacher Dashboard
+            </button>
 
-<input
-type="password"
-id="password"
-name="password"
-placeholder="Enter your password"
-autocomplete="current-password"
-required
->
+        </form>
 
 
-<button
-type="button"
-class="show-password"
-onclick="togglePassword()"
->
+        <div class="forgot">
 
-Show
+            Forgot your login details?
 
-</button>
+            <br>
+
+            Please contact
+
+            <span class="admin-name">
+                NISEL ONLINE EDUCATION
+            </span>
+
+            administration.
+
+        </div>
+
+
+        <div class="copyright">
+
+            © <?= date("Y") ?> NISEL ONLINE EDUCATION
+
+        </div>
+
+    </div>
 
 </div>
-
-</div>
-
-
-
-<button
-type="submit"
-class="login-button"
->
-
-Login to Teacher Dashboard
-
-</button>
-
-
-</form>
-
-
-
-<!-- =======================================================
-     HELP
-======================================================= -->
-
-<div class="help">
-
-<p>
-
-Forgot your login details?
-
-</p>
-
-<p>
-
-Please contact
-<strong>
-NISEL ONLINE EDUCATION
-</strong>
-administration.
-
-</p>
-
-</div>
-
-
-</div>
-
-
-<div class="footer">
-
-© <?php echo date("Y"); ?>
-
-NISEL ONLINE EDUCATION
-
-</div>
-
-
-</div>
-
 
 
 <script>
 
 function togglePassword() {
 
-    const password =
-        document.getElementById(
-            "password"
-        );
+    const password = document.getElementById("password");
+    const button = document.querySelector(".show-password");
 
-    const button =
-        document.querySelector(
-            ".show-password"
-        );
+    if (password.type === "password") {
 
-
-    if (
-        password.type === "password"
-    ) {
-
-        password.type =
-            "text";
-
-        button.textContent =
-            "Hide";
+        password.type = "text";
+        button.textContent = "Hide";
 
     } else {
 
-        password.type =
-            "password";
-
-        button.textContent =
-            "Show";
+        password.type = "password";
+        button.textContent = "Show";
 
     }
 
@@ -893,14 +393,7 @@ function togglePassword() {
 
 </script>
 
-
 </body>
 
 </html>
-
-
-<?php
-
-// $pdo->close();
-
-?>
+```
