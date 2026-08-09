@@ -1,6 +1,8 @@
 <?php
+
 require "../admin_auth.php";
 require "../config/db.php";
+
 
 /* ============================
    ASSIGN TEACHER
@@ -13,40 +15,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['assign'])) {
     $booking_id = intval($_POST['booking_id']);
     $teacher_id = trim($_POST['teacher_id']);
 
+
     // Get teacher details
-    $teacher = $conn->prepare("SELECT teacher_name FROM teachers WHERE teacher_id=?");
 
-if (!$teacher) {
-    die("Teacher query error: " . $conn->error);
-}
-    $teacher->bind_param("s", $teacher_id);
-    $teacher->execute();
+    $teacher = $pdo->prepare("
+        SELECT teacher_name
+        FROM teachers
+        WHERE teacher_id = ?
+    ");
 
-    $teacherResult = $teacher->get_result();
+    $teacher->execute([
+        $teacher_id
+    ]);
 
-    if ($teacherResult->num_rows > 0) {
 
-        $teacherRow = $teacherResult->fetch_assoc();
+    $teacherRow = $teacher->fetch(PDO::FETCH_ASSOC);
+
+
+    if ($teacherRow) {
 
         $teacher_name = $teacherRow['teacher_name'];
 
-        $update = $conn->prepare("
+
+        // Update booking
+
+        $update = $pdo->prepare("
+
             UPDATE bookings
+
             SET
-                teacher_id=?,
-                teacher_name=?,
-                assignment_status='Assigned'
-            WHERE id=?
+                teacher_id = ?,
+                teacher_name = ?,
+                assignment_status = 'Assigned'
+
+            WHERE id = ?
+
         ");
 
-        $update->bind_param(
-            "ssi",
+
+        if ($update->execute([
+
             $teacher_id,
             $teacher_name,
             $booking_id
-        );
 
-        if ($update->execute()) {
+        ])) {
 
             $message = "Teacher assigned successfully.";
 
@@ -56,22 +69,54 @@ if (!$teacher) {
 
         }
 
+    } else {
+
+        $message = "Teacher not found.";
+
     }
 
 }
+
 
 /* ============================
    GET BOOKINGS
 ============================ */
 
-$bookings = $conn->query("
-SELECT *
-FROM bookings
-ORDER BY id DESC
+$bookingQuery = $pdo->query("
+
+    SELECT *
+    FROM bookings
+    ORDER BY id DESC
+
 ");
+
+
+$bookings = $bookingQuery->fetchAll(PDO::FETCH_ASSOC);
+
+
+/* ============================
+   GET ACTIVE TEACHERS
+============================ */
+
+$teacherQuery = $pdo->query("
+
+    SELECT teacher_id, teacher_name
+
+    FROM teachers
+
+    WHERE status = 'Active'
+
+    ORDER BY teacher_name
+
+");
+
+
+$teachers = $teacherQuery->fetchAll(PDO::FETCH_ASSOC);
+
 ?>
 
 <!DOCTYPE html>
+
 <html>
 
 <head>
@@ -188,23 +233,29 @@ button:hover{
 
 </head>
 
+
 <body>
+
 
 <div class="container">
 
+
 <h2>Student Lesson Bookings</h2>
 
-<?php if($message!=""){ ?>
+
+<?php if ($message != "") { ?>
 
 <div class="success">
 
-<?php echo $message; ?>
+<?php echo htmlspecialchars($message); ?>
 
 </div>
 
 <?php } ?>
 
+
 <table>
+
 
 <tr>
 
@@ -221,43 +272,84 @@ button:hover{
 <th>Payment</th>
 
 <th>Reference</th>
-   
+
 <th>Status</th>
 
 <th>Amount</th>
-   
+
 <th>Assign Teacher</th>
 
-   
 </tr>
 
-<?php while($row = $bookings->fetch_assoc()){ ?>
+
+<?php foreach ($bookings as $row) { ?>
+
 
 <tr>
 
-<td><?php echo htmlspecialchars($row['student_name']); ?></td>
 
-<td><?php echo htmlspecialchars($row['email']); ?></td>
-
-<td><?php echo htmlspecialchars($row['curriculum']); ?></td>
-
-<td><?php echo htmlspecialchars($row['class_year']); ?></td>
-
-<td><?php echo htmlspecialchars($row['subjects']); ?></td>
-
-<td><?php echo number_format($row['amount']); ?></td>
-
-<td><?php echo htmlspecialchars($row['booking_reference']); ?></td>
-   
 <td>
+
+<?php echo htmlspecialchars($row['student_name']); ?>
+
+</td>
+
+
+<td>
+
+<?php echo htmlspecialchars($row['email']); ?>
+
+</td>
+
+
+<td>
+
+<?php echo htmlspecialchars($row['curriculum']); ?>
+
+</td>
+
+
+<td>
+
+<?php echo htmlspecialchars($row['class_year']); ?>
+
+</td>
+
+
+<td>
+
+<?php echo htmlspecialchars($row['subjects']); ?>
+
+</td>
+
+
+<td>
+
+<?php echo number_format($row['amount']); ?>
+
+</td>
+
+
+<td>
+
+<?php echo htmlspecialchars($row['booking_reference']); ?>
+
+</td>
+
+
+<td>
+
 
 <?php
 
-if($row['payment_status']=="success" || $row['payment_status']=="Paid"){
+if (
+    $row['payment_status'] == "success" ||
+    $row['payment_status'] == "Paid"
+) {
 
     echo "<span class='badge paid'>Paid</span>";
 
-}else{
+} else {
 
     echo "<span class='badge pending'>Pending</span>";
 
@@ -265,17 +357,20 @@ if($row['payment_status']=="success" || $row['payment_status']=="Paid"){
 
 ?>
 
+
 </td>
+
 
 <td>
 
+
 <?php
 
-if(empty($row['teacher_name'])){
+if (empty($row['teacher_name'])) {
 
     echo "Not Assigned";
 
-}else{
+} else {
 
     echo htmlspecialchars($row['teacher_name']);
 
@@ -283,65 +378,81 @@ if(empty($row['teacher_name'])){
 
 ?>
 
+
 </td>
+
 
 <td>
 
+
 <form method="POST">
 
+
 <input
-type="hidden"
-name="booking_id"
-value="<?php echo $row['id']; ?>">
+    type="hidden"
+    name="booking_id"
+    value="<?php echo htmlspecialchars($row['id']); ?>"
+>
+
 
 <select name="teacher_id" required>
 
-<option value="">Select Teacher</option>
 
-<?php
+<option value="">
 
-$teachers = $conn->query("
-SELECT teacher_id, teacher_name
-FROM teachers
-WHERE status='Active'
-ORDER BY teacher_name
-");
+Select Teacher
 
-while($teacher = $teachers->fetch_assoc()){
+</option>
 
-?>
 
-<option value="<?php echo $teacher['teacher_id']; ?>">
+<?php foreach ($teachers as $teacher) { ?>
+
+
+<option
+    value="<?php echo htmlspecialchars($teacher['teacher_id']); ?>"
+>
 
 <?php echo htmlspecialchars($teacher['teacher_name']); ?>
 
 </option>
 
+
 <?php } ?>
+
 
 </select>
 
+
 <br><br>
 
+
 <button
-type="submit"
-name="assign">
+    type="submit"
+    name="assign"
+>
 
 Assign
 
 </button>
 
+
 </form>
+
 
 </td>
 
+
 </tr>
+
 
 <?php } ?>
 
+
 </table>
 
+
 </div>
+
 
 </body>
 
