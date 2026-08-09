@@ -109,54 +109,42 @@ color:red;
 </tr>
 
 
-
-<?php while($row=$result->fetch_assoc()){ ?>
-
+<?php while ($row = $result->fetch(PDO::FETCH_ASSOC)) { ?>
 
 <tr>
 
+    <td>
+        <?php echo htmlspecialchars($row['student_id']); ?>
+    </td>
 
-<td>
-<?php echo $row['student_id']; ?>
-</td>
+    <td>
+        <?php echo htmlspecialchars($row['student_name']); ?>
+    </td>
 
+    <td>
+        <?php echo htmlspecialchars($row['email']); ?>
+    </td>
 
-<td>
-<?php echo $row['student_name']; ?>
-</td>
+    <td>
+        <?php echo htmlspecialchars($row['phone']); ?>
+    </td>
 
+    <td>
+        <?php echo htmlspecialchars($row['curriculum']); ?>
+    </td>
 
-<td>
-<?php echo $row['email']; ?>
-</td>
+    <td>
+        <?php echo htmlspecialchars($row['class_year']); ?>
+    </td>
 
-
-<td>
-<?php echo $row['phone']; ?>
-</td>
-
-
-<td>
-<?php echo $row['curriculum']; ?>
-</td>
-
-
-<td>
-<?php echo $row['class_year']; ?>
-</td>
-
-
-<td>
-
-<a href="#">
-Delete
-</a>
-
-</td>
-
+    <td>
+        <a href="delete_student.php?id=<?php echo urlencode($row['student_id']); ?>"
+           onclick="return confirm('Are you sure you want to delete this student?');">
+            Delete
+        </a>
+    </td>
 
 </tr>
-
 
 <?php } ?>
 
