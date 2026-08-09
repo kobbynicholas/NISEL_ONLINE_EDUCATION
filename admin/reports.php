@@ -6,51 +6,69 @@ require "../config/db.php";
 
 
 
+// ============================
 // STUDENTS
+// ============================
 
-$students=$conn->query(
+$studentsQuery = $pdo->query("
 
-"SELECT COUNT(*) total FROM students"
+    SELECT COUNT(*) AS total
 
-)->fetch_assoc()['total'];
+    FROM students
+
+");
+
+$students = $studentsQuery->fetch(PDO::FETCH_ASSOC)['total'];
 
 
 
+// ============================
 // TEACHERS
+// ============================
 
-$teachers=$conn->query(
+$teachersQuery = $pdo->query("
 
-"SELECT COUNT(*) total FROM teachers"
+    SELECT COUNT(*) AS total
 
-)->fetch_assoc()['total'];
+    FROM teachers
+
+");
+
+$teachers = $teachersQuery->fetch(PDO::FETCH_ASSOC)['total'];
 
 
 
+// ============================
 // BOOKINGS
+// ============================
 
-$bookings=$conn->query(
+$bookingsQuery = $pdo->query("
 
-"SELECT COUNT(*) total FROM bookings"
+    SELECT COUNT(*) AS total
 
-)->fetch_assoc()['total'];
+    FROM bookings
+
+");
+
+$bookings = $bookingsQuery->fetch(PDO::FETCH_ASSOC)['total'];
 
 
 
-// PAYMENTS
+// ============================
+// PAYMENTS / REVENUE
+// ============================
 
-$revenue=$conn->query(
+$revenueQuery = $pdo->query("
 
-"
+    SELECT SUM(amount) AS total
 
-SELECT SUM(amount) total
+    FROM payments
 
-FROM payments
+    WHERE status = 'success'
 
-WHERE status='success'
+");
 
-"
-
-)->fetch_assoc()['total'];
+$revenue = $revenueQuery->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
 
 ?>
@@ -104,6 +122,7 @@ text-align:center;
 }
 
 
+
 .number{
 
 font-size:35px;
@@ -127,6 +146,7 @@ padding:20px;
 }
 
 
+
 </style>
 
 
@@ -137,7 +157,9 @@ padding:20px;
 
 
 <h2>
+
 NISEL ONLINE EDUCATION REPORTS
+
 </h2>
 
 
@@ -175,7 +197,6 @@ NISEL ONLINE EDUCATION REPORTS
 
 
 
-
 <div class="card">
 
 <p>Total Bookings</p>
@@ -190,23 +211,20 @@ NISEL ONLINE EDUCATION REPORTS
 
 
 
-
 <div class="card">
 
 <p>Total Revenue</p>
 
 <div class="number">
 
-GHC <?php echo number_format($revenue ?? 0); ?>
+GHC <?php echo number_format($revenue); ?>
 
 </div>
 
 </div>
 
 
-
 </div>
-
 
 
 
@@ -229,6 +247,7 @@ Student Report
 
 </a>
 
+
 <br><br>
 
 
@@ -237,6 +256,7 @@ Student Report
 Teacher Report
 
 </a>
+
 
 <br><br>
 
@@ -247,6 +267,7 @@ Payment Report
 
 </a>
 
+
 <br><br>
 
 
@@ -255,7 +276,6 @@ Payment Report
 Booking Report
 
 </a>
-
 
 
 </div>
