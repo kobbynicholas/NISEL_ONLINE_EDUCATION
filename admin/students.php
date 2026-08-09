@@ -5,7 +5,7 @@ require "../admin_auth.php";
 require "../config/db.php";
 
 
-$result=$conn->query("SELECT * FROM students ORDER BY id DESC");
+$result=$pdo->query("SELECT * FROM students ORDER BY id DESC");
 
 
 ?>
