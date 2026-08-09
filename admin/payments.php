@@ -384,8 +384,8 @@ Failed
 
 <option value="">All Methods</option>
 
-<option value="MTN MoMo"
-<?php echo ($method == 'MTN MoMo') ? 'selected' : ''; ?>>
+<option value="mobile_money"
+<?php echo ($method == 'mobile_money') ? 'selected' : ''; ?>>
 MTN MoMo
 </option>
 
