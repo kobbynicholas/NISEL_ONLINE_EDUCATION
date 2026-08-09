@@ -1,7 +1,7 @@
 <?php
 
 $host = "localhost";
-$dbname = "nisel_online_education";
+$dbname = "nise_online_education";
 $username = "root";
 $password = "";
 
