@@ -21,17 +21,11 @@ $getTeacher=$conn->prepare(
 "SELECT teacher_name FROM teachers WHERE teacher_id=?"
 );
 
-$getTeacher->bind_param(
-"s",
-$teacher_id
-);
+$getTeacher->execute([
+    $teacher_id
+]);
 
-$getTeacher->execute();
-
-$result=$getTeacher->get_result();
-
-
-$teacher=$result->fetch_assoc();
+$teacher=$getTeacher->fetch(PDO::FETCH_ASSOC);
 
 
 $teacher_name=$teacher['teacher_name'];
@@ -56,20 +50,15 @@ WHERE id=?
 ");
 
 
-$sql->bind_param(
+$sql->execute([
 
-"ssi",
+    $teacher_id,
 
-$teacher_id,
+    $teacher_name,
 
-$teacher_name,
+    $booking_id
 
-$booking_id
-
-);
-
-
-$sql->execute();
+]);
 
 
 }
