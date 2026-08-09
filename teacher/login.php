@@ -1,11 +1,6 @@
 <?php
-session_start();
 
-/*
-|--------------------------------------------------------------------------
-| DATABASE CONNECTION
-|--------------------------------------------------------------------------
-*/
+session_start();
 
 require_once "../config/db.php";
 
@@ -18,10 +13,18 @@ require_once "../config/db.php";
 
 $error = "";
 
+
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     $login = trim($_POST["login"] ?? "");
     $loginPassword = $_POST["password"] ?? "";
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK EMPTY FIELDS
+    |--------------------------------------------------------------------------
+    */
 
     if ($login === "" || $loginPassword === "") {
 
@@ -29,32 +32,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     } else {
 
+
         /*
         |--------------------------------------------------------------------------
-        | FIND TEACHER BY TEACHER ID OR EMAIL
+        | FIND TEACHER
         |--------------------------------------------------------------------------
         */
 
-        $sql = "SELECT
-                    id,
-                    teacher_id,
-                    teacher_name,
-                    phone,
-                    email,
-                    qualification,
-                    subjects,
-                    curriculum,
-                    experience,
-                    bio,
-                    availability,
-                    photo,
-                    password,
-                    status,
-                    created_at
-                FROM teachers
-                WHERE teacher_id = :teacher_id
-                OR email = :email
-                LIMIT 1";
+        $sql = "
+            SELECT
+                id,
+                teacher_id,
+                teacher_name,
+                phone,
+                email,
+                qualification,
+                subjects,
+                curriculum,
+                experience,
+                bio,
+                availability,
+                photo,
+                password,
+                status,
+                created_at
+            FROM teachers
+            WHERE teacher_id = :teacher_id
+               OR email = :email
+            LIMIT 1
+        ";
+
 
         try {
 
@@ -67,92 +74,87 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
             $teacher = $stmt->fetch(PDO::FETCH_ASSOC);
 
+
         } catch (PDOException $e) {
 
-            die("Login database error: " . $e->getMessage());
+            $error = "A database error occurred. Please contact NISEL ONLINE EDUCATION administration.";
+
         }
 
 
         /*
         |--------------------------------------------------------------------------
-        | CHECK TEACHER ACCOUNT
+        | CHECK TEACHER
         |--------------------------------------------------------------------------
         */
 
-        if (!$teacher) {
+        if (empty($error)) {
 
-            $error = "Invalid Teacher ID/email or password.";
+            if (!$teacher) {
 
-        } elseif (empty($teacher["password"])) {
+                $error = "Invalid Teacher ID/email or password.";
 
-            $error = "This teacher account does not have a valid password.";
+            } elseif (empty($teacher["password"])) {
 
-        } elseif (!password_verify($loginPassword, $teacher["password"])) {
+                $error = "This teacher account does not have a valid password.";
 
-            $error = "Invalid Teacher ID/email or password.";
+            } elseif (!password_verify($loginPassword, $teacher["password"])) {
 
-        } elseif (strtolower($teacher["status"]) !== "active") {
+                $error = "Invalid Teacher ID/email or password.";
 
-            $error = "Your teacher account is not active. Please contact NISEL ONLINE EDUCATION administration.";
+            } elseif (strtolower(trim($teacher["status"])) !== "active") {
 
-        } else {
+                $error = "Your teacher account is not active. Please contact NISEL ONLINE EDUCATION administration.";
 
-           /*
-|--------------------------------------------------------------------------
-| LOGIN SUCCESSFUL
-|--------------------------------------------------------------------------
-*/
+            } else {
 
-session_regenerate_id(true);
 
-$_SESSION["teacher_logged_in"] = true;
+                /*
+                |--------------------------------------------------------------------------
+                | LOGIN SUCCESSFUL
+                |--------------------------------------------------------------------------
+                */
 
-$_SESSION["teacher_db_id"] = $teacher["id"];
+                session_regenerate_id(true);
 
-$_SESSION["teacher_id"] = $teacher["teacher_id"];
 
-$_SESSION["teacher_name"] = $teacher["teacher_name"];
+                $_SESSION["teacher_logged_in"] = true;
 
-$_SESSION["teacher_email"] = $teacher["email"];
+                $_SESSION["teacher_db_id"] = $teacher["id"];
 
-$_SESSION["teacher_phone"] = $teacher["phone"];
+                $_SESSION["teacher_id"] = $teacher["teacher_id"];
 
-$_SESSION["teacher_subjects"] = $teacher["subjects"];
+                $_SESSION["teacher_name"] = $teacher["teacher_name"];
 
-$_SESSION["teacher_curriculum"] = $teacher["curriculum"];
+                $_SESSION["teacher_email"] = $teacher["email"];
 
-$_SESSION["teacher_photo"] = $teacher["photo"];
+                $_SESSION["teacher_phone"] = $teacher["phone"];
 
-$_SESSION["teacher_status"] = $teacher["status"];
+                $_SESSION["teacher_subjects"] = $teacher["subjects"];
+
+                $_SESSION["teacher_curriculum"] = $teacher["curriculum"];
+
+                $_SESSION["teacher_photo"] = $teacher["photo"];
+
+                $_SESSION["teacher_status"] = $teacher["status"];
+
+
+                /*
+                |--------------------------------------------------------------------------
+                | OPEN TEACHER DASHBOARD
+                |--------------------------------------------------------------------------
+                */
+
+                header("Location: dashboard.php");
+
+                exit();
+            }
+        }
+    }
 }
 
-/*
-|--------------------------------------------------------------------------
-| CHECK DASHBOARD FILE
-|--------------------------------------------------------------------------
-*/
-
-if (!file_exists(__DIR__ . "/dashboard.php")) {
-
-    die(
-        "Login successful, but dashboard.php was not found.<br><br>" .
-        "Expected location:<br>" .
-        __DIR__ . "/dashboard.php"
-    );
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| OPEN TEACHER DASHBOARD
-|--------------------------------------------------------------------------
-*/
-
-header("Location: dashboard.php");
-exit();
-            
 ?>
+
 
 <!DOCTYPE html>
 
@@ -371,6 +373,8 @@ exit();
             text-align: center;
 
             font-size: 14px;
+
+            line-height: 1.5;
         }
 
 
@@ -407,6 +411,22 @@ exit();
             font-size: 13px;
         }
 
+
+        @media (max-width: 480px) {
+
+            .login-box {
+
+                padding: 25px;
+            }
+
+
+            .logo-title h1 {
+
+                font-size: 22px;
+            }
+
+        }
+
     </style>
 
 </head>
@@ -438,7 +458,9 @@ exit();
 
             <div class="error-message">
 
-                <?= htmlspecialchars($error) ?>
+                <?php
+                echo htmlspecialchars($error);
+                ?>
 
             </div>
 
@@ -462,7 +484,11 @@ exit();
                     placeholder="Enter Teacher ID or email"
                     autocomplete="username"
                     required
-                    value="<?= htmlspecialchars($_POST["login"] ?? "") ?>"
+                    value="<?php
+                        echo htmlspecialchars(
+                            $_POST["login"] ?? ""
+                        );
+                    ?>"
                 >
 
             </div>
@@ -492,7 +518,9 @@ exit();
                         class="show-password"
                         onclick="togglePassword()"
                     >
+
                         Show
+
                     </button>
 
                 </div>
@@ -504,7 +532,9 @@ exit();
                 type="submit"
                 class="login-button"
             >
+
                 Login to Teacher Dashboard
+
             </button>
 
 
@@ -530,7 +560,8 @@ exit();
 
         <div class="copyright">
 
-            © <?= date("Y") ?>
+            ©
+            <?php echo date("Y"); ?>
 
             NISEL ONLINE EDUCATION
 
@@ -538,7 +569,6 @@ exit();
 
 
     </div>
-
 
 </div>
 
