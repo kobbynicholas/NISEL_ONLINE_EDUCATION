@@ -4,19 +4,21 @@ require "../admin_auth.php";
 
 require "../config/db.php";
 
+
 // ASSIGN TEACHER
 
-if(isset($_POST['assign'])){
+if (isset($_POST['assign'])) {
 
     $booking_id = $_POST['booking_id'];
-
     $teacher_id = $_POST['teacher_id'];
 
 
     // GET TEACHER NAME
 
     $getTeacher = $pdo->prepare(
-        "SELECT teacher_name FROM teachers WHERE teacher_id = ?"
+        "SELECT teacher_name
+         FROM teachers
+         WHERE teacher_id = ?"
     );
 
     $getTeacher->execute([
@@ -25,34 +27,37 @@ if(isset($_POST['assign'])){
 
     $teacher = $getTeacher->fetch(PDO::FETCH_ASSOC);
 
-    $teacher_name = $teacher['teacher_name'];
+
+    if ($teacher) {
+
+        $teacher_name = $teacher['teacher_name'];
 
 
-    // UPDATE BOOKING
+        // UPDATE BOOKING
 
-    $sql = $pdo->prepare("
+        $sql = $pdo->prepare("
 
-        UPDATE bookings SET
+            UPDATE bookings SET
 
-        teacher_id = ?,
+            teacher_id = ?,
 
-        teacher_name = ?,
+            teacher_name = ?,
 
-        assignment_status = 'Assigned'
+            assignment_status = 'Assigned'
 
-        WHERE id = ?
+            WHERE id = ?
 
-    ");
+        ");
 
-    $sql->execute([
+        $sql->execute([
 
-        $teacher_id,
+            $teacher_id,
+            $teacher_name,
+            $booking_id
 
-        $teacher_name,
+        ]);
 
-        $booking_id
-
-    ]);
+    }
 
 }
 
@@ -60,7 +65,7 @@ if(isset($_POST['assign'])){
 
 // GET TEACHERS
 
-$teachers = $pdo->query("
+$teacherQuery = $pdo->query("
 
     SELECT teacher_id, teacher_name
 
@@ -68,13 +73,17 @@ $teachers = $pdo->query("
 
     WHERE status = 'Active'
 
+    ORDER BY teacher_name ASC
+
 ");
+
+$teachers = $teacherQuery->fetchAll(PDO::FETCH_ASSOC);
 
 
 
 // GET BOOKINGS
 
-$bookings = $pdo->query("
+$bookingQuery = $pdo->query("
 
     SELECT *
 
@@ -84,9 +93,10 @@ $bookings = $pdo->query("
 
 ");
 
+$bookings = $bookingQuery->fetchAll(PDO::FETCH_ASSOC);
+
 
 ?>
-
 
 
 <!DOCTYPE html>
@@ -100,7 +110,6 @@ $bookings = $pdo->query("
 
 <style>
 
-
 body{
 
 font-family:Arial;
@@ -110,8 +119,6 @@ background:#eef3f8;
 padding:30px;
 
 }
-
-
 
 .container{
 
@@ -123,8 +130,6 @@ border-radius:15px;
 
 }
 
-
-
 table{
 
 width:100%;
@@ -132,8 +137,6 @@ width:100%;
 border-collapse:collapse;
 
 }
-
-
 
 th{
 
@@ -145,8 +148,6 @@ padding:12px;
 
 }
 
-
-
 td{
 
 padding:12px;
@@ -155,15 +156,11 @@ border-bottom:1px solid #ddd;
 
 }
 
-
-
 select,button{
 
 padding:8px;
 
 }
-
-
 
 button{
 
@@ -175,9 +172,15 @@ border:0;
 
 border-radius:5px;
 
+cursor:pointer;
+
 }
 
+button:hover{
 
+background:#00509e;
+
+}
 
 .status{
 
@@ -187,9 +190,7 @@ font-weight:bold;
 
 }
 
-
 </style>
-
 
 </head>
 
@@ -228,8 +229,7 @@ Student Lesson Bookings
 </tr>
 
 
-
-<?php while($b=$bookings->fetch_assoc()){ ?>
+<?php foreach ($bookings as $b) { ?>
 
 
 <tr>
@@ -237,62 +237,53 @@ Student Lesson Bookings
 
 <td>
 
-<?php echo $b['student_name']; ?>
+<?php echo htmlspecialchars($b['student_name']); ?>
 
 <br>
 
-<?php echo $b['email']; ?>
+<?php echo htmlspecialchars($b['email']); ?>
 
 </td>
 
 
-
 <td>
 
-<?php echo $b['subjects']; ?>
+<?php echo htmlspecialchars($b['subjects']); ?>
 
 </td>
 
 
-
 <td>
 
-<?php echo $b['curriculum']; ?>
+<?php echo htmlspecialchars($b['curriculum']); ?>
 
 </td>
 
 
-
 <td>
 
-<?php echo $b['payment_status']; ?>
+<?php echo htmlspecialchars($b['payment_status']); ?>
 
 </td>
 
 
-
 <td>
-
 
 <?php
 
-if($b['teacher_name']){
+if (!empty($b['teacher_name'])) {
 
-echo $b['teacher_name'];
+    echo htmlspecialchars($b['teacher_name']);
 
-}
+} else {
 
-else{
-
-echo "Not Assigned";
+    echo "Not Assigned";
 
 }
 
 ?>
 
-
 </td>
-
 
 
 <td>
@@ -305,38 +296,25 @@ echo "Not Assigned";
 
 name="booking_id"
 
-value="<?php echo $b['id'];?>">
+value="<?php echo htmlspecialchars($b['id']); ?>">
 
 
-<select name="teacher_id">
+<select name="teacher_id" required>
 
 
-<option>
+<option value="">
+
 Select Teacher
+
 </option>
 
 
-<?php
+<?php foreach ($teachers as $t) { ?>
 
 
-$teachers=$conn->query(
+<option value="<?php echo htmlspecialchars($t['teacher_id']); ?>">
 
-"SELECT teacher_id,teacher_name FROM teachers"
-
-);
-
-
-while($t=$teachers->fetch_assoc()){
-
-
-?>
-
-
-<option value="<?php echo $t['teacher_id'];?>">
-
-
-<?php echo $t['teacher_name'];?>
-
+<?php echo htmlspecialchars($t['teacher_name']); ?>
 
 </option>
 
@@ -347,7 +325,7 @@ while($t=$teachers->fetch_assoc()){
 </select>
 
 
-<button name="assign">
+<button type="submit" name="assign">
 
 Assign
 
