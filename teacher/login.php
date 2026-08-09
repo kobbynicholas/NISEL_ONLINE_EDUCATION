@@ -97,46 +97,61 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         } else {
 
-            /*
-            |--------------------------------------------------------------------------
-            | LOGIN SUCCESSFUL
-            |--------------------------------------------------------------------------
-            */
+           /*
+|--------------------------------------------------------------------------
+| LOGIN SUCCESSFUL
+|--------------------------------------------------------------------------
+*/
 
-            session_regenerate_id(true);
+session_regenerate_id(true);
 
-            $_SESSION["teacher_logged_in"] = true;
+$_SESSION["teacher_logged_in"] = true;
 
-            $_SESSION["teacher_db_id"] = $teacher["id"];
+$_SESSION["teacher_db_id"] = $teacher["id"];
 
-            $_SESSION["teacher_id"] = $teacher["teacher_id"];
+$_SESSION["teacher_id"] = $teacher["teacher_id"];
 
-            $_SESSION["teacher_name"] = $teacher["teacher_name"];
+$_SESSION["teacher_name"] = $teacher["teacher_name"];
 
-            $_SESSION["teacher_email"] = $teacher["email"];
+$_SESSION["teacher_email"] = $teacher["email"];
 
-            $_SESSION["teacher_phone"] = $teacher["phone"];
+$_SESSION["teacher_phone"] = $teacher["phone"];
 
-            $_SESSION["teacher_subjects"] = $teacher["subjects"];
+$_SESSION["teacher_subjects"] = $teacher["subjects"];
 
-            $_SESSION["teacher_curriculum"] = $teacher["curriculum"];
+$_SESSION["teacher_curriculum"] = $teacher["curriculum"];
 
-            $_SESSION["teacher_photo"] = $teacher["photo"];
+$_SESSION["teacher_photo"] = $teacher["photo"];
 
-            $_SESSION["teacher_status"] = $teacher["status"];
+$_SESSION["teacher_status"] = $teacher["status"];
 
 
-            /*
-            |--------------------------------------------------------------------------
-            | REDIRECT TO TEACHER DASHBOARD
-            |--------------------------------------------------------------------------
-            */
+/*
+|--------------------------------------------------------------------------
+| CHECK DASHBOARD FILE
+|--------------------------------------------------------------------------
+*/
 
-            header("Location: dashboard.php");
-            exit;
-        }
-    }
+if (!file_exists(__DIR__ . "/dashboard.php")) {
+
+    die(
+        "Login successful, but dashboard.php was not found.<br><br>" .
+        "Expected location:<br>" .
+        __DIR__ . "/dashboard.php"
+    );
+
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| OPEN TEACHER DASHBOARD
+|--------------------------------------------------------------------------
+*/
+
+header("Location: dashboard.php");
+exit();
+            
 ?>
 
 <!DOCTYPE html>
