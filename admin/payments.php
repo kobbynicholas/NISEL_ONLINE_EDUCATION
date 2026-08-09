@@ -386,7 +386,7 @@ Failed
 
 <option value="mobile_money"
 <?php echo ($method == 'mobile_money') ? 'selected' : ''; ?>>
-MTN MoMo
+mobile_money
 </option>
 
 <option value="Visa"
