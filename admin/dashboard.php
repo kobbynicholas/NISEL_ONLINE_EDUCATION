@@ -1,307 +1,558 @@
 <?php
 
-
 require "../admin_auth.php";
 require "../config/db.php";
 
-// Total Students
-$result = $conn->query("SELECT COUNT(*) AS total FROM students");
-$total_students = $result->fetch_assoc()['total'];
 
-// Total Teachers
-$result = $conn->query("SELECT COUNT(*) AS total FROM teachers");
-$total_teachers = $result->fetch_assoc()['total'];
+/* =========================================================
+   DASHBOARD STATISTICS
+========================================================= */
 
-// Total Bookings
-$result = $conn->query("SELECT COUNT(*) AS total FROM bookings");
-$total_bookings = $result->fetch_assoc()['total'];
+try {
 
-// Total Revenue
-$result = $conn->query("SELECT SUM(amount) AS total FROM payments WHERE status='success'");
-$row = $result->fetch_assoc();
-$total_revenue = $row['total'] ?? 0;
+    /* TOTAL STUDENTS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*) 
+        FROM students
+    ");
+
+    $total_students = (int) $stmt->fetchColumn();
+
+
+    /* TOTAL TEACHERS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM teachers
+    ");
+
+    $total_teachers = (int) $stmt->fetchColumn();
+
+
+    /* TOTAL BOOKINGS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM bookings
+    ");
+
+    $total_bookings = (int) $stmt->fetchColumn();
+
+
+    /* TOTAL PAYMENTS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM payments
+    ");
+
+    $total_payments = (int) $stmt->fetchColumn();
+
+
+    /* PENDING TEACHER APPLICATIONS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM teacher_applications
+        WHERE application_status = 'Pending'
+    ");
+
+    $pending_applications =
+        (int) $stmt->fetchColumn();
+
+
+    /* PAID BOOKINGS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM bookings
+        WHERE payment_status = 'Paid'
+        OR payment_status = 'success'
+    ");
+
+    $paid_bookings =
+        (int) $stmt->fetchColumn();
+
+
+    /* ASSIGNED BOOKINGS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM bookings
+        WHERE teacher_id IS NOT NULL
+        AND teacher_id <> ''
+    ");
+
+    $assigned_bookings =
+        (int) $stmt->fetchColumn();
+
+
+    /* UNASSIGNED BOOKINGS */
+
+    $stmt = $pdo->query("
+        SELECT COUNT(*)
+        FROM bookings
+        WHERE teacher_id IS NULL
+        OR teacher_id = ''
+    ");
+
+    $unassigned_bookings =
+        (int) $stmt->fetchColumn();
+
+
+    /* =====================================================
+       RECENT BOOKINGS
+    ===================================================== */
+
+    $stmt = $pdo->query("
+        SELECT
+            id,
+            student_name,
+            email,
+            subjects,
+            curriculum,
+            payment_status,
+            teacher_name
+        FROM bookings
+        ORDER BY id DESC
+        LIMIT 10
+    ");
+
+    $recent_bookings =
+        $stmt->fetchAll();
+
+
+    /* =====================================================
+       RECENT TEACHER APPLICATIONS
+    ===================================================== */
+
+    $stmt = $pdo->query("
+        SELECT
+            id,
+            full_name,
+            email,
+            subjects,
+            curricula,
+            application_status
+        FROM teacher_applications
+        ORDER BY id DESC
+        LIMIT 10
+    ");
+
+    $recent_applications =
+        $stmt->fetchAll();
+
+
+} catch (PDOException $e) {
+
+    die(
+        "Dashboard database error: "
+        . $e->getMessage()
+    );
+
+}
 
 ?>
 
-
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
-<title>NISEL Admin Dashboard</title>
-
-
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
-
+<title>
+NISEL ONLINE EDUCATION | Admin Dashboard
+</title>
 
 <style>
 
+* {
+    box-sizing: border-box;
+}
 
-*{
+body {
 
-margin:0;
-padding:0;
-box-sizing:border-box;
-font-family:Arial, sans-serif;
+    margin: 0;
+
+    font-family: Arial, sans-serif;
+
+    background: #eef3f8;
 
 }
 
 
-body{
+/* =====================================================
+   SIDEBAR
+===================================================== */
 
-background:#f1f5f9;
+.sidebar {
 
-}
+    position: fixed;
 
+    left: 0;
 
-/* SIDEBAR */
+    top: 0;
 
-.sidebar{
+    width: 240px;
 
-position:fixed;
+    height: 100vh;
 
-left:0;
+    background: #003366;
 
-top:0;
+    color: white;
 
-width:260px;
-
-height:100vh;
-
-background:#003366;
-
-color:white;
-
-padding:20px;
+    padding: 25px 15px;
 
 }
 
 
-.logo{
+.sidebar h2 {
 
-text-align:center;
+    text-align: center;
 
-font-size:22px;
+    font-size: 20px;
 
-font-weight:bold;
-
-margin-bottom:30px;
+    margin-bottom: 30px;
 
 }
 
 
-.sidebar a{
+.sidebar a {
 
-display:block;
+    display: block;
 
-color:white;
+    color: white;
 
-text-decoration:none;
+    text-decoration: none;
 
-padding:14px;
+    padding: 13px;
 
-margin-bottom:8px;
+    margin-bottom: 7px;
 
-border-radius:8px;
-
-}
-
-
-.sidebar a:hover{
-
-background:#0055aa;
+    border-radius: 6px;
 
 }
 
 
-/* MAIN */
+.sidebar a:hover {
 
-.main{
-
-margin-left:260px;
-
-padding:30px;
+    background: #0055aa;
 
 }
 
 
-/* HEADER */
+.sidebar .logout {
 
-.header{
+    background: #dc3545;
 
-background:white;
-
-padding:20px;
-
-border-radius:10px;
-
-display:flex;
-
-justify-content:space-between;
-
-margin-bottom:30px;
+    margin-top: 25px;
 
 }
 
 
-.header h2{
+.sidebar .logout:hover {
 
-color:#003366;
-
-}
-
-
-.admin{
-
-font-weight:bold;
-
-color:#555;
+    background: #bb2d3b;
 
 }
 
 
-/* CARDS */
+/* =====================================================
+   MAIN
+===================================================== */
 
+.main {
 
-.cards{
+    margin-left: 240px;
 
-display:grid;
-
-grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-
-gap:20px;
-
-}
-
-
-
-.card{
-
-background:white;
-
-padding:25px;
-
-border-radius:15px;
-
-box-shadow:0 5px 15px rgba(0,0,0,.1);
+    padding: 30px;
 
 }
 
 
+.header {
 
-.card i{
+    background: white;
 
-font-size:35px;
+    padding: 20px;
 
-color:#003366;
+    border-radius: 10px;
 
-margin-bottom:15px;
+    margin-bottom: 25px;
 
-}
-
-
-.card h3{
-
-font-size:28px;
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.08);
 
 }
 
 
-.card p{
+.header h1 {
 
-color:#777;
+    margin: 0;
 
-}
-
-
-
-/* TABLE */
-
-.table-box{
-
-background:white;
-
-padding:25px;
-
-margin-top:30px;
-
-border-radius:15px;
+    color: #003366;
 
 }
 
 
-table{
+.header p {
 
-width:100%;
-
-border-collapse:collapse;
+    color: #666;
 
 }
 
 
-th{
+/* =====================================================
+   STATISTICS
+===================================================== */
 
-background:#003366;
+.stats {
 
-color:white;
+    display: grid;
 
-padding:12px;
+    grid-template-columns:
+        repeat(auto-fit, minmax(200px, 1fr));
 
-}
+    gap: 20px;
 
-
-td{
-
-padding:12px;
-
-border-bottom:1px solid #ddd;
+    margin-bottom: 30px;
 
 }
 
 
-/* BUTTONS */
+.card {
 
+    background: white;
 
-.actions{
+    padding: 22px;
 
-margin-top:20px;
+    border-radius: 10px;
 
-}
-
-
-.btn{
-
-display:inline-block;
-
-background:#003366;
-
-color:white;
-
-padding:12px 20px;
-
-border-radius:8px;
-
-text-decoration:none;
-
-margin-right:10px;
+    box-shadow:
+        0 3px 12px rgba(0,0,0,.08);
 
 }
 
 
-.btn:hover{
+.card h3 {
 
-background:#0055aa;
+    margin: 0;
+
+    color: #666;
+
+    font-size: 15px;
 
 }
 
+
+.card .number {
+
+    font-size: 32px;
+
+    font-weight: bold;
+
+    color: #003366;
+
+    margin-top: 10px;
+
+}
+
+
+/* =====================================================
+   QUICK LINKS
+===================================================== */
+
+.quick-links {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+
+    gap: 15px;
+
+    margin-bottom: 30px;
+
+}
+
+
+.quick-links a {
+
+    background: #003366;
+
+    color: white;
+
+    text-decoration: none;
+
+    padding: 15px;
+
+    text-align: center;
+
+    border-radius: 7px;
+
+}
+
+
+.quick-links a:hover {
+
+    background: #0055aa;
+
+}
+
+
+/* =====================================================
+   TABLE
+===================================================== */
+
+.section {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 10px;
+
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 3px 10px rgba(0,0,0,.08);
+
+}
+
+
+.section h2 {
+
+    color: #003366;
+
+    margin-top: 0;
+
+}
+
+
+.table-wrapper {
+
+    overflow-x: auto;
+
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+}
+
+
+th {
+
+    background: #003366;
+
+    color: white;
+
+    padding: 11px;
+
+    text-align: left;
+
+}
+
+
+td {
+
+    padding: 10px;
+
+    border-bottom: 1px solid #ddd;
+
+}
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+.badge {
+
+    display: inline-block;
+
+    padding: 5px 9px;
+
+    border-radius: 15px;
+
+    font-size: 12px;
+
+    font-weight: bold;
+
+}
+
+
+.paid {
+
+    background: #d4edda;
+
+    color: #155724;
+
+}
+
+
+.pending {
+
+    background: #fff3cd;
+
+    color: #856404;
+
+}
+
+
+.assigned {
+
+    background: #d1ecf1;
+
+    color: #0c5460;
+
+}
+
+
+.unassigned {
+
+    background: #f8d7da;
+
+    color: #721c24;
+
+}
+
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media(max-width: 800px) {
+
+    .sidebar {
+
+        position: relative;
+
+        width: 100%;
+
+        height: auto;
+
+    }
+
+    .main {
+
+        margin-left: 0;
+
+    }
+
+}
 
 </style>
-
 
 </head>
 
@@ -309,234 +560,433 @@ background:#0055aa;
 <body>
 
 
-<!-- SIDEBAR -->
+<!-- =====================================================
+     SIDEBAR
+===================================================== -->
 
 <div class="sidebar">
 
-
-<div class="logo">
-
-NISEL ADMIN
-
-</div>
+<h2>
+NISEL ONLINE EDUCATION
+</h2>
 
 
 <a href="dashboard.php">
-<i class="fa fa-home"></i>
-Dashboard
+🏠 Dashboard
 </a>
 
 
 <a href="students.php">
-<i class="fa fa-user-graduate"></i>
-Students
+👨‍🎓 Students
 </a>
 
 
 <a href="teachers.php">
-<i class="fa fa-chalkboard-user"></i>
-Teachers
+👨‍🏫 Teachers
+</a>
+
+
+<a href="teacher_applications.php">
+📋 Teacher Applications
 </a>
 
 
 <a href="bookings.php">
-<i class="fa fa-calendar"></i>
-Bookings
+📚 Bookings
 </a>
 
 
 <a href="payments.php">
-<i class="fa fa-money-bill"></i>
-Payments
+💳 Payments
 </a>
 
 
-<a href="subjects.php">
-<i class="fa fa-book"></i>
-Subjects
-</a>
-
-<a href="teacher_applications.php">
-<i class="fa fa-book"></i>
-Teaching Applications
-</a>
-
-  
 <a href="reports.php">
-<i class="fa fa-chart-line"></i>
-Reports
+📊 Reports
 </a>
 
 
 <a href="settings.php">
-<i class="fa fa-gear"></i>
-Settings
+⚙ Settings
 </a>
 
 
-<a href="logout.php">
-<i class="fa fa-sign-out"></i>
-Logout
+<a
+    href="logout.php"
+    class="logout"
+>
+🚪 Logout
 </a>
-
-</a>
-
 
 </div>
 
 
-
-
-
-<!-- MAIN CONTENT -->
+<!-- =====================================================
+     MAIN CONTENT
+===================================================== -->
 
 <div class="main">
 
 
 <div class="header">
 
+<h1>
+Admin Dashboard
+</h1>
+
+<p>
+Welcome to the NISEL ONLINE EDUCATION
+Administration Panel.
+</p>
+
+</div>
+
+
+<!-- =====================================================
+     STATISTICS
+===================================================== -->
+
+<div class="stats">
+
+
+<div class="card">
+
+<h3>
+Total Students
+</h3>
+
+<div class="number">
+<?php echo $total_students; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Total Teachers
+</h3>
+
+<div class="number">
+<?php echo $total_teachers; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Total Bookings
+</h3>
+
+<div class="number">
+<?php echo $total_bookings; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Payments
+</h3>
+
+<div class="number">
+<?php echo $total_payments; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Pending Teacher Applications
+</h3>
+
+<div class="number">
+<?php echo $pending_applications; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Paid Bookings
+</h3>
+
+<div class="number">
+<?php echo $paid_bookings; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Assigned Bookings
+</h3>
+
+<div class="number">
+<?php echo $assigned_bookings; ?>
+</div>
+
+</div>
+
+
+<div class="card">
+
+<h3>
+Unassigned Bookings
+</h3>
+
+<div class="number">
+<?php echo $unassigned_bookings; ?>
+</div>
+
+</div>
+
+</div>
+
+
+<!-- =====================================================
+     QUICK LINKS
+===================================================== -->
+
+<div class="quick-links">
+
+<a href="students.php">
+Manage Students
+</a>
+
+<a href="teachers.php">
+Manage Teachers
+</a>
+
+<a href="teacher_applications.php">
+Teacher Applications
+</a>
+
+<a href="bookings.php">
+Assign Teachers
+</a>
+
+<a href="payments.php">
+Payment Records
+</a>
+
+<a href="reports.php">
+View Reports
+</a>
+
+</div>
+
+
+<!-- =====================================================
+     RECENT BOOKINGS
+===================================================== -->
+
+<div class="section">
 
 <h2>
-Welcome, Administrator
+Recent Student Bookings
 </h2>
 
 
-<div class="admin">
-
-NISEL ONLINE EDUCATION
-
-</div>
-
-
-</div>
-
-
-
-
-
-<div class="cards">
-
-
-<div class="card">
-
-<i class="fa fa-users"></i>
-
-<h3>
-
-<?php echo $total_students; ?>
-
-</h3>
-
-<p>Total Students</p>
-
-</div>
-
-
-
-<div class="card">
-
-<i class="fa fa-chalkboard-teacher"></i>
-
-<h3>
-
-<?php echo $total_teachers; ?>
-
-</h3>
-
-<p>Total Teachers</p>
-
-</div>
-
-
-
-<div class="card">
-
-<i class="fa fa-calendar-check"></i>
-
-<h3>
-
-<?php echo $total_bookings; ?>
-
-</h3>
-
-<p>Total Bookings</p>
-
-</div>
-
-
-
-<div class="card">
-
-<i class="fa fa-money-bill-wave"></i>
-
-<h3>
-
-GHC <?php echo number_format($total_revenue); ?>
-
-</h3>
-
-<p>Total Revenue</p>
-
-</div>
-
-
-</div>
-
-
-
-
-
-<div class="actions">
-
-<a class="btn" href="students.php">
-
-Add Student
-
-</a>
-
-
-<a class="btn" href="teachers.php">
-
-Add Teacher
-
-</a>
-
-
-<a class="btn" href="bookings.php">
-
-View Bookings
-
-</a>
-
-
-</div>
-
-
-
-
-
-
-<div class="table-box">
-
-
-<h3>
-
-Recent Bookings
-
-</h3>
-
-
-<br>
-
+<div class="table-wrapper">
 
 <table>
-
 
 <tr>
 
 <th>Student</th>
 
-<th>Subject</th>
+<th>Email</th>
+
+<th>Subjects</th>
+
+<th>Curriculum</th>
+
+<th>Payment</th>
+
+<th>Teacher</th>
+
+</tr>
+
+
+<?php if (count($recent_bookings) > 0): ?>
+
+
+<?php foreach ($recent_bookings as $booking): ?>
+
+
+<tr>
+
+<td>
+<?php
+
+echo htmlspecialchars(
+    $booking['student_name']
+);
+
+?>
+</td>
+
+
+<td>
+<?php
+
+echo htmlspecialchars(
+    $booking['email']
+);
+
+?>
+</td>
+
+
+<td>
+<?php
+
+echo htmlspecialchars(
+    $booking['subjects']
+);
+
+?>
+</td>
+
+
+<td>
+<?php
+
+echo htmlspecialchars(
+    $booking['curriculum']
+);
+
+?>
+</td>
+
+
+<td>
+
+<?php
+
+$payment =
+    strtolower(
+        trim(
+            $booking['payment_status']
+            ?? ''
+        )
+    );
+
+if (
+    $payment === 'paid'
+    ||
+    $payment === 'success'
+) {
+
+    echo
+    '<span class="badge paid">Paid</span>';
+
+} else {
+
+    echo
+    '<span class="badge pending">Pending</span>';
+
+}
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+if (
+    empty(
+        $booking['teacher_name']
+    )
+) {
+
+    echo
+    '<span class="badge unassigned">
+    Not Assigned
+    </span>';
+
+} else {
+
+    echo htmlspecialchars(
+        $booking['teacher_name']
+    );
+
+}
+
+?>
+
+</td>
+
+</tr>
+
+
+<?php endforeach; ?>
+
+
+<?php else: ?>
+
+
+<tr>
+
+<td
+    colspan="6"
+    style="text-align:center;"
+>
+
+No bookings found.
+
+</td>
+
+</tr>
+
+
+<?php endif; ?>
+
+
+</table>
+
+</div>
+
+</div>
+
+
+<!-- =====================================================
+     RECENT TEACHER APPLICATIONS
+===================================================== -->
+
+<div class="section">
+
+<h2>
+Recent Teacher Applications
+</h2>
+
+
+<div class="table-wrapper">
+
+<table>
+
+<tr>
+
+<th>Name</th>
+
+<th>Email</th>
+
+<th>Subjects</th>
 
 <th>Curriculum</th>
 
@@ -545,80 +995,142 @@ Recent Bookings
 </tr>
 
 
+<?php if (count($recent_applications) > 0): ?>
+
+
+<?php foreach (
+    $recent_applications
+    as $application
+): ?>
+
 
 <tr>
 
-<td>No data yet</td>
+<td>
 
-<td>-</td>
+<?php
 
-<td>-</td>
+echo htmlspecialchars(
+    $application['full_name']
+);
 
-<td>-</td>
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['email']
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['subjects']
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $application['curricula']
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+$status =
+    $application['application_status']
+    ?? 'Pending';
+
+
+$statusLower =
+    strtolower($status);
+
+
+if ($statusLower === 'approved') {
+
+    echo
+    '<span class="badge paid">
+    Approved
+    </span>';
+
+} elseif (
+    $statusLower === 'rejected'
+) {
+
+    echo
+    '<span class="badge unassigned">
+    Rejected
+    </span>';
+
+} else {
+
+    echo
+    '<span class="badge pending">
+    Pending
+    </span>';
+
+}
+
+?>
+
+</td>
 
 </tr>
+
+
+<?php endforeach; ?>
+
+
+<?php else: ?>
+
+
+<tr>
+
+<td
+    colspan="5"
+    style="text-align:center;"
+>
+
+No teacher applications found.
+
+</td>
+
+</tr>
+
+
+<?php endif; ?>
 
 
 </table>
 
-
 </div>
 
-
-
-
-
-
-
-<div class="table-box">
-
-
-<h3>
-
-Recent Payments
-
-</h3>
-
-
-<br>
-
-
-<table>
-
-
-<tr>
-
-<th>Student</th>
-
-<th>Amount</th>
-
-<th>Method</th>
-
-<th>Status</th>
-
-</tr>
-
-
-<tr>
-
-<td>No payment yet</td>
-
-<td>-</td>
-
-<td>-</td>
-
-<td>-</td>
-
-
-</tr>
-
-
-</table>
-
-
 </div>
-
-
 
 
 </div>
