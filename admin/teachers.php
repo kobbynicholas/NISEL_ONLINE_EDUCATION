@@ -4,7 +4,6 @@ require "../admin_auth.php";
 
 require "../config/db.php";
 
-
 // ASSIGN TEACHER
 
 if(isset($_POST['assign'])){
