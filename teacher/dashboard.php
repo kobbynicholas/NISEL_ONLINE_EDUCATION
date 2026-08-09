@@ -1,63 +1,65 @@
 <?php
 
-require "../teacher_auth.php";
-require "../config/db.php";
+require_once "../teacher_auth.php";
+require_once "../config/db.php";
+
+
+/*
+|--------------------------------------------------------------------------
+| GET LOGGED-IN TEACHER
+|--------------------------------------------------------------------------
+*/
 
 $teacher_id = $_SESSION['teacher_id'];
 $teacher_name = $_SESSION['teacher_name'];
 
+
 /*
-=================================
-COUNT ASSIGNED STUDENTS
-=================================
+|--------------------------------------------------------------------------
+| COUNT ASSIGNED STUDENTS
+|--------------------------------------------------------------------------
 */
 
-$stmt = $conn->prepare("
+$stmt = $pdo->prepare("
     SELECT COUNT(*) AS total
     FROM bookings
-    WHERE teacher_id = ?
+    WHERE teacher_id = :teacher_id
     AND payment_status = 'Paid'
 ");
 
-$stmt->bind_param("s", $teacher_id);
+$stmt->execute([
+    ':teacher_id' => $teacher_id
+]);
 
-$stmt->execute();
-
-$total_students =
-    $stmt->get_result()->fetch_assoc()['total'] ?? 0;
-
-$stmt->close();
+$total_students = $stmt->fetchColumn() ?? 0;
 
 
 /*
-=================================
-COUNT BOOKINGS
-=================================
+|--------------------------------------------------------------------------
+| COUNT BOOKINGS
+|--------------------------------------------------------------------------
 */
 
-$stmt = $conn->prepare("
+$stmt = $pdo->prepare("
     SELECT COUNT(*) AS total
     FROM bookings
-    WHERE teacher_id = ?
+    WHERE teacher_id = :teacher_id
 ");
 
-$stmt->bind_param("s", $teacher_id);
+$stmt->execute([
+    ':teacher_id' => $teacher_id
+]);
 
-$stmt->execute();
-
-$total_bookings =
-    $stmt->get_result()->fetch_assoc()['total'] ?? 0;
-
-$stmt->close();
+$total_bookings = $stmt->fetchColumn() ?? 0;
 
 
 /*
-=================================
-GET ASSIGNED STUDENTS
-=================================
+|--------------------------------------------------------------------------
+| GET ASSIGNED STUDENTS
+|--------------------------------------------------------------------------
 */
 
-$stmt = $conn->prepare("
+$stmt = $pdo->prepare("
     SELECT
         id,
         student_name,
@@ -68,32 +70,35 @@ $stmt = $conn->prepare("
         payment_status,
         booking_reference
     FROM bookings
-    WHERE teacher_id = ?
+    WHERE teacher_id = :teacher_id
     ORDER BY id DESC
 ");
 
-$stmt->bind_param("s", $teacher_id);
+$stmt->execute([
+    ':teacher_id' => $teacher_id
+]);
 
-$stmt->execute();
-
-$students = $stmt->get_result();
+$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 ?>
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>
 Teacher Dashboard | NISEL ONLINE EDUCATION
 </title>
+
 
 <style>
 
@@ -110,6 +115,7 @@ body{
     background:#eef3f8;
 
 }
+
 
 /* SIDEBAR */
 
@@ -167,6 +173,7 @@ body{
 
 }
 
+
 /* MAIN */
 
 .main{
@@ -208,6 +215,7 @@ body{
     color:#555;
 
 }
+
 
 /* CARDS */
 
@@ -258,6 +266,7 @@ body{
     color:#003366;
 
 }
+
 
 /* TABLE */
 
@@ -325,6 +334,7 @@ td{
 
 }
 
+
 /* MOBILE */
 
 @media(max-width:800px){
@@ -351,42 +361,44 @@ td{
 
 </head>
 
+
 <body>
 
 
 <div class="sidebar">
 
-<div class="logo">
+    <div class="logo">
 
-NISEL<br>
+        NISEL<br>
 
-ONLINE EDUCATION
+        ONLINE EDUCATION
 
-</div>
+    </div>
 
-<div class="menu">
 
-<a href="dashboard.php">
-🏠 Dashboard
-</a>
+    <div class="menu">
 
-<a href="students.php">
-👨‍🎓 My Students
-</a>
+        <a href="dashboard.php">
+            🏠 Dashboard
+        </a>
 
-<a href="schedule.php">
-📅 My Schedule
-</a>
+        <a href="students.php">
+            👨‍🎓 My Students
+        </a>
 
-<a href="profile.php">
-👤 My Profile
-</a>
+        <a href="schedule.php">
+            📅 My Schedule
+        </a>
 
-<a href="logout.php">
-🚪 Logout
-</a>
+        <a href="profile.php">
+            👤 My Profile
+        </a>
 
-</div>
+        <a href="logout.php">
+            🚪 Logout
+        </a>
+
+    </div>
 
 </div>
 
@@ -394,203 +406,265 @@ ONLINE EDUCATION
 <div class="main">
 
 
-<div class="topbar">
+    <div class="topbar">
 
-<h2>
+        <h2>
+            Teacher Dashboard
+        </h2>
 
-Teacher Dashboard
 
-</h2>
+        <div class="teacher">
 
-<div class="teacher">
+            Welcome,
 
-Welcome,
+            <strong>
 
-<strong>
+                <?php
+                echo htmlspecialchars($teacher_name);
+                ?>
 
-<?php echo htmlspecialchars($teacher_name); ?>
+            </strong>
 
-</strong>
+        </div>
+
+    </div>
+
+
+    <div class="cards">
+
+
+        <div class="card">
+
+            <h3>
+                Assigned Students
+            </h3>
+
+            <div class="number">
+
+                <?php
+                echo htmlspecialchars($total_students);
+                ?>
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>
+                Total Bookings
+            </h3>
+
+            <div class="number">
+
+                <?php
+                echo htmlspecialchars($total_bookings);
+                ?>
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h3>
+                Teaching Status
+            </h3>
+
+            <div
+                class="number"
+                style="font-size:20px;"
+            >
+
+                Active
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <div class="table-box">
+
+        <h3>
+            My Assigned Students
+        </h3>
+
+
+        <table>
+
+            <tr>
+
+                <th>
+                    Student
+                </th>
+
+                <th>
+                    Curriculum
+                </th>
+
+                <th>
+                    Class / Grade
+                </th>
+
+                <th>
+                    Subjects
+                </th>
+
+                <th>
+                    Payment
+                </th>
+
+                <th>
+                    Booking Reference
+                </th>
+
+            </tr>
+
+
+            <?php if (count($students) > 0): ?>
+
+
+                <?php foreach ($students as $student): ?>
+
+                    <tr>
+
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $student['student_name'] ?? ''
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $student['curriculum'] ?? ''
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $student['class_year'] ?? ''
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $student['subjects'] ?? ''
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                        <td>
+
+                            <?php
+
+                            $payment_status =
+                                $student['payment_status'] ?? '';
+
+                            ?>
+
+
+                            <span
+                                class="badge
+                                <?php
+                                echo
+                                strtolower($payment_status) === 'paid'
+                                ? 'paid'
+                                : '';
+                                ?>"
+                            >
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $payment_status
+                                );
+
+                                ?>
+
+                            </span>
+
+                        </td>
+
+
+                        <td>
+
+                            <?php
+
+                            echo htmlspecialchars(
+                                $student['booking_reference'] ?? ''
+                            );
+
+                            ?>
+
+                        </td>
+
+
+                    </tr>
+
+
+                <?php endforeach; ?>
+
+
+            <?php else: ?>
+
+
+                <tr>
+
+                    <td
+                        colspan="6"
+                        style="text-align:center;padding:30px;"
+                    >
+
+                        No students have been assigned to you yet.
+
+                    </td>
+
+                </tr>
+
+
+            <?php endif; ?>
+
+
+        </table>
+
+    </div>
+
 
 </div>
 
-</div>
-
-
-<div class="cards">
-
-
-<div class="card">
-
-<h3>
-Assigned Students
-</h3>
-
-<div class="number">
-
-<?php echo $total_students; ?>
-
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h3>
-Total Bookings
-</h3>
-
-<div class="number">
-
-<?php echo $total_bookings; ?>
-
-</div>
-
-</div>
-
-
-<div class="card">
-
-<h3>
-Teaching Status
-</h3>
-
-<div class="number"
-style="font-size:20px;">
-
-Active
-
-</div>
-
-</div>
-
-
-</div>
-
-
-<div class="table-box">
-
-<h3>
-
-My Assigned Students
-
-</h3>
-
-<table>
-
-<tr>
-
-<th>Student</th>
-
-<th>Curriculum</th>
-
-<th>Class / Grade</th>
-
-<th>Subjects</th>
-
-<th>Payment</th>
-
-<th>Booking Reference</th>
-
-</tr>
-
-
-<?php if($students->num_rows > 0): ?>
-
-<?php while($student = $students->fetch_assoc()): ?>
-
-<tr>
-
-<td>
-
-<?php
-echo htmlspecialchars(
-    $student['student_name']
-);
-?>
-
-</td>
-
-<td>
-
-<?php
-echo htmlspecialchars(
-    $student['curriculum']
-);
-?>
-
-</td>
-
-<td>
-
-<?php
-echo htmlspecialchars(
-    $student['class_year']
-);
-?>
-
-</td>
-
-<td>
-
-<?php
-echo htmlspecialchars(
-    $student['subjects']
-);
-?>
-
-</td>
-
-<td>
-
-<span class="badge paid">
-
-<?php
-echo htmlspecialchars(
-    $student['payment_status']
-);
-?>
-
-</span>
-
-</td>
-
-<td>
-
-<?php
-echo htmlspecialchars(
-    $student['booking_reference']
-);
-?>
-
-</td>
-
-</tr>
-
-<?php endwhile; ?>
-
-<?php else: ?>
-
-<tr>
-
-<td colspan="6"
-style="text-align:center;padding:30px;">
-
-No students have been assigned to you yet.
-
-</td>
-
-</tr>
-
-<?php endif; ?>
-
-</table>
-
-</div>
-
-
-</div>
 
 </body>
 
