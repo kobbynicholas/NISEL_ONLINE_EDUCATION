@@ -9,57 +9,51 @@ require "../config/db.php";
 
 if(isset($_POST['assign'])){
 
+    $booking_id = $_POST['booking_id'];
 
-$booking_id=$_POST['booking_id'];
-
-$teacher_id=$_POST['teacher_id'];
-
-
-// GET TEACHER NAME
-
-$getTeacher=$conn->prepare(
-"SELECT teacher_name FROM teachers WHERE teacher_id=?"
-);
-
-$getTeacher->execute([
-    $teacher_id
-]);
-
-$teacher=$getTeacher->fetch(PDO::FETCH_ASSOC);
+    $teacher_id = $_POST['teacher_id'];
 
 
-$teacher_name=$teacher['teacher_name'];
+    // GET TEACHER NAME
+
+    $getTeacher = $pdo->prepare(
+        "SELECT teacher_name FROM teachers WHERE teacher_id = ?"
+    );
+
+    $getTeacher->execute([
+        $teacher_id
+    ]);
+
+    $teacher = $getTeacher->fetch(PDO::FETCH_ASSOC);
+
+    $teacher_name = $teacher['teacher_name'];
 
 
+    // UPDATE BOOKING
 
-// UPDATE BOOKING
+    $sql = $pdo->prepare("
 
+        UPDATE bookings SET
 
-$sql=$conn->prepare("
+        teacher_id = ?,
 
-UPDATE bookings SET
+        teacher_name = ?,
 
-teacher_id=?,
+        assignment_status = 'Assigned'
 
-teacher_name=?,
+        WHERE id = ?
 
-assignment_status='Assigned'
+    ");
 
-WHERE id=?
+    $sql->execute([
 
-");
+        $teacher_id,
 
+        $teacher_name,
 
-$sql->execute([
+        $booking_id
 
-    $teacher_id,
-
-    $teacher_name,
-
-    $booking_id
-
-]);
-
+    ]);
 
 }
 
@@ -67,25 +61,27 @@ $sql->execute([
 
 // GET TEACHERS
 
-$teachers=$conn->query(
+$teachers = $pdo->query("
 
-"SELECT teacher_id, teacher_name 
-FROM teachers
-WHERE status='Active'"
+    SELECT teacher_id, teacher_name
 
-);
+    FROM teachers
+
+    WHERE status = 'Active'
+
+");
 
 
 
 // GET BOOKINGS
 
-$bookings=$conn->query("
+$bookings = $pdo->query("
 
-SELECT *
+    SELECT *
 
-FROM bookings
+    FROM bookings
 
-ORDER BY id DESC
+    ORDER BY id DESC
 
 ");
 
