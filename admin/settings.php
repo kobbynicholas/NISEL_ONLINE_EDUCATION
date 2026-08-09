@@ -8,70 +8,64 @@ require "../config/db.php";
 
 // UPDATE SETTINGS
 
-if(isset($_POST['save'])){
+if (isset($_POST['save'])) {
 
 
-$site=$_POST['site_name'];
+    $site = $_POST['site_name'];
 
-$email=$_POST['email'];
+    $email = $_POST['email'];
 
-$phone=$_POST['phone'];
+    $phone = $_POST['phone'];
 
-$address=$_POST['address'];
+    $address = $_POST['address'];
 
-$currency=$_POST['currency'];
+    $currency = $_POST['currency'];
 
-$description=$_POST['description'];
-
-
-
-$sql=$conn->prepare("
-
-UPDATE settings SET
-
-site_name=?,
-
-email=?,
-
-phone=?,
-
-address=?,
-
-currency=?,
-
-description=?
-
-WHERE id=1
-
-");
+    $description = $_POST['description'];
 
 
 
-$sql->bind_param(
+    $sql = $pdo->prepare("
 
-"ssssss",
+        UPDATE settings SET
 
-$site,
+        site_name = ?,
 
-$email,
+        email = ?,
 
-$phone,
+        phone = ?,
 
-$address,
+        address = ?,
 
-$currency,
+        currency = ?,
 
-$description
+        description = ?
 
-);
+        WHERE id = 1
 
-
-
-$sql->execute();
+    ");
 
 
 
-$message="Settings updated successfully";
+    $sql->execute([
+
+        $site,
+
+        $email,
+
+        $phone,
+
+        $address,
+
+        $currency,
+
+        $description
+
+    ]);
+
+
+
+    $message = "Settings updated successfully";
 
 }
 
@@ -79,14 +73,19 @@ $message="Settings updated successfully";
 
 // GET SETTINGS
 
-$result=$conn->query(
+$result = $pdo->query("
 
-"SELECT * FROM settings WHERE id=1"
+    SELECT *
 
-);
+    FROM settings
+
+    WHERE id = 1
+
+");
 
 
-$data=$result->fetch_assoc();
+
+$data = $result->fetch(PDO::FETCH_ASSOC);
 
 
 ?>
@@ -150,6 +149,16 @@ padding:12px 25px;
 
 border:none;
 
+cursor:pointer;
+
+}
+
+
+
+button:hover{
+
+background:#0055aa;
+
 }
 
 
@@ -173,15 +182,17 @@ color:green;
 
 
 <h2>
+
 System Settings
+
 </h2>
 
 
 <?php
 
-if(isset($message)){
+if (isset($message)) {
 
-echo "<p class='success'>$message</p>";
+    echo "<p class='success'>" . htmlspecialchars($message) . "</p>";
 
 }
 
@@ -192,84 +203,96 @@ echo "<p class='success'>$message</p>";
 
 
 <label>
+
 Platform Name
+
 </label>
 
 
 <input
+
+type="text"
 
 name="site_name"
 
-value="<?php echo $data['site_name']; ?>">
+value="<?php echo htmlspecialchars($data['site_name'] ?? ''); ?>">
 
 
 
 <label>
+
 Email
+
 </label>
 
 
 <input
+
+type="email"
 
 name="email"
 
-value="<?php echo $data['email']; ?>">
+value="<?php echo htmlspecialchars($data['email'] ?? ''); ?>">
 
 
 
 <label>
+
 Phone
+
 </label>
 
 
 <input
+
+type="text"
 
 name="phone"
 
-value="<?php echo $data['phone']; ?>">
+value="<?php echo htmlspecialchars($data['phone'] ?? ''); ?>">
 
 
 
 <label>
+
 Address
+
 </label>
 
 
-<textarea name="address">
-
-<?php echo $data['address']; ?>
-
-</textarea>
+<textarea name="address"><?php echo htmlspecialchars($data['address'] ?? ''); ?></textarea>
 
 
 
 <label>
+
 Currency
+
 </label>
 
 
 <input
 
+type="text"
+
 name="currency"
 
-value="<?php echo $data['currency']; ?>">
+value="<?php echo htmlspecialchars($data['currency'] ?? ''); ?>">
 
 
 
 <label>
+
 Description
+
 </label>
 
 
-<textarea name="description">
-
-<?php echo $data['description']; ?>
-
-</textarea>
+<textarea name="description"><?php echo htmlspecialchars($data['description'] ?? ''); ?></textarea>
 
 
 
-<button name="save">
+<button type="submit" name="save">
 
 Save Settings
 
