@@ -124,7 +124,7 @@ $_SESSION["teacher_curriculum"] = $teacher["curriculum"];
 $_SESSION["teacher_photo"] = $teacher["photo"];
 
 $_SESSION["teacher_status"] = $teacher["status"];
-
+}
 
 /*
 |--------------------------------------------------------------------------
