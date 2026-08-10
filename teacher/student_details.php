@@ -3,14 +3,15 @@
 require "../teacher_auth.php";
 require "../config/db.php";
 
+
 /*
 ==================================================
 GET LOGGED-IN TEACHER
 ==================================================
 */
 
-$teacher_id = $_SESSION['teacher_id'];
-$teacher_name = $_SESSION['teacher_name'];
+$teacher_id = $_SESSION['teacher_id'] ?? '';
+$teacher_name = $_SESSION['teacher_name'] ?? 'Teacher';
 
 
 /*
@@ -34,7 +35,6 @@ $student_id = intval($_GET['id']);
 GET STUDENT DETAILS
 ==================================================
 
-IMPORTANT:
 The query checks BOTH:
 
     booking ID
@@ -45,104 +45,109 @@ teacher's students by changing the URL.
 ==================================================
 */
 
-$stmt = $conn->prepare("
+try {
 
-    SELECT
-        id,
-        booking_reference,
-        student_name,
-        dob,
-        phone,
-        email,
-        curriculum,
-        class_year,
-        subjects,
-        amount,
-        payment_status,
-        paystack_reference,
-        teacher_id,
-        teacher_name,
-        assignment_status
+    $stmt = $pdo->prepare("
 
-    FROM bookings
+        SELECT
+            id,
+            booking_reference,
+            student_name,
+            dob,
+            phone,
+            email,
+            curriculum,
+            class_year,
+            subjects,
+            amount,
+            payment_status,
+            paystack_reference,
+            teacher_id,
+            teacher_name,
+            assignment_status
 
-    WHERE id = ?
-    AND teacher_id = ?
+        FROM bookings
 
-    LIMIT 1
+        WHERE id = ?
+        AND teacher_id = ?
 
-");
-
-if (!$stmt) {
-
-    die("Database error: " . $conn->error);
-
-}
-
-$stmt->bind_param(
-    "is",
-    $student_id,
-    $teacher_id
-);
-
-$stmt->execute();
-
-$result = $stmt->get_result();
-
-
-/*
-==================================================
-CHECK IF STUDENT EXISTS
-==================================================
-*/
-
-if ($result->num_rows === 0) {
-
-    $stmt->close();
-    $conn->close();
-
-    die("
-
-        <div style='
-            font-family:Arial;
-            text-align:center;
-            padding:60px;
-        '>
-
-            <h2 style='color:#003366;'>
-                Student Not Found
-            </h2>
-
-            <p>
-                This student does not exist or has not
-                been assigned to you.
-            </p>
-
-            <a href='students.php'
-               style='
-                    display:inline-block;
-                    margin-top:20px;
-                    padding:12px 20px;
-                    background:#003366;
-                    color:white;
-                    text-decoration:none;
-                    border-radius:6px;
-               '>
-
-                Back to My Students
-
-            </a>
-
-        </div>
+        LIMIT 1
 
     ");
 
+
+    $stmt->execute([
+        $student_id,
+        $teacher_id
+    ]);
+
+
+    /*
+    ==============================================
+    GET STUDENT
+    ==============================================
+    */
+
+    $student = $stmt->fetch(PDO::FETCH_ASSOC);
+
+
+    /*
+    ==============================================
+    CHECK IF STUDENT EXISTS
+    ==============================================
+    */
+
+    if (!$student) {
+
+        die("
+
+            <div style='
+                font-family:Arial;
+                text-align:center;
+                padding:60px;
+            '>
+
+                <h2 style='color:#003366;'>
+                    Student Not Found
+                </h2>
+
+                <p>
+                    This student does not exist or has not
+                    been assigned to you.
+                </p>
+
+                <a
+                    href='students.php'
+                    style='
+                        display:inline-block;
+                        margin-top:20px;
+                        padding:12px 20px;
+                        background:#003366;
+                        color:white;
+                        text-decoration:none;
+                        border-radius:6px;
+                    '
+                >
+
+                    Back to My Students
+
+                </a>
+
+            </div>
+
+        ");
+
+    }
+
+
+} catch (PDOException $e) {
+
+    die(
+        "Database error: "
+        . htmlspecialchars($e->getMessage())
+    );
+
 }
-
-
-$student = $result->fetch_assoc();
-
-$stmt->close();
 
 
 /*
@@ -152,7 +157,9 @@ FORMAT PAYMENT STATUS
 */
 
 $payment_status = strtolower(
-    trim($student['payment_status'] ?? '')
+    trim(
+        $student['payment_status'] ?? ''
+    )
 );
 
 
@@ -165,7 +172,9 @@ if (
 
     $payment_text = "PAID";
 
-} elseif ($payment_status === "pending") {
+} elseif (
+    $payment_status === "pending"
+) {
 
     $payment_class = "pending";
 
@@ -177,7 +186,8 @@ if (
 
     $payment_text =
         strtoupper(
-            $student['payment_status'] ?? 'UNKNOWN'
+            $student['payment_status']
+            ?? 'UNKNOWN'
         );
 
 }
@@ -191,19 +201,27 @@ DATE OF BIRTH
 
 $dob = "N/A";
 
+
 if (!empty($student['dob'])) {
 
-    $timestamp = strtotime($student['dob']);
+    $timestamp = strtotime(
+        $student['dob']
+    );
+
 
     if ($timestamp !== false) {
 
-        $dob = date("d F Y", $timestamp);
+        $dob = date(
+            "d F Y",
+            $timestamp
+        );
 
     }
 
 }
 
 ?>
+
 
 <!DOCTYPE html>
 
@@ -214,7 +232,7 @@ if (!empty($student['dob'])) {
 <meta charset="UTF-8">
 
 <meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+      content="width=device-width, initial-scale=1.0">
 
 <title>
 
@@ -235,6 +253,7 @@ NISEL ONLINE EDUCATION
     box-sizing: border-box;
 
 }
+
 
 body {
 
@@ -273,6 +292,7 @@ body {
 
 }
 
+
 .logo {
 
     text-align: center;
@@ -286,6 +306,7 @@ body {
     margin-bottom: 35px;
 
 }
+
 
 .menu a {
 
@@ -303,11 +324,13 @@ body {
 
 }
 
+
 .menu a:hover {
 
     background: #0055a5;
 
 }
+
 
 .menu a.active {
 
@@ -351,6 +374,7 @@ body {
 
 }
 
+
 .topbar h2 {
 
     margin: 0;
@@ -358,6 +382,7 @@ body {
     color: #003366;
 
 }
+
 
 .teacher {
 
@@ -388,6 +413,7 @@ body {
 
 }
 
+
 .back-button:hover {
 
     background: #0055a5;
@@ -414,6 +440,7 @@ body {
 
 }
 
+
 .student-header h1 {
 
     margin: 0 0 8px 0;
@@ -421,6 +448,7 @@ body {
     color: #003366;
 
 }
+
 
 .reference {
 
@@ -464,6 +492,7 @@ body {
 
 }
 
+
 .info-card h3 {
 
     margin-top: 0;
@@ -497,11 +526,13 @@ body {
 
 }
 
+
 .detail-row:last-child {
 
     border-bottom: none;
 
 }
+
 
 .detail-label {
 
@@ -510,6 +541,7 @@ body {
     color: #666;
 
 }
+
 
 .detail-value {
 
@@ -557,6 +589,7 @@ body {
 
 }
 
+
 .paid {
 
     background: #d4edda;
@@ -565,6 +598,7 @@ body {
 
 }
 
+
 .pending {
 
     background: #fff3cd;
@@ -572,6 +606,7 @@ body {
     color: #856404;
 
 }
+
 
 .other {
 
@@ -600,6 +635,7 @@ body {
     margin-bottom: 20px;
 
 }
+
 
 .assignment h3 {
 
@@ -645,6 +681,7 @@ body {
 
     }
 
+
     .main {
 
         margin-left: 0;
@@ -652,6 +689,7 @@ body {
         padding: 15px;
 
     }
+
 
     .topbar {
 
@@ -663,6 +701,7 @@ body {
 
     }
 
+
     .detail-row {
 
         flex-direction: column;
@@ -670,6 +709,7 @@ body {
         gap: 5px;
 
     }
+
 
     .detail-value {
 
@@ -696,6 +736,7 @@ body {
     <div class="logo">
 
         NISEL<br>
+
         ONLINE EDUCATION
 
     </div>
@@ -710,7 +751,10 @@ body {
         </a>
 
 
-        <a href="students.php" class="active">
+        <a
+            href="students.php"
+            class="active"
+        >
 
             👨‍🎓 My Students
 
@@ -886,7 +930,9 @@ body {
 
                     <?php
 
-                    echo htmlspecialchars($dob);
+                    echo htmlspecialchars(
+                        $dob
+                    );
 
                     ?>
 
@@ -1037,8 +1083,8 @@ body {
                     <?php
 
                     echo htmlspecialchars(
-                        $student['teacher_name'] ??
-                        $teacher_name
+                        $student['teacher_name']
+                        ?? $teacher_name
                     );
 
                     ?>
@@ -1056,8 +1102,10 @@ body {
 
     <!-- SUBJECTS -->
 
-    <div class="info-card"
-         style="margin-bottom:20px;">
+    <div
+        class="info-card"
+        style="margin-bottom:20px;"
+    >
 
         <h3>
 
@@ -1086,8 +1134,10 @@ body {
 
     <!-- PAYMENT INFORMATION -->
 
-    <div class="info-card"
-         style="margin-bottom:20px;">
+    <div
+        class="info-card"
+        style="margin-bottom:20px;"
+    >
 
         <h3>
 
@@ -1108,7 +1158,9 @@ body {
 
                 <span
                     class="badge <?php
-                        echo $payment_class;
+                        echo htmlspecialchars(
+                            $payment_class
+                        );
                     ?>"
                 >
 
@@ -1142,7 +1194,9 @@ body {
                 <?php
 
                 echo number_format(
-                    (float)($student['amount'] ?? 0),
+                    (float)(
+                        $student['amount'] ?? 0
+                    ),
                     2
                 );
 
@@ -1215,8 +1269,8 @@ body {
                 <?php
 
                 echo htmlspecialchars(
-                    $student['teacher_name'] ??
-                    $teacher_name
+                    $student['teacher_name']
+                    ?? $teacher_name
                 );
 
                 ?>
@@ -1273,10 +1327,3 @@ body {
 </body>
 
 </html>
-
-
-<?php
-
-$conn->close();
-
-?>
