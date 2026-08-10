@@ -3,14 +3,15 @@
 require "../teacher_auth.php";
 require "../config/db.php";
 
+
 /*
 ==================================================
 LOGGED-IN TEACHER
 ==================================================
 */
 
-$teacher_id = $_SESSION['teacher_id'];
-$teacher_name = $_SESSION['teacher_name'];
+$teacher_id   = $_SESSION['teacher_id'] ?? '';
+$teacher_name = $_SESSION['teacher_name'] ?? 'Teacher';
 
 $message = "";
 $message_type = "";
@@ -22,87 +23,114 @@ UPDATE LESSON SCHEDULE
 ==================================================
 */
 
-if ($_SERVER["REQUEST_METHOD"] === "POST"
-    && isset($_POST['update_schedule'])) {
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    && isset($_POST['update_schedule'])
+) {
 
-    $booking_id = intval($_POST['booking_id']);
+    $booking_id = intval($_POST['booking_id'] ?? 0);
 
-    $lesson_date = trim($_POST['lesson_date'] ?? '');
-    $lesson_time = trim($_POST['lesson_time'] ?? '');
-    $lesson_status = trim($_POST['lesson_status'] ?? 'Scheduled');
+    $lesson_date = trim(
+        $_POST['lesson_date'] ?? ''
+    );
+
+    $lesson_time = trim(
+        $_POST['lesson_time'] ?? ''
+    );
+
+    $lesson_status = trim(
+        $_POST['lesson_status'] ?? 'Scheduled'
+    );
 
 
     /*
     ==============================================
     SECURITY CHECK
-    ==============================================
-    
+
     Make sure the booking belongs to this teacher.
+    ==============================================
     */
 
-    $check = $conn->prepare("
-        SELECT id
-        FROM bookings
-        WHERE id = ?
-        AND teacher_id = ?
-        LIMIT 1
-    ");
+    try {
 
-    $check->bind_param(
-        "is",
-        $booking_id,
-        $teacher_id
-    );
-
-    $check->execute();
-
-    $checkResult = $check->get_result();
-
-
-    if ($checkResult->num_rows === 0) {
-
-        $message = "You are not authorised to modify this booking.";
-        $message_type = "error";
-
-    } else {
-
-        $update = $conn->prepare("
-            UPDATE bookings
-            SET
-                lesson_date = ?,
-                lesson_time = ?,
-                lesson_status = ?
+        $check = $pdo->prepare("
+            SELECT id
+            FROM bookings
             WHERE id = ?
             AND teacher_id = ?
+            LIMIT 1
         ");
 
-        $update->bind_param(
-            "sssis",
-            $lesson_date,
-            $lesson_time,
-            $lesson_status,
+        $check->execute([
             $booking_id,
             $teacher_id
-        );
+        ]);
+
+        $checkResult = $check->fetch();
 
 
-        if ($update->execute()) {
+        if (!$checkResult) {
 
-            $message = "Lesson schedule updated successfully.";
-            $message_type = "success";
+            $message =
+                "You are not authorised to modify this booking.";
+
+            $message_type = "error";
 
         } else {
 
-            $message = "Unable to update the lesson schedule.";
-            $message_type = "error";
+
+            /*
+            ==========================================
+            UPDATE LESSON
+            ==========================================
+            */
+
+            $update = $pdo->prepare("
+                UPDATE bookings
+                SET
+                    lesson_date = ?,
+                    lesson_time = ?,
+                    lesson_status = ?
+                WHERE id = ?
+                AND teacher_id = ?
+            ");
+
+
+            $success = $update->execute([
+                $lesson_date,
+                $lesson_time,
+                $lesson_status,
+                $booking_id,
+                $teacher_id
+            ]);
+
+
+            if ($success) {
+
+                $message =
+                    "Lesson schedule updated successfully.";
+
+                $message_type = "success";
+
+            } else {
+
+                $message =
+                    "Unable to update the lesson schedule.";
+
+                $message_type = "error";
+
+            }
 
         }
 
-        $update->close();
+    } catch (PDOException $e) {
+
+        $message =
+            "Database error: " . $e->getMessage();
+
+        $message_type = "error";
 
     }
-
-    $check->close();
 
 }
 
@@ -113,37 +141,43 @@ GET TODAY'S LESSONS
 ==================================================
 */
 
-$todayStmt = $conn->prepare("
-    SELECT
-        id,
-        booking_reference,
-        student_name,
-        email,
-        phone,
-        curriculum,
-        class_year,
-        subjects,
-        lesson_date,
-        lesson_time,
-        lesson_status,
-        payment_status
+try {
 
-    FROM bookings
+    $todayStmt = $pdo->prepare("
+        SELECT
+            id,
+            booking_reference,
+            student_name,
+            email,
+            phone,
+            curriculum,
+            class_year,
+            subjects,
+            lesson_date,
+            lesson_time,
+            lesson_status,
+            payment_status
+        FROM bookings
+        WHERE teacher_id = ?
+        AND lesson_date = CURDATE()
+        ORDER BY lesson_time ASC
+    ");
 
-    WHERE teacher_id = ?
-    AND lesson_date = CURDATE()
+    $todayStmt->execute([
+        $teacher_id
+    ]);
 
-    ORDER BY lesson_time ASC
-");
+    $todayLessons = $todayStmt->fetchAll();
 
-$todayStmt->bind_param(
-    "s",
-    $teacher_id
-);
 
-$todayStmt->execute();
+} catch (PDOException $e) {
 
-$todayLessons = $todayStmt->get_result();
+    die(
+        "Unable to load today's lessons: "
+        . $e->getMessage()
+    );
+
+}
 
 
 /*
@@ -152,42 +186,48 @@ GET ALL SCHEDULED LESSONS
 ==================================================
 */
 
-$scheduleStmt = $conn->prepare("
-    SELECT
-        id,
-        booking_reference,
-        student_name,
-        email,
-        phone,
-        curriculum,
-        class_year,
-        subjects,
-        lesson_date,
-        lesson_time,
-        lesson_status,
-        payment_status
+try {
 
-    FROM bookings
+    $scheduleStmt = $pdo->prepare("
+        SELECT
+            id,
+            booking_reference,
+            student_name,
+            email,
+            phone,
+            curriculum,
+            class_year,
+            subjects,
+            lesson_date,
+            lesson_time,
+            lesson_status,
+            payment_status
+        FROM bookings
+        WHERE teacher_id = ?
+        ORDER BY
+            CASE
+                WHEN lesson_date IS NULL THEN 1
+                ELSE 0
+            END,
+            lesson_date ASC,
+            lesson_time ASC
+    ");
 
-    WHERE teacher_id = ?
+    $scheduleStmt->execute([
+        $teacher_id
+    ]);
 
-    ORDER BY
-        CASE
-            WHEN lesson_date IS NULL THEN 1
-            ELSE 0
-        END,
-        lesson_date ASC,
-        lesson_time ASC
-");
+    $schedules = $scheduleStmt->fetchAll();
 
-$scheduleStmt->bind_param(
-    "s",
-    $teacher_id
-);
 
-$scheduleStmt->execute();
+} catch (PDOException $e) {
 
-$schedules = $scheduleStmt->get_result();
+    die(
+        "Unable to load lesson schedule: "
+        . $e->getMessage()
+    );
+
+}
 
 
 /*
@@ -196,9 +236,12 @@ COUNT LESSONS
 ==================================================
 */
 
-$totalLessons = $schedules->num_rows;
+$totalLessons = count($schedules);
+
+$todayLessonCount = count($todayLessons);
 
 ?>
+
 
 <!DOCTYPE html>
 
@@ -209,7 +252,7 @@ $totalLessons = $schedules->num_rows;
 <meta charset="UTF-8">
 
 <meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+      content="width=device-width, initial-scale=1.0">
 
 <title>
 My Schedule | NISEL ONLINE EDUCATION
@@ -226,6 +269,7 @@ My Schedule | NISEL ONLINE EDUCATION
     box-sizing: border-box;
 }
 
+
 body {
 
     margin: 0;
@@ -235,6 +279,7 @@ body {
     background: #eef3f8;
 
     color: #333;
+
 }
 
 
@@ -262,6 +307,7 @@ body {
 
 }
 
+
 .logo {
 
     text-align: center;
@@ -275,6 +321,7 @@ body {
     margin-bottom: 35px;
 
 }
+
 
 .menu a {
 
@@ -292,11 +339,13 @@ body {
 
 }
 
+
 .menu a:hover {
 
     background: #0055a5;
 
 }
+
 
 .menu a.active {
 
@@ -340,6 +389,7 @@ body {
 
 }
 
+
 .topbar h2 {
 
     margin: 0;
@@ -347,6 +397,7 @@ body {
     color: #003366;
 
 }
+
 
 .teacher {
 
@@ -374,6 +425,7 @@ body {
 
 }
 
+
 .page-header h2 {
 
     margin: 0 0 8px;
@@ -381,6 +433,7 @@ body {
     color: #003366;
 
 }
+
 
 .page-header p {
 
@@ -408,6 +461,7 @@ body {
 
 }
 
+
 .stat-card {
 
     background: white;
@@ -421,6 +475,7 @@ body {
 
 }
 
+
 .stat-card h3 {
 
     margin: 0;
@@ -430,6 +485,7 @@ body {
     color: #003366;
 
 }
+
 
 .stat-card p {
 
@@ -454,6 +510,7 @@ body {
 
 }
 
+
 .success {
 
     background: #d4edda;
@@ -461,6 +518,7 @@ body {
     color: #155724;
 
 }
+
 
 .error {
 
@@ -490,6 +548,7 @@ body {
 
 }
 
+
 .today h3 {
 
     color: #003366;
@@ -518,6 +577,7 @@ body {
 
 }
 
+
 table {
 
     width: 100%;
@@ -527,6 +587,7 @@ table {
     min-width: 1100px;
 
 }
+
 
 th {
 
@@ -540,6 +601,7 @@ th {
 
 }
 
+
 td {
 
     padding: 12px;
@@ -549,6 +611,7 @@ td {
     vertical-align: middle;
 
 }
+
 
 tr:hover {
 
@@ -575,6 +638,7 @@ tr:hover {
 
 }
 
+
 .scheduled {
 
     background: #cfe2ff;
@@ -582,6 +646,7 @@ tr:hover {
     color: #084298;
 
 }
+
 
 .completed {
 
@@ -591,6 +656,7 @@ tr:hover {
 
 }
 
+
 .cancelled {
 
     background: #f8d7da;
@@ -599,6 +665,7 @@ tr:hover {
 
 }
 
+
 .pending {
 
     background: #fff3cd;
@@ -606,6 +673,7 @@ tr:hover {
     color: #856404;
 
 }
+
 
 .paid {
 
@@ -630,6 +698,7 @@ tr:hover {
 
 }
 
+
 .schedule-form input,
 .schedule-form select {
 
@@ -640,6 +709,7 @@ tr:hover {
     border-radius: 5px;
 
 }
+
 
 .schedule-form button {
 
@@ -656,6 +726,7 @@ tr:hover {
     cursor: pointer;
 
 }
+
 
 .schedule-form button:hover {
 
@@ -695,6 +766,7 @@ tr:hover {
 
     }
 
+
     .main {
 
         margin-left: 0;
@@ -702,6 +774,7 @@ tr:hover {
         padding: 15px;
 
     }
+
 
     .topbar {
 
@@ -780,7 +853,6 @@ tr:hover {
 </div>
 
 
-
 <!-- ==========================================
      MAIN CONTENT
 ========================================== -->
@@ -847,11 +919,13 @@ tr:hover {
     <?php if ($message !== ""): ?>
 
         <div class="message
-            <?php echo $message_type; ?>">
+            <?php echo htmlspecialchars($message_type); ?>">
 
             <?php
 
-            echo htmlspecialchars($message);
+            echo htmlspecialchars(
+                $message
+            );
 
             ?>
 
@@ -892,7 +966,7 @@ tr:hover {
 
                 <?php
 
-                echo $todayLessons->num_rows;
+                echo $todayLessonCount;
 
                 ?>
 
@@ -921,7 +995,7 @@ tr:hover {
         </h3>
 
 
-        <?php if ($todayLessons->num_rows > 0): ?>
+        <?php if ($todayLessonCount > 0): ?>
 
 
         <div class="table-container">
@@ -953,14 +1027,10 @@ tr:hover {
                 </tr>
 
 
-                <?php
-
-                while (
-                    $today =
-                    $todayLessons->fetch_assoc()
-                ):
-
-                ?>
+                <?php foreach (
+                    $todayLessons
+                    as $today
+                ): ?>
 
 
                 <tr>
@@ -1045,23 +1115,31 @@ tr:hover {
                             ?? 'scheduled'
                         );
 
-                        if ($status === "completed") {
 
-                            echo '<span class="badge completed">
-                                    Completed
-                                  </span>';
+                        if (
+                            $status === "completed"
+                        ) {
 
-                        } elseif ($status === "cancelled") {
+                            echo '
+                            <span class="badge completed">
+                                Completed
+                            </span>';
 
-                            echo '<span class="badge cancelled">
-                                    Cancelled
-                                  </span>';
+                        } elseif (
+                            $status === "cancelled"
+                        ) {
+
+                            echo '
+                            <span class="badge cancelled">
+                                Cancelled
+                            </span>';
 
                         } else {
 
-                            echo '<span class="badge scheduled">
-                                    Scheduled
-                                  </span>';
+                            echo '
+                            <span class="badge scheduled">
+                                Scheduled
+                            </span>';
 
                         }
 
@@ -1072,7 +1150,8 @@ tr:hover {
                 </tr>
 
 
-                <?php endwhile; ?>
+                <?php endforeach; ?>
+
 
             </table>
 
@@ -1109,7 +1188,7 @@ tr:hover {
         </h3>
 
 
-        <?php if ($schedules->num_rows > 0): ?>
+        <?php if ($totalLessons > 0): ?>
 
 
         <table>
@@ -1155,12 +1234,24 @@ tr:hover {
             </tr>
 
 
+            <?php foreach (
+                $schedules
+                as $row
+            ): ?>
+
+
             <?php
 
-            while (
-                $row =
-                $schedules->fetch_assoc()
-            ):
+            /*
+             * Determine lesson status once so it
+             * can be used by the display and form.
+             */
+
+            $lessonStatus =
+                strtolower(
+                    $row['lesson_status']
+                    ?? 'scheduled'
+                );
 
             ?>
 
@@ -1192,6 +1283,7 @@ tr:hover {
 
                         echo htmlspecialchars(
                             $row['booking_reference']
+                            ?? ''
                         );
 
                         ?>
@@ -1242,6 +1334,7 @@ tr:hover {
 
                     echo htmlspecialchars(
                         $row['class_year']
+                        ?? ''
                     );
 
                     ?>
@@ -1262,12 +1355,25 @@ tr:hover {
                         )
                     ) {
 
-                        echo date(
-                            "d M Y",
+                        $date =
                             strtotime(
                                 $row['lesson_date']
-                            )
-                        );
+                            );
+
+                        if ($date !== false) {
+
+                            echo date(
+                                "d M Y",
+                                $date
+                            );
+
+                        } else {
+
+                            echo htmlspecialchars(
+                                $row['lesson_date']
+                            );
+
+                        }
 
                     } else {
 
@@ -1295,12 +1401,25 @@ tr:hover {
                         )
                     ) {
 
-                        echo date(
-                            "h:i A",
+                        $time =
                             strtotime(
                                 $row['lesson_time']
-                            )
-                        );
+                            );
+
+                        if ($time !== false) {
+
+                            echo date(
+                                "h:i A",
+                                $time
+                            );
+
+                        } else {
+
+                            echo htmlspecialchars(
+                                $row['lesson_time']
+                            );
+
+                        }
 
                     } else {
 
@@ -1329,29 +1448,30 @@ tr:hover {
                         )
                     );
 
+
                     if (
                         $payment === "paid" ||
                         $payment === "success"
                     ) {
 
-                        echo '<span class="badge paid">
-                                PAID
-                              </span>';
+                        echo '
+                        <span class="badge paid">
+                            PAID
+                        </span>';
 
                     } else {
 
-                        echo '<span class="badge pending">
-                                '
-                                .
-                                htmlspecialchars(
-                                    strtoupper(
-                                        $row['payment_status']
-                                        ?? 'PENDING'
-                                    )
+                        echo '
+                        <span class="badge pending">
+                            ' .
+                            htmlspecialchars(
+                                strtoupper(
+                                    $row['payment_status']
+                                    ?? 'PENDING'
                                 )
-                                .
-                                '
-                              </span>';
+                            )
+                            . '
+                        </span>';
 
                     }
 
@@ -1367,35 +1487,32 @@ tr:hover {
 
                     <?php
 
-                    $lessonStatus =
-                        strtolower(
-                            $row['lesson_status']
-                            ?? 'scheduled'
-                        );
-
                     if (
                         $lessonStatus ===
                         "completed"
                     ) {
 
-                        echo '<span class="badge completed">
-                                Completed
-                              </span>';
+                        echo '
+                        <span class="badge completed">
+                            Completed
+                        </span>';
 
                     } elseif (
                         $lessonStatus ===
                         "cancelled"
                     ) {
 
-                        echo '<span class="badge cancelled">
-                                Cancelled
-                              </span>';
+                        echo '
+                        <span class="badge cancelled">
+                            Cancelled
+                        </span>';
 
                     } else {
 
-                        echo '<span class="badge scheduled">
-                                Scheduled
-                              </span>';
+                        echo '
+                        <span class="badge scheduled">
+                            Scheduled
+                        </span>';
 
                     }
 
@@ -1459,7 +1576,9 @@ tr:hover {
                                 if (
                                     $lessonStatus ===
                                     "scheduled"
-                                ) echo "selected";
+                                ) {
+                                    echo "selected";
+                                }
                                 ?>
                             >
                                 Scheduled
@@ -1472,7 +1591,9 @@ tr:hover {
                                 if (
                                     $lessonStatus ===
                                     "completed"
-                                ) echo "selected";
+                                ) {
+                                    echo "selected";
+                                }
                                 ?>
                             >
                                 Completed
@@ -1485,7 +1606,9 @@ tr:hover {
                                 if (
                                     $lessonStatus ===
                                     "cancelled"
-                                ) echo "selected";
+                                ) {
+                                    echo "selected";
+                                }
                                 ?>
                             >
                                 Cancelled
@@ -1511,7 +1634,7 @@ tr:hover {
             </tr>
 
 
-            <?php endwhile; ?>
+            <?php endforeach; ?>
 
 
         </table>
@@ -1543,14 +1666,3 @@ tr:hover {
 </body>
 
 </html>
-
-
-<?php
-
-$todayStmt->close();
-
-$scheduleStmt->close();
-
-$conn->close();
-
-?>
