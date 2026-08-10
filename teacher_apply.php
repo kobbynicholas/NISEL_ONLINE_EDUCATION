@@ -412,6 +412,36 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             }
 
 
+<div class="form-group">
+
+    <label>
+        Zoom Meeting Link
+    </label>
+
+    <input
+        type="url"
+        name="zoom_link"
+        placeholder="https://zoom.us/j/123456789"
+        value="<?php
+            echo htmlspecialchars(
+                $_POST['zoom_link'] ?? ''
+            );
+        ?>"
+        required
+    >
+
+    <small>
+        Enter the Zoom meeting link you will use
+        for your online lessons.
+    </small>
+
+</div>
+
+
+
+
+            
+
             /*
             ======================================
             SAVE APPLICATION
