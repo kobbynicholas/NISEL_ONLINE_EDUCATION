@@ -2,7 +2,16 @@
 
 session_start();
 
-require "../config/db.php";
+require __DIR__ . "/config/db.php";
+
+
+/* =========================================================
+   PAYSTACK SETTINGS
+========================================================= */
+
+$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
+
+$paystackPublicKey = "pk_test_YOUR_PUBLIC_KEY";
 
 
 /* =========================================================
@@ -13,89 +22,429 @@ if (
     !isset($_SESSION['student_logged_in']) ||
     $_SESSION['student_logged_in'] !== true
 ) {
-    header("Location: login.php");
+
+    header("Location: student/login.php");
     exit;
+
 }
 
 
-$student_id = $_SESSION['student_id'];
+/* =========================================================
+   GET BOOKING REFERENCE
+========================================================= */
 
-$student_name =
-    $_SESSION['student_name'] ?? "Student";
+$bookingReference =
+    trim(
+        $_GET['booking'] ??
+        $_SESSION['pending_booking']['booking_reference'] ??
+        ''
+    );
 
-$student_email =
-    $_SESSION['student_email'] ?? "";
+
+if ($bookingReference === '') {
+
+    die("Booking reference not found.");
+
+}
 
 
 /* =========================================================
-   GET PAYMENT RECORDS
+   GET BOOKING
 ========================================================= */
 
 try {
 
-    /*
-     * Your payment records are linked to the student's
-     * email in the existing project.
-     */
-
     $stmt = $pdo->prepare("
+
         SELECT *
-        FROM payments
-        WHERE student_name IN (
-            SELECT student_name
-            FROM students
-            WHERE id = ?
-        )
-        OR email = ?
-        ORDER BY id DESC
+
+        FROM bookings
+
+        WHERE booking_reference = ?
+
+        LIMIT 1
+
     ");
 
     $stmt->execute([
-        $student_id,
-        $student_email
+        $bookingReference
     ]);
 
-    $payments = $stmt->fetchAll();
+    $booking =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
 
 
 } catch (PDOException $e) {
 
     die(
-        "Unable to load payment records: "
-        . $e->getMessage()
+        "Unable to load booking: "
+        .
+        htmlspecialchars(
+            $e->getMessage()
+        )
     );
 
 }
 
 
 /* =========================================================
-   CALCULATE TOTAL PAID
+   CHECK BOOKING
 ========================================================= */
 
-$total_paid = 0;
+if (!$booking) {
 
-foreach ($payments as $payment) {
+    die("The requested booking could not be found.");
 
-    $status = strtolower(
+}
+
+
+/* =========================================================
+   MAKE SURE BOOKING BELONGS TO LOGGED-IN STUDENT
+========================================================= */
+
+$sessionEmail =
+    $_SESSION['student_email'] ?? '';
+
+
+if (
+    !empty($sessionEmail)
+    &&
+    !empty($booking['email'])
+    &&
+    strtolower(
+        trim($sessionEmail)
+    )
+    !==
+    strtolower(
+        trim($booking['email'])
+    )
+) {
+
+    die("You are not authorized to pay for this booking.");
+
+}
+
+
+/* =========================================================
+   CHECK PAYMENT STATUS
+========================================================= */
+
+$paymentStatus =
+    strtolower(
         trim(
-            $payment['status'] ?? ''
+            $booking['payment_status'] ?? ''
         )
     );
 
-    if (
-        $status === 'paid' ||
-        $status === 'success' ||
-        $status === 'successful'
-    ) {
 
-        $total_paid +=
-            (float) (
-                $payment['amount'] ?? 0
-            );
+if (
+    $paymentStatus === 'paid'
+    ||
+    $paymentStatus === 'success'
+) {
 
-    }
+    header(
+        "Location: verify_payment.php?reference="
+        .
+        urlencode(
+            $bookingReference
+        )
+    );
+
+    exit;
 
 }
+
+
+/* =========================================================
+   BOOKING DETAILS
+========================================================= */
+
+$studentName =
+    $booking['student_name'] ?? '';
+
+$email =
+    $booking['email'] ?? '';
+
+$phone =
+    $booking['phone'] ?? '';
+
+$subject =
+    $booking['subjects'] ?? '';
+
+$curriculum =
+    $booking['curriculum'] ?? '';
+
+$classYear =
+    $booking['class_year'] ?? '';
+
+
+/* =========================================================
+   PACKAGE PRICE
+========================================================= */
+
+/*
+ * One subject booking:
+ *
+ * 2 lessons per week
+ * 8 lessons per month
+ *
+ * Price = GHS 1,000
+ */
+
+$amount =
+    1000;
+
+
+/*
+ * Paystack requires the amount in pesewas.
+ */
+
+$amountInPesewas =
+    $amount * 100;
+
+
+/* =========================================================
+   UPDATE BOOKING AMOUNT
+========================================================= */
+
+try {
+
+    $updateAmount =
+        $pdo->prepare("
+
+            UPDATE bookings
+
+            SET amount = ?
+
+            WHERE booking_reference = ?
+
+        ");
+
+    $updateAmount->execute([
+
+        $amount,
+
+        $bookingReference
+
+    ]);
+
+
+} catch (PDOException $e) {
+
+    die(
+        "Unable to prepare booking payment: "
+        .
+        htmlspecialchars(
+            $e->getMessage()
+        )
+    );
+
+}
+
+
+/* =========================================================
+   PAYSTACK INITIALIZATION
+========================================================= */
+
+$paystackUrl =
+    "https://api.paystack.co/transaction/initialize";
+
+
+/*
+ * Metadata is very important.
+ *
+ * verify_payment.php will use booking_reference
+ * to identify the exact subject booking.
+ */
+
+$metadata = [
+
+    "booking_reference" =>
+        $bookingReference,
+
+    "booking_id" =>
+        $booking['id'],
+
+    "student_name" =>
+        $studentName,
+
+    "student_email" =>
+        $email,
+
+    "subject" =>
+        $subject,
+
+    "curriculum" =>
+        $curriculum,
+
+    "class_year" =>
+        $classYear,
+
+    "lesson_package" =>
+        "8 lessons per month",
+
+    "lesson_frequency" =>
+        "2 lessons per week"
+
+];
+
+
+/* =========================================================
+   INITIALIZE PAYSTACK
+========================================================= */
+
+$paymentData = [
+
+    "email" =>
+        $email,
+
+    "amount" =>
+        $amountInPesewas,
+
+    "currency" =>
+        "GHS",
+
+    "reference" =>
+        $bookingReference,
+
+    "callback_url" =>
+        "http://localhost/online/verify_payment.php",
+
+    "metadata" =>
+        $metadata
+
+];
+
+
+$ch =
+    curl_init(
+        $paystackUrl
+    );
+
+
+curl_setopt(
+    $ch,
+    CURLOPT_POST,
+    true
+);
+
+
+curl_setopt(
+    $ch,
+    CURLOPT_POSTFIELDS,
+    json_encode(
+        $paymentData
+    )
+);
+
+
+curl_setopt(
+    $ch,
+    CURLOPT_RETURNTRANSFER,
+    true
+);
+
+
+curl_setopt(
+    $ch,
+    CURLOPT_HTTPHEADER,
+    [
+
+        "Authorization: Bearer "
+        . $secretKey,
+
+        "Content-Type: application/json",
+
+        "Cache-Control: no-cache"
+
+    ]
+);
+
+
+$response =
+    curl_exec($ch);
+
+
+if (
+    curl_errno($ch)
+) {
+
+    $curlError =
+        curl_error($ch);
+
+    curl_close($ch);
+
+    die(
+        "Unable to connect to Paystack: "
+        .
+        htmlspecialchars(
+            $curlError
+        )
+    );
+
+}
+
+
+curl_close($ch);
+
+
+/* =========================================================
+   DECODE PAYSTACK RESPONSE
+========================================================= */
+
+$result =
+    json_decode(
+        $response,
+        true
+    );
+
+
+/* =========================================================
+   CHECK PAYSTACK RESPONSE
+========================================================= */
+
+if (
+    !isset(
+        $result['status']
+    )
+    ||
+    $result['status'] !== true
+) {
+
+    $errorMessage =
+        $result['message']
+        ??
+        "Unable to initialize payment.";
+
+    die(
+        "Payment initialization failed: "
+        .
+        htmlspecialchars(
+            $errorMessage
+        )
+    );
+
+}
+
+
+if (
+    !isset(
+        $result['data']['authorization_url']
+    )
+) {
+
+    die(
+        "Paystack did not return a payment URL."
+    );
+
+}
+
+
+$authorizationUrl =
+    $result['data']['authorization_url'];
 
 ?>
 
@@ -108,18 +457,27 @@ foreach ($payments as $payment) {
 
 <meta charset="UTF-8">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
 
 <title>
-Payments | NISEL ONLINE EDUCATION
+
+Payment |
+NISEL ONLINE EDUCATION
+
 </title>
 
 
 <style>
 
 * {
+
     box-sizing: border-box;
+
 }
 
 
@@ -131,155 +489,18 @@ body {
 
     background: #eef3f8;
 
-}
-
-
-/* =====================================================
-   SIDEBAR
-===================================================== */
-
-.sidebar {
-
-    position: fixed;
-
-    left: 0;
-
-    top: 0;
-
-    width: 240px;
-
-    height: 100vh;
-
-    background: #003366;
-
-    color: white;
-
-    padding: 25px 15px;
+    color: #333;
 
 }
 
 
-.logo {
+.container {
 
-    text-align: center;
+    width: 92%;
 
-    font-size: 19px;
+    max-width: 800px;
 
-    font-weight: bold;
-
-    margin-bottom: 30px;
-
-}
-
-
-.sidebar a {
-
-    display: block;
-
-    color: white;
-
-    text-decoration: none;
-
-    padding: 13px;
-
-    margin-bottom: 7px;
-
-    border-radius: 6px;
-
-}
-
-
-.sidebar a:hover {
-
-    background: #0055aa;
-
-}
-
-
-.sidebar a.active {
-
-    background: #0055aa;
-
-}
-
-
-.logout {
-
-    background: #dc3545;
-
-    margin-top: 25px;
-
-}
-
-
-.logout:hover {
-
-    background: #bb2d3b !important;
-
-}
-
-
-/* =====================================================
-   MAIN
-===================================================== */
-
-.main {
-
-    margin-left: 240px;
-
-    padding: 30px;
-
-}
-
-
-.header {
-
-    background: white;
-
-    padding: 25px;
-
-    border-radius: 12px;
-
-    margin-bottom: 25px;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.08);
-
-}
-
-
-.header h1 {
-
-    margin: 0 0 8px;
-
-    color: #003366;
-
-}
-
-
-.header p {
-
-    margin: 0;
-
-    color: #666;
-
-}
-
-
-/* =====================================================
-   SUMMARY CARD
-===================================================== */
-
-.summary {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fit, minmax(220px, 1fr));
-
-    gap: 20px;
-
-    margin-bottom: 25px;
+    margin: 50px auto;
 
 }
 
@@ -288,57 +509,120 @@ body {
 
     background: white;
 
-    padding: 22px;
+    padding: 35px;
 
-    border-radius: 10px;
+    border-radius: 14px;
 
     box-shadow:
-        0 4px 12px rgba(0,0,0,.08);
+        0 5px 20px rgba(0,0,0,.10);
 
 }
 
 
-.card-title {
+.logo {
 
-    color: #666;
-
-    font-size: 14px;
-
-    margin-bottom: 8px;
-
-}
-
-
-.card-value {
-
-    font-size: 28px;
-
-    font-weight: bold;
+    text-align: center;
 
     color: #003366;
 
-}
+    font-size: 24px;
 
+    font-weight: bold;
 
-/* =====================================================
-   PAYMENT TABLE
-===================================================== */
+    line-height: 1.4;
 
-.payment-container {
-
-    background: white;
-
-    padding: 25px;
-
-    border-radius: 12px;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.08);
+    margin-bottom: 25px;
 
 }
 
 
-.payment-container h2 {
+h1 {
+
+    color: #003366;
+
+    text-align: center;
+
+    margin-bottom: 10px;
+
+}
+
+
+.subtitle {
+
+    text-align: center;
+
+    color: #666;
+
+    margin-bottom: 30px;
+
+}
+
+
+.details {
+
+    border: 1px solid #ddd;
+
+    border-radius: 10px;
+
+    overflow: hidden;
+
+    margin-bottom: 25px;
+
+}
+
+
+.row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    padding: 14px 18px;
+
+    border-bottom: 1px solid #eee;
+
+}
+
+
+.row:last-child {
+
+    border-bottom: none;
+
+}
+
+
+.label {
+
+    font-weight: bold;
+
+    color: #555;
+
+}
+
+
+.value {
+
+    text-align: right;
+
+}
+
+
+.package {
+
+    background: #f4f8fc;
+
+    padding: 20px;
+
+    border-radius: 10px;
+
+    margin-bottom: 25px;
+
+}
+
+
+.package h3 {
 
     margin-top: 0;
 
@@ -347,160 +631,144 @@ body {
 }
 
 
-.table-wrapper {
+.package ul {
 
-    overflow-x: auto;
+    margin-bottom: 0;
+
+    line-height: 1.8;
 
 }
 
 
-table {
+.amount {
+
+    text-align: center;
+
+    margin: 25px 0;
+
+}
+
+
+.amount small {
+
+    display: block;
+
+    color: #666;
+
+}
+
+
+.amount strong {
+
+    display: block;
+
+    color: #003366;
+
+    font-size: 36px;
+
+    margin-top: 5px;
+
+}
+
+
+.pay-button {
+
+    display: block;
 
     width: 100%;
 
-    border-collapse: collapse;
-
-    min-width: 900px;
-
-}
-
-
-th {
+    padding: 16px;
 
     background: #003366;
 
     color: white;
 
-    padding: 12px;
+    border: none;
 
-    text-align: left;
+    border-radius: 7px;
 
-}
-
-
-td {
-
-    padding: 12px;
-
-    border-bottom: 1px solid #ddd;
-
-}
-
-
-tr:hover {
-
-    background: #f7f9fc;
-
-}
-
-
-/* =====================================================
-   BADGES
-===================================================== */
-
-.badge {
-
-    display: inline-block;
-
-    padding: 6px 11px;
-
-    border-radius: 20px;
-
-    font-size: 12px;
+    font-size: 17px;
 
     font-weight: bold;
 
-}
-
-
-.paid {
-
-    background: #d4edda;
-
-    color: #155724;
-
-}
-
-
-.pending {
-
-    background: #fff3cd;
-
-    color: #856404;
-
-}
-
-
-.failed {
-
-    background: #f8d7da;
-
-    color: #721c24;
-
-}
-
-
-/* =====================================================
-   REFERENCE
-===================================================== */
-
-.reference {
-
-    font-family: monospace;
-
-    color: #003366;
-
-    font-weight: bold;
-
-}
-
-
-/* =====================================================
-   EMPTY STATE
-===================================================== */
-
-.empty {
+    cursor: pointer;
 
     text-align: center;
 
-    padding: 50px 20px;
-
-    color: #777;
+    text-decoration: none;
 
 }
 
 
-.empty-icon {
+.pay-button:hover {
 
-    font-size: 45px;
-
-    margin-bottom: 10px;
+    background: #0055a5;
 
 }
 
 
-/* =====================================================
-   MOBILE
-===================================================== */
+.back {
 
-@media(max-width: 800px) {
+    display: block;
 
-    .sidebar {
+    text-align: center;
 
-        position: relative;
+    margin-top: 18px;
 
-        width: 100%;
+    color: #003366;
 
-        height: auto;
+    text-decoration: none;
+
+}
+
+
+.notice {
+
+    margin-top: 20px;
+
+    padding: 14px;
+
+    background: #fff8e1;
+
+    border-left: 4px solid #f0ad4e;
+
+    color: #66512c;
+
+    line-height: 1.5;
+
+}
+
+
+@media(max-width:600px) {
+
+    .container {
+
+        width: 95%;
+
+        margin: 20px auto;
 
     }
 
 
-    .main {
+    .card {
 
-        margin-left: 0;
+        padding: 22px;
 
-        padding: 20px;
+    }
+
+
+    .row {
+
+        flex-direction: column;
+
+        gap: 5px;
+
+    }
+
+
+    .value {
+
+        text-align: left;
 
     }
 
@@ -514,428 +782,346 @@ tr:hover {
 <body>
 
 
-<!-- =====================================================
-     SIDEBAR
-===================================================== -->
+<div class="container">
 
-<div class="sidebar">
+
+<div class="card">
 
 
 <div class="logo">
 
-NISEL ONLINE EDUCATION
+NISEL<br>
+
+ONLINE EDUCATION
 
 </div>
 
-
-<a href="dashboard.php">
-
-🏠 Dashboard
-
-</a>
-
-
-<a href="profile.php">
-
-👤 My Profile
-
-</a>
-
-
-<a href="bookings.php">
-
-📚 My Bookings
-
-</a>
-
-
-<a href="schedule.php">
-
-📅 My Schedule
-
-</a>
-
-
-<a
-    href="payments.php"
-    class="active"
->
-
-💳 Payments
-
-</a>
-
-
-<a
-    href="logout.php"
-    class="logout"
->
-
-🚪 Logout
-
-</a>
-
-
-</div>
-
-
-<!-- =====================================================
-     MAIN CONTENT
-===================================================== -->
-
-<div class="main">
-
-
-<div class="header">
 
 <h1>
-Payment History
+
+💳 Payment
+
 </h1>
 
-<p>
 
-View your NISEL ONLINE EDUCATION
-payment records.
+<p class="subtitle">
+
+Complete your payment for your subject
+lesson package.
 
 </p>
 
-</div>
-
 
 <!-- =====================================================
-     SUMMARY
+     BOOKING DETAILS
 ===================================================== -->
 
-<div class="summary">
+<div class="details">
 
 
-<div class="card">
+<div class="row">
 
-<div class="card-title">
+<span class="label">
 
-Total Payments
+Booking Reference
 
-</div>
-
-<div class="card-value">
-
-<?php
-
-echo count($payments);
-
-?>
-
-</div>
-
-</div>
+</span>
 
 
-<div class="card">
-
-<div class="card-title">
-
-Total Amount Paid
-
-</div>
-
-<div class="card-value">
-
-GHC
+<span class="value">
 
 <?php
 
-echo number_format(
-    $total_paid,
-    2
+echo htmlspecialchars(
+    $bookingReference
 );
 
 ?>
 
-</div>
+</span>
 
 </div>
 
 
-</div>
 
+<div class="row">
 
-<!-- =====================================================
-     PAYMENT RECORDS
-===================================================== -->
+<span class="label">
 
-<div class="payment-container">
-
-
-<h2>
-My Payment Records
-</h2>
-
-
-<?php if (count($payments) > 0): ?>
-
-
-<div class="table-wrapper">
-
-
-<table>
-
-
-<thead>
-
-<tr>
-
-<th>
 Student
-</th>
 
-<th>
-Amount
-</th>
-
-<th>
-Payment Method
-</th>
-
-<th>
-Status
-</th>
-
-<th>
-Payment Date
-</th>
-
-<th>
-Reference
-</th>
-
-</tr>
-
-</thead>
+</span>
 
 
-<tbody>
-
-
-<?php foreach ($payments as $payment): ?>
-
-
-<tr>
-
-
-<!-- STUDENT -->
-
-<td>
+<span class="value">
 
 <?php
 
 echo htmlspecialchars(
-    $payment['student_name'] ?? ''
+    $studentName
 );
 
 ?>
 
-</td>
+</span>
+
+</div>
 
 
-<!-- AMOUNT -->
 
-<td>
+<div class="row">
 
-GHC
+<span class="label">
 
-<?php
+Email
 
-echo number_format(
-    (float) (
-        $payment['amount'] ?? 0
-    ),
-    2
-);
-
-?>
-
-</td>
+</span>
 
 
-<!-- PAYMENT METHOD -->
-
-<td>
+<span class="value">
 
 <?php
 
 echo htmlspecialchars(
-    $payment['payment_method']
-    ?? 'Paystack'
+    $email
 );
 
 ?>
 
-</td>
+</span>
+
+</div>
 
 
-<!-- STATUS -->
 
-<td>
+<div class="row">
+
+<span class="label">
+
+Curriculum
+
+</span>
+
+
+<span class="value">
 
 <?php
 
-$status = strtolower(
-    trim(
-        $payment['status'] ?? ''
-    )
+echo htmlspecialchars(
+    $curriculum
 );
 
-
-if (
-    $status === 'paid' ||
-    $status === 'success' ||
-    $status === 'successful'
-) {
-
-    echo '
-        <span class="badge paid">
-            PAID
-        </span>
-    ';
-
-} elseif (
-    $status === 'pending'
-) {
-
-    echo '
-        <span class="badge pending">
-            PENDING
-        </span>
-    ';
-
-} else {
-
-    echo '
-        <span class="badge failed">
-            ' .
-            htmlspecialchars(
-                strtoupper(
-                    $payment['status']
-                    ?? 'UNKNOWN'
-                )
-            )
-            . '
-        </span>
-    ';
-
-}
-
 ?>
 
-</td>
+</span>
+
+</div>
 
 
-<!-- DATE -->
 
-<td>
+<div class="row">
+
+<span class="label">
+
+Class / Year
+
+</span>
+
+
+<span class="value">
 
 <?php
 
-$payment_date =
-    $payment['payment_date']
-    ?? $payment['created_at']
-    ?? '';
-
-
-if ($payment_date !== '') {
-
-    $timestamp =
-        strtotime($payment_date);
-
-    if ($timestamp !== false) {
-
-        echo htmlspecialchars(
-            date(
-                "d M Y, h:i A",
-                $timestamp
-            )
-        );
-
-    } else {
-
-        echo htmlspecialchars(
-            $payment_date
-        );
-
-    }
-
-} else {
-
-    echo "N/A";
-
-}
+echo htmlspecialchars(
+    $classYear
+);
 
 ?>
 
-</td>
+</span>
+
+</div>
 
 
-<!-- REFERENCE -->
 
-<td>
+<div class="row">
+
+<span class="label">
+
+Subject
+
+</span>
+
+
+<span class="value">
+
+<strong>
 
 <?php
 
-$reference =
-    $payment['paystack_reference']
-    ?? $payment['reference']
-    ?? 'N/A';
-
-
-echo '<span class="reference">'
-    . htmlspecialchars($reference)
-    . '</span>';
+echo htmlspecialchars(
+    $subject
+);
 
 ?>
 
-</td>
+</strong>
 
+</span>
 
-</tr>
-
-
-<?php endforeach; ?>
-
-
-</tbody>
-
-
-</table>
+</div>
 
 
 </div>
 
 
-<?php else: ?>
 
+<!-- =====================================================
+     PACKAGE
+===================================================== -->
 
-<div class="empty">
-
-
-<div class="empty-icon">
-💳
-</div>
+<div class="package">
 
 
 <h3>
-No Payment Records
+
+📚 Your Lesson Package
+
 </h3>
 
 
-<p>
-You currently have no payment records.
-</p>
+<ul>
+
+<li>
+
+<strong>
+2 lessons per week
+</strong>
+
+</li>
+
+
+<li>
+
+<strong>
+8 lessons per month
+</strong>
+
+</li>
+
+
+<li>
+
+One subject per booking
+
+</li>
+
+
+<li>
+
+Teacher assigned by NISEL administration
+
+</li>
+
+
+</ul>
 
 
 </div>
 
 
-<?php endif; ?>
+
+<!-- =====================================================
+     AMOUNT
+===================================================== -->
+
+<div class="amount">
+
+
+<small>
+
+Monthly Subject Package
+
+</small>
+
+
+<strong>
+
+GHS
+
+<?php
+
+echo number_format(
+    $amount,
+    2
+);
+
+?>
+
+</strong>
+
+
+</div>
+
+
+
+<!-- =====================================================
+     PAYMENT BUTTON
+===================================================== -->
+
+<a
+    href="<?php
+
+        echo htmlspecialchars(
+            $authorizationUrl
+        );
+
+    ?>"
+    class="pay-button"
+>
+
+    💳 Pay GHS
+
+    <?php
+
+    echo number_format(
+        $amount,
+        2
+    );
+
+    ?>
+
+</a>
+
+
+
+<div class="notice">
+
+<strong>
+
+Important:
+
+</strong>
+
+You are paying for the selected subject only.
+This booking provides 8 lessons per month,
+with 2 lessons scheduled each week.
+
+If you want another subject, create a
+separate booking for that subject.
+
+</div>
+
+
+
+<a
+    href="student/book_lesson.php"
+    class="back"
+>
+
+    ← Back to Book a Subject
+
+</a>
 
 
 </div>
