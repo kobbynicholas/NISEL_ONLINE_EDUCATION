@@ -740,14 +740,16 @@ $photoFile =
         ?? ''
     );
 
+$photoUrl = "";
 
-$photoUrl =
-    "../teacher/uploads/teachers/"
-    .
-    rawurlencode(
-        basename($photoFile)
-    );
+if (!empty($photoFile)) {
 
+    $photoUrl =
+        "../teacher/uploads/teachers/"
+        .
+        rawurlencode(
+            basename($photoFile)
+        );
 }
 
 
