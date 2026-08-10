@@ -26,7 +26,7 @@ GET ASSIGNED STUDENTS
 
 if ($search !== "") {
 
-    $stmt = $conn->prepare("
+    $stmt = $pdo->prepare("
         SELECT
             id,
             booking_reference,
@@ -67,7 +67,7 @@ if ($search !== "") {
 
 } else {
 
-    $stmt = $conn->prepare("
+    $stmt = $pdo->prepare("
         SELECT
             id,
             booking_reference,
