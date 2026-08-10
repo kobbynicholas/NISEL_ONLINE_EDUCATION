@@ -443,7 +443,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         <circle cx="12" cy="12" r="10" />
         <path d="M12 8v4M12 16h.01" />
       </svg>
-      <span>Invalid email or password.</span>
+     // <span>Invalid email or password.</span>
     </div>
 
     <!-- Form -->
@@ -488,26 +488,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
       <button type="submit" class="btn-submit">Login to Student Portal</button>
     </form>
 
-    <!-- Footer links -->
-    <div class="footer">
-      <p>Don't have a student account? <a href="register.php">Register</a></p>
-      <p class="home">
-        <a href="../index.html">
-          <svg width="1rem" height="1rem" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2" stroke-linecap="round"
-               stroke-linejoin="round">
-            <path d="m12 19-7-7 7-7" />
-            <path d="M19 12H5" />
-          </svg>
-          Return to NISEL Online Education
-        </a>
-      </p>
-    </div>
-  </div>
-
-  <p class="copyright">
-    &copy; <span id="year"></span> NISEL Online Education. All rights reserved.
-  </p>
 
   <script>
     // Password show/hide
