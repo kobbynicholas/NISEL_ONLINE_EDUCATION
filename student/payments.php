@@ -4,339 +4,67 @@ session_start();
 
 require __DIR__ . "/config/db.php";
 
-/* =========================================================
-   PAYSTACK SETTINGS
-========================================================= */
-
-$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
-
-$paystackPublicKey = "pk_test_YOUR_PUBLIC_KEY";
-
 
 /* =========================================================
-   CHECK STUDENT LOGIN
+   PAYSTACK SECRET KEY
 ========================================================= */
 
-if (
-    !isset($_SESSION['student_logged_in']) ||
-    $_SESSION['student_logged_in'] !== true
-) {
+/*
+ * PUT YOUR CURRENT PAYSTACK SECRET KEY HERE.
+ *
+ * TEST MODE:
+ * sk_test_...
+ *
+ * LIVE MODE:
+ * sk_live_...
+ *
+ * DO NOT put pk_test_... here.
+ */
 
-    header("Location: student/login.php");
-    exit;
-
-}
+$secretKey = "PUT_YOUR_REAL_PAYSTACK_SECRET_KEY_HERE";
 
 
 /* =========================================================
-   GET BOOKING REFERENCE
+   GET PAYSTACK REFERENCE
 ========================================================= */
 
-$bookingReference =
+$reference =
     trim(
-        $_GET['booking'] ??
-        $_SESSION['pending_booking']['booking_reference'] ??
+        $_GET['reference']
+        ??
+        $_GET['trxref']
+        ??
         ''
     );
 
 
-if ($bookingReference === '') {
+if ($reference === '') {
 
-    die("Booking reference not found.");
-
-}
-
-
-/* =========================================================
-   GET BOOKING
-========================================================= */
-
-try {
-
-    $stmt = $pdo->prepare("
-
-        SELECT *
-
-        FROM bookings
-
-        WHERE booking_reference = ?
-
-        LIMIT 1
-
+    die("
+        <h2>Payment Verification Failed</h2>
+        <p>Paystack reference was not received.</p>
     ");
 
-    $stmt->execute([
-        $bookingReference
-    ]);
-
-    $booking =
-        $stmt->fetch(
-            PDO::FETCH_ASSOC
-        );
-
-
-} catch (PDOException $e) {
-
-    die(
-        "Unable to load booking: "
-        .
-        htmlspecialchars(
-            $e->getMessage()
-        )
-    );
-
 }
 
 
 /* =========================================================
-   CHECK BOOKING
+   VERIFY WITH PAYSTACK
 ========================================================= */
 
-if (!$booking) {
+$url =
+    "https://api.paystack.co/transaction/verify/"
+    .
+    urlencode($reference);
 
-    die("The requested booking could not be found.");
 
-}
-
-
-/* =========================================================
-   MAKE SURE BOOKING BELONGS TO LOGGED-IN STUDENT
-========================================================= */
-
-$sessionEmail =
-    $_SESSION['student_email'] ?? '';
-
-
-if (
-    !empty($sessionEmail)
-    &&
-    !empty($booking['email'])
-    &&
-    strtolower(
-        trim($sessionEmail)
-    )
-    !==
-    strtolower(
-        trim($booking['email'])
-    )
-) {
-
-    die("You are not authorized to pay for this booking.");
-
-}
-
-
-/* =========================================================
-   CHECK PAYMENT STATUS
-========================================================= */
-
-$paymentStatus =
-    strtolower(
-        trim(
-            $booking['payment_status'] ?? ''
-        )
-    );
-
-
-if (
-    $paymentStatus === 'paid'
-    ||
-    $paymentStatus === 'success'
-) {
-
-    header(
-        "Location: verify_payment.php?reference="
-        .
-        urlencode(
-            $bookingReference
-        )
-    );
-
-    exit;
-
-}
-
-
-/* =========================================================
-   BOOKING DETAILS
-========================================================= */
-
-$studentName =
-    $booking['student_name'] ?? '';
-
-$email =
-    $booking['email'] ?? '';
-
-$phone =
-    $booking['phone'] ?? '';
-
-$subject =
-    $booking['subjects'] ?? '';
-
-$curriculum =
-    $booking['curriculum'] ?? '';
-
-$classYear =
-    $booking['class_year'] ?? '';
-
-
-/* =========================================================
-   PACKAGE PRICE
-========================================================= */
-
-/*
- * One subject booking:
- *
- * 2 lessons per week
- * 8 lessons per month
- *
- * Price = GHS 1,000
- */
-
-$amount =
-    1000;
-
-
-/*
- * Paystack requires the amount in pesewas.
- */
-
-$amountInPesewas =
-    $amount * 100;
-
-
-/* =========================================================
-   UPDATE BOOKING AMOUNT
-========================================================= */
-
-try {
-
-    $updateAmount =
-        $pdo->prepare("
-
-            UPDATE bookings
-
-            SET amount = ?
-
-            WHERE booking_reference = ?
-
-        ");
-
-    $updateAmount->execute([
-
-        $amount,
-
-        $bookingReference
-
-    ]);
-
-
-} catch (PDOException $e) {
-
-    die(
-        "Unable to prepare booking payment: "
-        .
-        htmlspecialchars(
-            $e->getMessage()
-        )
-    );
-
-}
-
-
-/* =========================================================
-   PAYSTACK INITIALIZATION
-========================================================= */
-
-$paystackUrl =
-    "https://api.paystack.co/transaction/initialize";
-
-
-/*
- * Metadata is very important.
- *
- * verify_payment.php will use booking_reference
- * to identify the exact subject booking.
- */
-
-$metadata = [
-
-    "booking_reference" =>
-        $bookingReference,
-
-    "booking_id" =>
-        $booking['id'],
-
-    "student_name" =>
-        $studentName,
-
-    "student_email" =>
-        $email,
-
-    "subject" =>
-        $subject,
-
-    "curriculum" =>
-        $curriculum,
-
-    "class_year" =>
-        $classYear,
-
-    "lesson_package" =>
-        "8 lessons per month",
-
-    "lesson_frequency" =>
-        "2 lessons per week"
-
-];
-
-
-/* =========================================================
-   INITIALIZE PAYSTACK
-========================================================= */
-
-$paymentData = [
-
-    "email" =>
-        $email,
-
-    "amount" =>
-        $amountInPesewas,
-
-    "currency" =>
-        "GHS",
-
-    "reference" =>
-        $bookingReference,
-
-    "callback_url" =>
-        "http://localhost/online/verify_payment.php",
-
-    "metadata" =>
-        $metadata
-
-];
-
-
-$ch =
-    curl_init(
-        $paystackUrl
-    );
+$ch = curl_init();
 
 
 curl_setopt(
     $ch,
-    CURLOPT_POST,
-    true
-);
-
-
-curl_setopt(
-    $ch,
-    CURLOPT_POSTFIELDS,
-    json_encode(
-        $paymentData
-    )
+    CURLOPT_URL,
+    $url
 );
 
 
@@ -352,42 +80,73 @@ curl_setopt(
     CURLOPT_HTTPHEADER,
     [
 
-        "Authorization: Bearer "
-        . $secretKey,
+        "Authorization: Bearer " . $secretKey,
 
-        "Content-Type: application/json",
+        "Cache-Control: no-cache",
 
-        "Cache-Control: no-cache"
+        "Content-Type: application/json"
 
     ]
 );
 
 
+curl_setopt(
+    $ch,
+    CURLOPT_TIMEOUT,
+    30
+);
+
+
+/* =========================================================
+   EXECUTE CURL
+========================================================= */
+
 $response =
     curl_exec($ch);
 
 
-if (
-    curl_errno($ch)
-) {
+$curlError =
+    curl_error($ch);
 
-    $curlError =
-        curl_error($ch);
 
-    curl_close($ch);
-
-    die(
-        "Unable to connect to Paystack: "
-        .
-        htmlspecialchars(
-            $curlError
-        )
+$httpCode =
+    curl_getinfo(
+        $ch,
+        CURLINFO_HTTP_CODE
     );
-
-}
 
 
 curl_close($ch);
+
+
+/* =========================================================
+   CURL ERROR
+========================================================= */
+
+if ($response === false || $curlError !== '') {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+            Unable to contact Paystack.
+        </p>
+
+        <p>
+            CURL Error:
+            "
+            .
+            htmlspecialchars(
+                $curlError
+            )
+            .
+            "
+        </p>
+
+    ");
+
+}
 
 
 /* =========================================================
@@ -402,7 +161,36 @@ $result =
 
 
 /* =========================================================
-   CHECK PAYSTACK RESPONSE
+   DEBUG PAYSTACK RESPONSE
+========================================================= */
+
+if (
+    !is_array($result)
+) {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+            Paystack returned an invalid response.
+        </p>
+
+        <pre>"
+        .
+        htmlspecialchars(
+            $response
+        )
+        .
+        "</pre>
+
+    ");
+
+}
+
+
+/* =========================================================
+   PAYSTACK ERROR
 ========================================================= */
 
 if (
@@ -413,37 +201,528 @@ if (
     $result['status'] !== true
 ) {
 
-    $errorMessage =
+    $paystackMessage =
         $result['message']
         ??
-        "Unable to initialize payment.";
+        'Unknown Paystack error.';
 
-    die(
-        "Payment initialization failed: "
-        .
-        htmlspecialchars(
-            $errorMessage
-        )
-    );
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+            Paystack could not verify this payment.
+        </p>
+
+        <p>
+
+            <strong>
+                Paystack response:
+            </strong>
+
+            "
+            .
+            htmlspecialchars(
+                $paystackMessage
+            )
+            .
+            "
+
+        </p>
+
+        <p>
+
+            HTTP Status:
+            "
+            .
+            htmlspecialchars(
+                (string)$httpCode
+            )
+            .
+            "
+
+        </p>
+
+        <p>
+
+            Reference:
+            "
+            .
+            htmlspecialchars(
+                $reference
+            )
+            .
+            "
+
+        </p>
+
+    ");
 
 }
 
 
+/* =========================================================
+   TRANSACTION DATA
+========================================================= */
+
+$data =
+    $result['data']
+    ??
+    [];
+
+
+$transactionStatus =
+    $data['status']
+    ??
+    '';
+
+
+$paystackReference =
+    $data['reference']
+    ??
+    $reference;
+
+
+$amountPaid =
+    (
+        (float)(
+            $data['amount']
+            ??
+            0
+        )
+        / 100
+    );
+
+
+$paymentChannel =
+    $data['channel']
+    ??
+    'Unknown';
+
+
+/* =========================================================
+   CHECK PAYMENT STATUS
+========================================================= */
+
 if (
-    !isset(
-        $result['data']['authorization_url']
+    $transactionStatus !== 'success'
+) {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+
+            Payment status from Paystack:
+
+            <strong>
+                "
+                .
+                htmlspecialchars(
+                    $transactionStatus
+                )
+                .
+                "
+            </strong>
+
+        </p>
+
+    ");
+
+}
+
+
+/* =========================================================
+   CHECK AMOUNT
+========================================================= */
+
+if (
+    $amountPaid < 1000
+) {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+
+            The payment amount received was:
+
+            <strong>
+                GHS "
+                .
+                number_format(
+                    $amountPaid,
+                    2
+                )
+                .
+                "
+            </strong>
+
+        </p>
+
+        <p>
+
+            Expected:
+
+            <strong>
+                GHS 1,000.00
+            </strong>
+
+        </p>
+
+    ");
+
+}
+
+
+/* =========================================================
+   GET BOOKING REFERENCE
+========================================================= */
+
+$bookingReference =
+    $reference;
+
+
+/*
+ * Check metadata as well.
+ */
+
+if (
+    isset(
+        $data['metadata']
+    )
+    &&
+    is_array(
+        $data['metadata']
     )
 ) {
 
-    die(
-        "Paystack did not return a payment URL."
-    );
+    if (
+        !empty(
+            $data['metadata']
+            ['booking_reference']
+        )
+    ) {
+
+        $bookingReference =
+            $data['metadata']
+            ['booking_reference'];
+
+    }
 
 }
 
 
-$authorizationUrl =
-    $result['data']['authorization_url'];
+/* =========================================================
+   FIND BOOKING
+========================================================= */
+
+try {
+
+    $stmt =
+        $pdo->prepare("
+
+            SELECT *
+
+            FROM bookings
+
+            WHERE booking_reference = ?
+
+            LIMIT 1
+
+        ");
+
+
+    $stmt->execute([
+        $bookingReference
+    ]);
+
+
+    $booking =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+
+} catch (PDOException $e) {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+
+            Database error while finding
+            the booking.
+
+        </p>
+
+        <p>"
+        .
+        htmlspecialchars(
+            $e->getMessage()
+        )
+        .
+        "</p>
+
+    ");
+
+}
+
+
+/* =========================================================
+   BOOKING NOT FOUND
+========================================================= */
+
+if (!$booking) {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+
+            Payment was verified by Paystack,
+            but the booking could not be found.
+
+        </p>
+
+        <p>
+
+            Booking Reference:
+
+            <strong>
+                "
+                .
+                htmlspecialchars(
+                    $bookingReference
+                )
+                .
+                "
+            </strong>
+
+        </p>
+
+    ");
+
+}
+
+
+/* =========================================================
+   BOOKING INFORMATION
+========================================================= */
+
+$bookingId =
+    $booking['id'];
+
+
+$studentName =
+    $booking['student_name']
+    ??
+    '';
+
+
+$email =
+    $booking['email']
+    ??
+    '';
+
+
+$subject =
+    $booking['subjects']
+    ??
+    '';
+
+
+$curriculum =
+    $booking['curriculum']
+    ??
+    '';
+
+
+$classYear =
+    $booking['class_year']
+    ??
+    '';
+
+
+/* =========================================================
+   UPDATE BOOKING
+========================================================= */
+
+try {
+
+    $stmt =
+        $pdo->prepare("
+
+            UPDATE bookings
+
+            SET
+
+                payment_status = 'Paid',
+
+                paystack_reference = ?,
+
+                amount = ?
+
+            WHERE id = ?
+
+        ");
+
+
+    $stmt->execute([
+
+        $paystackReference,
+
+        $amountPaid,
+
+        $bookingId
+
+    ]);
+
+
+} catch (PDOException $e) {
+
+    die("
+
+        <h2>Payment Verification Failed</h2>
+
+        <p>
+
+            Payment was verified, but the booking
+            could not be updated.
+
+        </p>
+
+        <p>"
+        .
+        htmlspecialchars(
+            $e->getMessage()
+        )
+        .
+        "</p>
+
+    ");
+
+}
+
+
+/* =========================================================
+   SAVE PAYMENT RECORD
+========================================================= */
+
+try {
+
+    $stmt =
+        $pdo->prepare("
+
+            SELECT id
+
+            FROM payments
+
+            WHERE transaction_reference = ?
+
+            LIMIT 1
+
+        ");
+
+
+    $stmt->execute([
+        $paystackReference
+    ]);
+
+
+    $existingPayment =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+
+    if (!$existingPayment) {
+
+        $insert =
+            $pdo->prepare("
+
+                INSERT INTO payments (
+
+                    booking_reference,
+
+                    student_name,
+
+                    email,
+
+                    amount,
+
+                    payment_method,
+
+                    transaction_reference,
+
+                    status
+
+                )
+
+                VALUES (
+
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    ?,
+                    'Paid'
+
+                )
+
+            ");
+
+
+        $insert->execute([
+
+            $bookingReference,
+
+            $studentName,
+
+            $email,
+
+            $amountPaid,
+
+            $paymentChannel,
+
+            $paystackReference
+
+        ]);
+
+    }
+
+
+} catch (PDOException $e) {
+
+    /*
+     * Don't mark the whole payment as failed
+     * if the booking itself was already updated.
+     */
+
+}
+
+
+/* =========================================================
+   REDIRECT TO SUCCESS
+========================================================= */
+
+header(
+
+    "Location: success.php?booking="
+    .
+    urlencode(
+        $bookingReference
+    )
+
+);
+
+exit;
 
 ?>
 
