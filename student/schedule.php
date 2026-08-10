@@ -1840,44 +1840,47 @@ tr:hover {
     </div>
 
 
+ <!-- ==========================================
+             ZOOM BUTTON — PLACE IT HERE
+        =========================================== -->
 
-<!--=============================================
-zoom link
-===============================================-->
+        <?php if (
+            !empty($lesson['zoom_link'])
+        ): ?>
 
-<?php if (!empty($lesson['zoom_link'])): ?>
+            <a
+                href="<?php
+                    echo htmlspecialchars(
+                        $lesson['zoom_link']
+                    );
+                ?>"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="join-button"
+            >
 
-    <a
-        href="<?php
-            echo htmlspecialchars(
-                $lesson['zoom_link']
-            );
-        ?>"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="join-button"
-    >
+                🎥 Join Zoom Class
 
-        🎥 Join Zoom Class
+            </a>
 
-    </a>
+        <?php else: ?>
 
-<?php else: ?>
+            <span class="no-link">
 
-    <span class="no-link">
+                🎥 Zoom link not available yet
 
-        Zoom link not available yet
+            </span>
 
-    </span>
-
-<?php endif; ?>
+        <?php endif; ?>
 
 
+    </div>
+
+<?php endforeach; ?>
 
 
 
    
-
 
     <!-- =================================================
          COMPLETE MONTHLY SCHEDULE
