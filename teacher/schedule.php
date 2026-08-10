@@ -1,889 +1,485 @@
 <?php
 
+/*
+|--------------------------------------------------------------------------
+| NISEL ONLINE EDUCATION
+| TEACHER SCHEDULE
+|--------------------------------------------------------------------------
+| PDO VERSION
+|--------------------------------------------------------------------------
+*/
+
 require "../teacher_auth.php";
 require "../config/db.php";
 
 
-/* =========================================================
-   TEACHER INFORMATION
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| TEACHER INFORMATION
+|--------------------------------------------------------------------------
+*/
 
 $teacher_id = $_SESSION['teacher_id'] ?? '';
 $teacher_name = $_SESSION['teacher_name'] ?? 'Teacher';
 
 
-if (empty($teacher_id)) {
-
-    header("Location: login.php");
-    exit;
-
-}
-
-
-/* =========================================================
-   SCHEDULE FILE
-========================================================= */
-
-$data_directory = dirname(__DIR__) . "/data";
-$schedule_file = $data_directory . "/schedules.json";
-
-
 /*
 |--------------------------------------------------------------------------
-| Create data folder if it doesn't exist
+| MESSAGE
 |--------------------------------------------------------------------------
 */
-
-if (!is_dir($data_directory)) {
-
-    mkdir(
-        $data_directory,
-        0777,
-        true
-    );
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| Create JSON file if it doesn't exist
-|--------------------------------------------------------------------------
-*/
-
-if (!file_exists($schedule_file)) {
-
-    file_put_contents(
-        $schedule_file,
-        json_encode([], JSON_PRETTY_PRINT)
-    );
-
-}
-
-
-/* =========================================================
-   READ EXISTING SCHEDULES
-========================================================= */
-
-$schedules = [];
-
-$json = file_get_contents($schedule_file);
-
-if ($json !== false && trim($json) !== "") {
-
-    $decoded = json_decode(
-        $json,
-        true
-    );
-
-    if (is_array($decoded)) {
-
-        $schedules = $decoded;
-
-    }
-
-}
-
-
-/* =========================================================
-   MESSAGE
-========================================================= */
 
 $message = "";
 $message_type = "";
 
 
-/* =========================================================
-   GET TEACHER'S ASSIGNED BOOKINGS
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| HELPER FUNCTIONS
+|--------------------------------------------------------------------------
+*/
 
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT
-            id,
-            booking_reference,
-            student_name,
-            email,
-            phone,
-            curriculum,
-            class_year,
-            subjects,
-            amount,
-            payment_status,
-            teacher_id,
-            teacher_name,
-            assignment_status
-        FROM bookings
-        WHERE teacher_id = ?
-        ORDER BY student_name ASC
-    ");
-
-    $stmt->execute([
-        $teacher_id
-    ]);
-
-    $students = $stmt->fetchAll(
-        PDO::FETCH_ASSOC
+function h($value)
+{
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES,
+        'UTF-8'
     );
-
-
-} catch (PDOException $e) {
-
-    die(
-        "Unable to load assigned students: "
-        . htmlspecialchars(
-            $e->getMessage()
-        )
-    );
-
 }
 
 
-/* =========================================================
-   CREATE 8 LESSONS
-========================================================= */
+function formatDateValue($date)
+{
+    if (empty($date)) {
+        return "Not scheduled";
+    }
+
+    $timestamp = strtotime($date);
+
+    if ($timestamp === false) {
+        return "Not scheduled";
+    }
+
+    return date("d M Y", $timestamp);
+}
+
+
+function formatTimeValue($time)
+{
+    if (empty($time)) {
+        return "Not set";
+    }
+
+    $timestamp = strtotime($time);
+
+    if ($timestamp === false) {
+        return "Not set";
+    }
+
+    return date("h:i A", $timestamp);
+}
+
+
+function lessonStatusBadge($status)
+{
+    $status = strtolower(
+        trim($status ?? 'scheduled')
+    );
+
+    if ($status === "completed") {
+
+        return '
+            <span class="badge completed">
+                Completed
+            </span>
+        ';
+    }
+
+    if ($status === "cancelled") {
+
+        return '
+            <span class="badge cancelled">
+                Cancelled
+            </span>
+        ';
+    }
+
+    return '
+        <span class="badge scheduled">
+            Scheduled
+        </span>
+    ';
+}
+
+
+function paymentStatusBadge($status)
+{
+    $status = strtolower(
+        trim($status ?? '')
+    );
+
+    if (
+        $status === "paid" ||
+        $status === "success"
+    ) {
+
+        return '
+            <span class="badge paid">
+                PAID
+            </span>
+        ';
+    }
+
+    return '
+        <span class="badge pending">
+            ' .
+            h(
+                strtoupper(
+                    $status ?: 'PENDING'
+                )
+            )
+            . '
+        </span>
+    ';
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE SELECTED STUDENT'S SCHEDULE
+|--------------------------------------------------------------------------
+*/
 
 if (
     $_SERVER["REQUEST_METHOD"] === "POST"
     &&
-    isset($_POST['create_schedule'])
+    isset($_POST['update_schedule'])
 ) {
 
-    $booking_id = intval(
-        $_POST['booking_id'] ?? 0
-    );
+    $booking_id =
+        intval(
+            $_POST['booking_id'] ?? 0
+        );
 
-    $start_date = trim(
-        $_POST['start_date'] ?? ''
-    );
+    $lesson_date =
+        trim(
+            $_POST['lesson_date'] ?? ''
+        );
 
-    $day_one = trim(
-        $_POST['day_one'] ?? ''
-    );
+    $lesson_time =
+        trim(
+            $_POST['lesson_time'] ?? ''
+        );
 
-    $day_two = trim(
-        $_POST['day_two'] ?? ''
-    );
-
-    $lesson_time = trim(
-        $_POST['lesson_time'] ?? ''
-    );
+    $lesson_status =
+        trim(
+            $_POST['lesson_status']
+            ?? 'Scheduled'
+        );
 
 
-    /* =====================================================
-       VALIDATION
-    ===================================================== */
+    /*
+    |--------------------------------------------------------------------------
+    | BASIC VALIDATION
+    |--------------------------------------------------------------------------
+    */
 
-    if (
-        $booking_id <= 0 ||
-        $start_date === "" ||
-        $day_one === "" ||
-        $day_two === "" ||
-        $lesson_time === ""
+    if ($booking_id <= 0) {
+
+        $message =
+            "Please select a student.";
+
+        $message_type =
+            "error";
+
+    } elseif (
+        empty($lesson_date)
     ) {
 
         $message =
-            "Please complete all schedule fields.";
+            "Please select a lesson date.";
 
-        $message_type = "error";
+        $message_type =
+            "error";
 
-    } elseif ($day_one === $day_two) {
+    } elseif (
+        empty($lesson_time)
+    ) {
 
         $message =
-            "Please select two different lesson days.";
+            "Please select a lesson time.";
 
-        $message_type = "error";
+        $message_type =
+            "error";
 
     } else {
 
 
-        /* =================================================
-           FIND BOOKING BELONGING TO THIS TEACHER
-        ================================================= */
+        /*
+        |--------------------------------------------------------------------------
+        | SECURITY CHECK
+        |--------------------------------------------------------------------------
+        |
+        | The booking MUST belong to the logged-in teacher.
+        |
+        */
 
-        try {
+        $checkStmt = $pdo->prepare("
 
-            $stmt = $pdo->prepare("
-                SELECT
-                    id,
-                    booking_reference,
-                    student_name,
-                    email,
-                    curriculum,
-                    class_year,
-                    subjects,
-                    teacher_id,
-                    teacher_name
-                FROM bookings
-                WHERE id = ?
+            SELECT
+                id,
+                student_name,
+                teacher_id
+
+            FROM bookings
+
+            WHERE
+                id = ?
                 AND teacher_id = ?
-                LIMIT 1
-            ");
 
-            $stmt->execute([
-                $booking_id,
-                $teacher_id
-            ]);
+            LIMIT 1
 
-            $booking = $stmt->fetch(
+        ");
+
+
+        $checkStmt->execute([
+            $booking_id,
+            $teacher_id
+        ]);
+
+
+        $booking =
+            $checkStmt->fetch(
                 PDO::FETCH_ASSOC
             );
-
-
-        } catch (PDOException $e) {
-
-            $booking = false;
-
-            $message =
-                "Unable to verify booking.";
-
-            $message_type = "error";
-
-        }
 
 
         if (!$booking) {
 
             $message =
-                "This booking is not assigned to you.";
+                "You are not authorised to schedule this student.";
 
-            $message_type = "error";
+            $message_type =
+                "error";
 
         } else {
 
 
-            /* =============================================
-               CHECK EXISTING SCHEDULE
-            ============================================= */
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE SCHEDULE
+            |--------------------------------------------------------------------------
+            */
 
-            $already_scheduled = false;
+            $updateStmt = $pdo->prepare("
 
-            foreach ($schedules as $existing) {
+                UPDATE bookings
 
-                if (
-                    isset(
-                        $existing['booking_id']
-                    )
-                    &&
-                    (int)$existing['booking_id']
-                    === $booking_id
-                ) {
+                SET
 
-                    $already_scheduled = true;
+                    lesson_date = ?,
+                    lesson_time = ?,
+                    lesson_status = ?
 
-                    break;
+                WHERE
 
-                }
+                    id = ?
+                    AND teacher_id = ?
 
-            }
+            ");
 
 
-            if ($already_scheduled) {
+            $updated =
+                $updateStmt->execute([
+                    $lesson_date,
+                    $lesson_time,
+                    $lesson_status,
+                    $booking_id,
+                    $teacher_id
+                ]);
+
+
+            if ($updated) {
 
                 $message =
-                    "This student already has an 8-lesson schedule.";
+                    "Schedule for "
+                    . $booking['student_name']
+                    . " updated successfully.";
 
-                $message_type = "error";
+                $message_type =
+                    "success";
 
             } else {
 
-
-                /* =========================================
-                   VALIDATE DATE
-                ========================================= */
-
-                $date_object = DateTime::createFromFormat(
-                    'Y-m-d',
-                    $start_date
-                );
-
-
-                if (
-                    !$date_object
-                    ||
-                    $date_object->format('Y-m-d')
-                    !== $start_date
-                ) {
-
-                    $message =
-                        "Please enter a valid starting date.";
-
-                    $message_type = "error";
-
-                } else {
-
-
-                    /* =====================================
-                       DAY NUMBER
-                    ===================================== */
-
-                    $day_numbers = [
-
-                        'Sunday' => 0,
-
-                        'Monday' => 1,
-
-                        'Tuesday' => 2,
-
-                        'Wednesday' => 3,
-
-                        'Thursday' => 4,
-
-                        'Friday' => 5,
-
-                        'Saturday' => 6
-
-                    ];
-
-
-                    /*
-                     * We sort the two selected days so the
-                     * lessons always appear chronologically.
-                     */
-
-                    $selected_days = [
-
-                        $day_numbers[$day_one],
-                        $day_numbers[$day_two]
-
-                    ];
-
-
-                    sort(
-                        $selected_days
-                    );
-
-
-                    /*
-                     * Convert numbers back to names.
-                     */
-
-                    $number_to_day = array_flip(
-                        $day_numbers
-                    );
-
-
-                    $selected_day_names = [
-
-                        $number_to_day[
-                            $selected_days[0]
-                        ],
-
-                        $number_to_day[
-                            $selected_days[1]
-                        ]
-
-                    ];
-
-
-                    /* =====================================
-                       GENERATE 8 LESSONS
-                    ===================================== */
-
-                    $new_lessons = [];
-
-
-                    $lesson_number = 1;
-
-
-                    /*
-                     * Start searching from the selected
-                     * starting date.
-                     */
-
-                    $current_date = new DateTime(
-                        $start_date
-                    );
-
-
-                    /*
-                     * Generate 8 lessons.
-                     *
-                     * Each week has 2 lessons.
-                     */
-
-                    for (
-                        $week = 0;
-                        $week < 4;
-                        $week++
-                    ) {
-
-
-                        foreach (
-                            $selected_days
-                            as $day_number
-                        ) {
-
-
-                            /*
-                             * Create a fresh date based
-                             * on the starting date.
-                             */
-
-                            $lesson_date = new DateTime(
-                                $start_date
-                            );
-
-
-                            /*
-                             * Move to the beginning of
-                             * the appropriate week.
-                             */
-
-                            $lesson_date->modify(
-                                "+".($week * 7)." days"
-                            );
-
-
-                            /*
-                             * Calculate the difference
-                             * between current weekday and
-                             * requested weekday.
-                             */
-
-                            $current_day =
-                                (int)$lesson_date->format(
-                                    'w'
-                                );
-
-
-                            $difference =
-                                $day_number
-                                -
-                                $current_day;
-
-
-                            /*
-                             * For the first week, if the
-                             * selected day has already
-                             * passed the starting date,
-                             * move to the following week.
-                             */
-
-                            if (
-                                $week === 0
-                                &&
-                                $difference < 0
-                            ) {
-
-                                $difference += 7;
-
-                            }
-
-
-                            $lesson_date->modify(
-                                ($difference >= 0 ? "+" : "")
-                                . $difference
-                                . " days"
-                            );
-
-
-                            /*
-                             * Make sure the date is not
-                             * before the selected start.
-                             */
-
-                            if (
-                                $lesson_date < $current_date
-                            ) {
-
-                                $lesson_date->modify(
-                                    "+7 days"
-                                );
-
-                            }
-
-
-                            $new_lessons[] = [
-
-                                'lesson_id' =>
-                                    uniqid(
-                                        'lesson_',
-                                        true
-                                    ),
-
-                                'booking_id' =>
-                                    $booking_id,
-
-                                'booking_reference' =>
-                                    $booking[
-                                        'booking_reference'
-                                    ],
-
-                                'teacher_id' =>
-                                    $teacher_id,
-
-                                'teacher_name' =>
-                                    $teacher_name,
-
-                                'student_name' =>
-                                    $booking[
-                                        'student_name'
-                                    ],
-
-                                'student_email' =>
-                                    $booking[
-                                        'email'
-                                    ],
-
-                                'subjects' =>
-                                    $booking[
-                                        'subjects'
-                                    ],
-
-                                'curriculum' =>
-                                    $booking[
-                                        'curriculum'
-                                    ],
-
-                                'class_year' =>
-                                    $booking[
-                                        'class_year'
-                                    ],
-
-                                'lesson_number' =>
-                                    $lesson_number,
-
-                                'lesson_date' =>
-                                    $lesson_date->format(
-                                        'Y-m-d'
-                                    ),
-
-                                'lesson_time' =>
-                                    $lesson_time,
-
-                                'lesson_status' =>
-                                    'Scheduled',
-
-                                'created_at' =>
-                                    date(
-                                        'Y-m-d H:i:s'
-                                    )
-
-                            ];
-
-
-                            $lesson_number++;
-
-                        }
-
-                    }
-
-
-                    /* =====================================
-                       SAVE SCHEDULE
-                    ===================================== */
-
-                    foreach (
-                        $new_lessons
-                        as $lesson
-                    ) {
-
-                        $schedules[] = $lesson;
-
-                    }
-
-
-                    $saved = file_put_contents(
-
-                        $schedule_file,
-
-                        json_encode(
-                            $schedules,
-                            JSON_PRETTY_PRINT
-                            | JSON_UNESCAPED_SLASHES
-                        ),
-
-                        LOCK_EX
-
-                    );
-
-
-                    if ($saved !== false) {
-
-                        $message =
-                            "8 lessons have been scheduled successfully.";
-
-                        $message_type = "success";
-
-                    } else {
-
-                        $message =
-                            "Unable to save the schedule. Please check that the data folder is writable.";
-
-                        $message_type = "error";
-
-                    }
-
-                }
-
+                $message =
+                    "Unable to update the schedule.";
+
+                $message_type =
+                    "error";
             }
-
         }
-
     }
-
-}
-
-
-/* =========================================================
-   UPDATE LESSON STATUS
-========================================================= */
-
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST"
-    &&
-    isset($_POST['update_status'])
-) {
-
-    $lesson_id = trim(
-        $_POST['lesson_id'] ?? ''
-    );
-
-    $new_status = trim(
-        $_POST['lesson_status'] ?? ''
-    );
-
-
-    $allowed_statuses = [
-
-        'Scheduled',
-
-        'Completed',
-
-        'Cancelled'
-
-    ];
-
-
-    if (
-        $lesson_id === ""
-        ||
-        !in_array(
-            $new_status,
-            $allowed_statuses,
-            true
-        )
-    ) {
-
-        $message =
-            "Invalid lesson status.";
-
-        $message_type = "error";
-
-    } else {
-
-
-        $updated = false;
-
-
-        foreach (
-            $schedules
-            as &$lesson
-        ) {
-
-
-            if (
-                isset(
-                    $lesson['lesson_id']
-                )
-                &&
-                $lesson['lesson_id']
-                === $lesson_id
-                &&
-                (string)$lesson['teacher_id']
-                === (string)$teacher_id
-            ) {
-
-                $lesson[
-                    'lesson_status'
-                ] = $new_status;
-
-                $updated = true;
-
-                break;
-
-            }
-
-        }
-
-
-        unset($lesson);
-
-
-        if ($updated) {
-
-            file_put_contents(
-
-                $schedule_file,
-
-                json_encode(
-                    $schedules,
-                    JSON_PRETTY_PRINT
-                    | JSON_UNESCAPED_SLASHES
-                ),
-
-                LOCK_EX
-
-            );
-
-
-            $message =
-                "Lesson status updated.";
-
-            $message_type = "success";
-
-        } else {
-
-            $message =
-                "Lesson not found.";
-
-            $message_type = "error";
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   FILTER TEACHER'S SCHEDULES
-========================================================= */
-
-$teacher_schedules = [];
-
-
-foreach (
-    $schedules
-    as $lesson
-) {
-
-    if (
-        isset(
-            $lesson['teacher_id']
-        )
-        &&
-        (string)$lesson['teacher_id']
-        === (string)$teacher_id
-    ) {
-
-        $teacher_schedules[] =
-            $lesson;
-
-    }
-
 }
 
 
 /*
- * Sort by date and time
- */
+|--------------------------------------------------------------------------
+| GET STUDENTS ASSIGNED TO THIS TEACHER
+|--------------------------------------------------------------------------
+|
+| This is the list used by the selectable Student dropdown.
+|
+*/
 
-usort(
-    $teacher_schedules,
-    function (
-        $a,
-        $b
-    ) {
+$studentsStmt = $pdo->prepare("
 
-        $date_a =
-            ($a['lesson_date'] ?? '')
-            . ' '
-            . ($a['lesson_time'] ?? '');
+    SELECT
 
-        $date_b =
-            ($b['lesson_date'] ?? '')
-            . ' '
-            . ($b['lesson_time'] ?? '');
+        id,
+        booking_reference,
+        student_name,
+        curriculum,
+        class_year,
+        subjects,
+        lesson_date,
+        lesson_time,
+        lesson_status,
+        payment_status
 
-        return strcmp(
-            $date_a,
-            $date_b
-        );
+    FROM bookings
 
-    }
-);
+    WHERE teacher_id = ?
 
+    ORDER BY
 
-/* =========================================================
-   STATISTICS
-========================================================= */
+        student_name ASC,
+        subjects ASC,
+        lesson_date ASC
 
-$total_lessons =
-    count($teacher_schedules);
-
-
-$completed_lessons = 0;
-
-$scheduled_lessons = 0;
-
-$cancelled_lessons = 0;
+");
 
 
-foreach (
-    $teacher_schedules
-    as $lesson
-) {
-
-    $status =
-        $lesson['lesson_status']
-        ?? 'Scheduled';
+$studentsStmt->execute([
+    $teacher_id
+]);
 
 
-    if (
-        $status === 'Completed'
-    ) {
-
-        $completed_lessons++;
-
-    } elseif (
-        $status === 'Cancelled'
-    ) {
-
-        $cancelled_lessons++;
-
-    } else {
-
-        $scheduled_lessons++;
-
-    }
-
-}
+$assignedStudents =
+    $studentsStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
 
-/* =========================================================
-   TODAY'S LESSONS
-========================================================= */
-
-$today = date(
-    'Y-m-d'
-);
+$totalLessons =
+    count($assignedStudents);
 
 
-$today_lessons = [];
+/*
+|--------------------------------------------------------------------------
+| TODAY'S LESSONS
+|--------------------------------------------------------------------------
+*/
+
+$todayStmt = $pdo->prepare("
+
+    SELECT
+
+        id,
+        booking_reference,
+        student_name,
+        curriculum,
+        class_year,
+        subjects,
+        lesson_date,
+        lesson_time,
+        lesson_status,
+        payment_status
+
+    FROM bookings
+
+    WHERE
+
+        teacher_id = ?
+
+        AND DATE(lesson_date) = CURDATE()
+
+    ORDER BY
+
+        lesson_time ASC
+
+");
 
 
-foreach (
-    $teacher_schedules
-    as $lesson
-) {
+$todayStmt->execute([
+    $teacher_id
+]);
 
-    if (
-        ($lesson['lesson_date'] ?? '')
-        === $today
-    ) {
 
-        $today_lessons[] =
-            $lesson;
+$todayLessons =
+    $todayStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
-    }
 
-}
+$totalToday =
+    count($todayLessons);
+
+
+/*
+|--------------------------------------------------------------------------
+| UPCOMING LESSONS
+|--------------------------------------------------------------------------
+*/
+
+$upcomingStmt = $pdo->prepare("
+
+    SELECT
+
+        id,
+        booking_reference,
+        student_name,
+        curriculum,
+        class_year,
+        subjects,
+        lesson_date,
+        lesson_time,
+        lesson_status,
+        payment_status
+
+    FROM bookings
+
+    WHERE
+
+        teacher_id = ?
+
+        AND DATE(lesson_date) > CURDATE()
+
+    ORDER BY
+
+        lesson_date ASC,
+        lesson_time ASC
+
+    LIMIT 8
+
+");
+
+
+$upcomingStmt->execute([
+    $teacher_id
+]);
+
+
+$upcomingLessons =
+    $upcomingStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
+
+
+$totalUpcoming =
+    count($upcomingLessons);
 
 ?>
-
 
 <!DOCTYPE html>
 
@@ -899,11 +495,15 @@ foreach (
 >
 
 <title>
-My Schedule | NISEL ONLINE EDUCATION
+    Teacher Schedule | NISEL ONLINE EDUCATION
 </title>
 
 
 <style>
+
+/* =====================================================
+   GENERAL
+===================================================== */
 
 * {
     box-sizing: border-box;
@@ -914,12 +514,14 @@ body {
 
     margin: 0;
 
-    font-family: Arial, sans-serif;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
 
     background: #eef3f8;
 
     color: #333;
-
 }
 
 
@@ -945,6 +547,7 @@ body {
 
     padding: 25px 15px;
 
+    overflow-y: auto;
 }
 
 
@@ -959,7 +562,6 @@ body {
     line-height: 1.5;
 
     margin-bottom: 35px;
-
 }
 
 
@@ -977,20 +579,19 @@ body {
 
     border-radius: 7px;
 
+    transition: .2s;
 }
 
 
 .menu a:hover {
 
     background: #0055a5;
-
 }
 
 
 .menu a.active {
 
     background: #0055a5;
-
 }
 
 
@@ -1003,7 +604,6 @@ body {
     margin-left: 240px;
 
     padding: 30px;
-
 }
 
 
@@ -1027,6 +627,8 @@ body {
 
     align-items: center;
 
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
 }
 
 
@@ -1035,14 +637,12 @@ body {
     margin: 0;
 
     color: #003366;
-
 }
 
 
 .teacher {
 
     color: #666;
-
 }
 
 
@@ -1062,16 +662,14 @@ body {
 
     box-shadow:
         0 4px 12px rgba(0,0,0,.06);
-
 }
 
 
-.page-header h1 {
+.page-header h2 {
 
     margin: 0 0 8px;
 
     color: #003366;
-
 }
 
 
@@ -1081,6 +679,7 @@ body {
 
     color: #666;
 
+    line-height: 1.6;
 }
 
 
@@ -1090,30 +689,29 @@ body {
 
 .message {
 
-    padding: 14px;
+    padding: 14px 18px;
 
-    border-radius: 7px;
+    border-radius: 8px;
 
     margin-bottom: 20px;
 
+    font-weight: 600;
 }
 
 
-.success {
+.message.success {
 
     background: #d4edda;
 
     color: #155724;
-
 }
 
 
-.error {
+.message.error {
 
     background: #f8d7da;
 
     color: #721c24;
-
 }
 
 
@@ -1126,12 +724,14 @@ body {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(180px, 1fr));
+        repeat(
+            auto-fit,
+            minmax(200px, 1fr)
+        );
 
     gap: 20px;
 
     margin-bottom: 25px;
-
 }
 
 
@@ -1145,7 +745,6 @@ body {
 
     box-shadow:
         0 4px 12px rgba(0,0,0,.06);
-
 }
 
 
@@ -1156,7 +755,6 @@ body {
     font-size: 30px;
 
     color: #003366;
-
 }
 
 
@@ -1165,129 +763,11 @@ body {
     margin: 8px 0 0;
 
     color: #777;
-
 }
 
 
 /* =====================================================
-   CREATE SCHEDULE
-===================================================== */
-
-.create-box {
-
-    background: white;
-
-    padding: 25px;
-
-    border-radius: 12px;
-
-    margin-bottom: 25px;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.06);
-
-}
-
-
-.create-box h2 {
-
-    margin-top: 0;
-
-    color: #003366;
-
-}
-
-
-.form-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fit, minmax(180px, 1fr));
-
-    gap: 15px;
-
-}
-
-
-.form-group label {
-
-    display: block;
-
-    font-weight: bold;
-
-    margin-bottom: 7px;
-
-}
-
-
-.form-group select,
-.form-group input {
-
-    width: 100%;
-
-    padding: 11px;
-
-    border: 1px solid #ccc;
-
-    border-radius: 6px;
-
-    font-size: 14px;
-
-}
-
-
-.create-button {
-
-    margin-top: 20px;
-
-    padding: 12px 22px;
-
-    border: none;
-
-    background: #003366;
-
-    color: white;
-
-    border-radius: 6px;
-
-    cursor: pointer;
-
-    font-weight: bold;
-
-}
-
-
-.create-button:hover {
-
-    background: #0055a5;
-
-}
-
-
-/* =====================================================
-   INFO
-===================================================== */
-
-.info-box {
-
-    background: #f4f9ff;
-
-    border-left: 5px solid #003366;
-
-    padding: 15px;
-
-    margin-top: 15px;
-
-    border-radius: 5px;
-
-    color: #555;
-
-}
-
-
-/* =====================================================
-   SCHEDULE
+   SCHEDULE STUDENT
 ===================================================== */
 
 .schedule-box {
@@ -1302,23 +782,205 @@ body {
 
     box-shadow:
         0 4px 12px rgba(0,0,0,.06);
-
 }
 
 
-.schedule-box h2 {
+.schedule-box h3 {
 
     margin-top: 0;
 
     color: #003366;
-
 }
 
 
-.table-wrapper {
+.schedule-box > p {
+
+    color: #777;
+
+    margin-bottom: 20px;
+}
+
+
+.form-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(
+            2,
+            minmax(0, 1fr)
+        );
+
+    gap: 18px;
+}
+
+
+.form-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+
+.form-group.full {
+
+    grid-column:
+        1 / -1;
+}
+
+
+.form-group label {
+
+    font-weight: bold;
+
+    color: #003366;
+}
+
+
+.form-group select,
+.form-group input {
+
+    width: 100%;
+
+    padding: 12px;
+
+    border:
+        1px solid #ccd5df;
+
+    border-radius: 7px;
+
+    background: white;
+
+    font-size: 15px;
+
+    outline: none;
+}
+
+
+.form-group select:focus,
+.form-group input:focus {
+
+    border-color: #0055a5;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(0,85,165,.1);
+}
+
+
+.student-preview {
+
+    background: #f4f8fc;
+
+    border:
+        1px solid #dbe5ef;
+
+    border-radius: 8px;
+
+    padding: 15px;
+
+    margin-top: 5px;
+}
+
+
+.student-preview strong {
+
+    color: #003366;
+}
+
+
+.student-preview span {
+
+    color: #666;
+
+    font-size: 13px;
+}
+
+
+.save-button {
+
+    border: none;
+
+    background: #003366;
+
+    color: white;
+
+    padding: 13px 22px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-size: 15px;
+
+    font-weight: bold;
+
+    margin-top: 10px;
+}
+
+
+.save-button:hover {
+
+    background: #0055a5;
+}
+
+
+/* =====================================================
+   TODAY
+===================================================== */
+
+.today {
+
+    background: white;
+
+    padding: 25px;
+
+    border-radius: 12px;
+
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
+}
+
+
+.today h3 {
+
+    color: #003366;
+
+    margin-top: 0;
+}
+
+
+/* =====================================================
+   TABLE
+===================================================== */
+
+.table-container {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 12px;
 
     overflow-x: auto;
 
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
+
+    margin-bottom: 25px;
+}
+
+
+.table-container h3 {
+
+    color: #003366;
+
+    margin-top: 0;
 }
 
 
@@ -1329,7 +991,6 @@ table {
     border-collapse: collapse;
 
     min-width: 1000px;
-
 }
 
 
@@ -1344,7 +1005,6 @@ th {
     text-align: left;
 
     white-space: nowrap;
-
 }
 
 
@@ -1352,17 +1012,16 @@ td {
 
     padding: 12px;
 
-    border-bottom: 1px solid #ddd;
+    border-bottom:
+        1px solid #ddd;
 
     vertical-align: middle;
-
 }
 
 
 tr:hover {
 
     background: #f7faff;
-
 }
 
 
@@ -1374,7 +1033,7 @@ tr:hover {
 
     display: inline-block;
 
-    padding: 6px 11px;
+    padding: 6px 10px;
 
     border-radius: 20px;
 
@@ -1382,6 +1041,7 @@ tr:hover {
 
     font-weight: bold;
 
+    white-space: nowrap;
 }
 
 
@@ -1390,7 +1050,6 @@ tr:hover {
     background: #cfe2ff;
 
     color: #084298;
-
 }
 
 
@@ -1399,7 +1058,6 @@ tr:hover {
     background: #d4edda;
 
     color: #155724;
-
 }
 
 
@@ -1408,72 +1066,119 @@ tr:hover {
     background: #f8d7da;
 
     color: #721c24;
+}
 
+
+.pending {
+
+    background: #fff3cd;
+
+    color: #856404;
+}
+
+
+.paid {
+
+    background: #d4edda;
+
+    color: #155724;
 }
 
 
 /* =====================================================
-   STATUS FORM
+   STUDENT NAME
 ===================================================== */
 
-.status-form {
+.student-name {
 
-    display: flex;
+    color: #003366;
 
-    gap: 6px;
-
+    font-weight: bold;
 }
 
 
-.status-form select {
+.reference {
 
-    padding: 7px;
+    font-size: 12px;
 
-    border: 1px solid #ccc;
+    color: #888;
 
-    border-radius: 5px;
-
-}
-
-
-.status-form button {
-
-    padding: 7px 12px;
-
-    background: #003366;
-
-    color: white;
-
-    border: none;
-
-    border-radius: 5px;
-
-    cursor: pointer;
-
+    margin-top: 3px;
 }
 
 
 /* =====================================================
-   EMPTY
+   UPCOMING
 ===================================================== */
 
-.empty {
+.upcoming {
+
+    background: #f8fbff;
+
+    border-left:
+        5px solid #003366;
+
+    padding: 18px;
+
+    border-radius: 8px;
+
+    margin-bottom: 12px;
+}
+
+
+.upcoming:last-child {
+
+    margin-bottom: 0;
+}
+
+
+.upcoming-date {
+
+    color: #003366;
+
+    font-weight: bold;
+}
+
+
+.upcoming-subject {
+
+    font-size: 17px;
+
+    font-weight: bold;
+
+    margin-top: 6px;
+}
+
+
+.upcoming-info {
+
+    color: #666;
+
+    margin-top: 7px;
+
+    line-height: 1.6;
+}
+
+
+/* =====================================================
+   NO DATA
+===================================================== */
+
+.no-data {
+
+    padding: 35px;
 
     text-align: center;
 
-    padding: 45px;
-
     color: #777;
-
 }
 
 
-.empty-icon {
+.no-data-icon {
 
-    font-size: 45px;
+    font-size: 40px;
 
-    margin-bottom: 10px;
-
+    margin-bottom: 8px;
 }
 
 
@@ -1490,7 +1195,6 @@ tr:hover {
         width: 100%;
 
         height: auto;
-
     }
 
 
@@ -1499,7 +1203,6 @@ tr:hover {
         margin-left: 0;
 
         padding: 15px;
-
     }
 
 
@@ -1510,7 +1213,18 @@ tr:hover {
         align-items: flex-start;
 
         gap: 10px;
+    }
 
+
+    .form-grid {
+
+        grid-template-columns: 1fr;
+    }
+
+
+    .form-group.full {
+
+        grid-column: auto;
     }
 
 }
@@ -1582,7 +1296,6 @@ tr:hover {
 
     </div>
 
-
 </div>
 
 
@@ -1592,6 +1305,8 @@ tr:hover {
 
 <div class="main">
 
+
+    <!-- TOP BAR -->
 
     <div class="topbar">
 
@@ -1609,13 +1324,7 @@ tr:hover {
 
             <strong>
 
-                <?php
-
-                echo htmlspecialchars(
-                    $teacher_name
-                );
-
-                ?>
+                <?= h($teacher_name) ?>
 
             </strong>
 
@@ -1625,30 +1334,23 @@ tr:hover {
     </div>
 
 
+    <!-- PAGE HEADER -->
 
     <div class="page-header">
 
 
-        <h1>
+        <h2>
 
-            📅 Lesson Schedule
+            📅 Teacher Lesson Schedule
 
-        </h1>
+        </h2>
 
 
         <p>
 
-            Each student receives
-
-            <strong>
-                2 lessons per week
-            </strong>
-
-            for a total of
-
-            <strong>
-                8 lessons per month.
-            </strong>
+            Select one of your assigned students,
+            choose the lesson date and time,
+            then save the schedule.
 
         </p>
 
@@ -1656,34 +1358,25 @@ tr:hover {
     </div>
 
 
+    <!-- MESSAGE -->
 
     <?php if ($message !== ""): ?>
 
-
-        <div class="message
-            <?php echo htmlspecialchars(
-                $message_type
-            ); ?>"
+        <div
+            class="message
+            <?= h($message_type) ?>"
         >
 
-            <?php
-
-            echo htmlspecialchars(
-                $message
-            );
-
-            ?>
+            <?= h($message) ?>
 
         </div>
-
 
     <?php endif; ?>
 
 
-
     <!-- =================================================
          STATISTICS
-    ================================================= -->
+    ================================================== -->
 
     <div class="stats">
 
@@ -1692,16 +1385,14 @@ tr:hover {
 
             <h3>
 
-                <?php
-
-                echo $total_lessons;
-
-                ?>
+                <?= $totalLessons ?>
 
             </h3>
 
             <p>
-                Total Lessons
+
+                Assigned Lessons
+
             </p>
 
         </div>
@@ -1711,16 +1402,14 @@ tr:hover {
 
             <h3>
 
-                <?php
-
-                echo $scheduled_lessons;
-
-                ?>
+                <?= $totalToday ?>
 
             </h3>
 
             <p>
-                Scheduled
+
+                Lessons Today
+
             </p>
 
         </div>
@@ -1730,35 +1419,14 @@ tr:hover {
 
             <h3>
 
-                <?php
-
-                echo $completed_lessons;
-
-                ?>
+                <?= $totalUpcoming ?>
 
             </h3>
 
             <p>
-                Completed
-            </p>
 
-        </div>
+                Upcoming Lessons
 
-
-        <div class="stat-card">
-
-            <h3>
-
-                <?php
-
-                echo $cancelled_lessons;
-
-                ?>
-
-            </h3>
-
-            <p>
-                Cancelled
             </p>
 
         </div>
@@ -1767,407 +1435,338 @@ tr:hover {
     </div>
 
 
-
     <!-- =================================================
-         CREATE 8-LESSON SCHEDULE
-    ================================================= -->
+         SCHEDULE A STUDENT
+    ================================================== -->
 
-    <div class="create-box">
+    <div class="schedule-box">
 
 
-        <h2>
+        <h3>
 
-            ➕ Create 8-Lesson Schedule
+            📝 Schedule a Student
 
-        </h2>
+        </h3>
 
 
         <p>
 
-            Select a student, starting date,
-            two lesson days and the lesson time.
-
-            The system will automatically create
-            8 lessons.
+            Select the student from your assigned
+            students and set the lesson date and time.
 
         </p>
 
 
-        <form
-            method="POST"
-        >
+        <?php if (
+            !empty($assignedStudents)
+        ): ?>
 
 
-            <div class="form-grid">
+            <form
+                method="POST"
+                id="scheduleForm"
+            >
 
 
-                <!-- STUDENT -->
-
-                <div class="form-group">
-
-                    <label>
-
-                        Student
-
-                    </label>
+                <div class="form-grid">
 
 
-                    <select
-                        name="booking_id"
-                        required
-                    >
+                    <!-- STUDENT -->
 
-                        <option value="">
-
-                            Select Student
-
-                        </option>
+                    <div class="form-group full">
 
 
-                        <?php foreach (
-                            $students
-                            as $student
-                        ): ?>
+                        <label for="booking_id">
+
+                            Student
+
+                        </label>
 
 
-                            <?php
-
-                            /*
-                             * Check whether this student
-                             * already has a schedule.
-                             */
-
-                            $has_schedule = false;
+                        <select
+                            name="booking_id"
+                            id="booking_id"
+                            required
+                        >
 
 
-                            foreach (
-                                $schedules
-                                as $existing
-                            ) {
+                            <option value="">
 
-                                if (
-
-                                    isset(
-                                        $existing[
-                                            'booking_id'
-                                        ]
-                                    )
-
-                                    &&
-
-                                    (int)$existing[
-                                        'booking_id'
-                                    ]
-                                    ===
-                                    (int)$student['id']
-
-                                ) {
-
-                                    $has_schedule =
-                                        true;
-
-                                    break;
-
-                                }
-
-                            }
-
-
-                            ?>
-
-
-                            <option
-                                value="<?php
-                                    echo (int)
-                                        $student['id'];
-                                ?>"
-                                <?php
-                                if (
-                                    $has_schedule
-                                ) {
-                                    echo "disabled";
-                                }
-                                ?>
-                            >
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $student[
-                                        'student_name'
-                                    ]
-                                );
-
-                                ?>
-
-
-                                <?php
-
-                                if (
-                                    $has_schedule
-                                ) {
-
-                                    echo " - Schedule Created";
-
-                                }
-
-                                ?>
+                                -- Select Student --
 
                             </option>
 
 
-                        <?php endforeach; ?>
+                            <?php foreach (
+                                $assignedStudents
+                                as $student
+                            ): ?>
 
 
-                    </select>
+                                <option
+
+                                    value="<?= (int)$student['id'] ?>"
+
+                                    data-name="<?= h(
+                                        $student['student_name']
+                                    ) ?>"
+
+                                    data-subject="<?= h(
+                                        $student['subjects']
+                                    ) ?>"
+
+                                    data-curriculum="<?= h(
+                                        $student['curriculum']
+                                    ) ?>"
+
+                                    data-class="<?= h(
+                                        $student['class_year']
+                                    ) ?>"
+
+                                    data-date="<?= h(
+                                        $student['lesson_date']
+                                    ) ?>"
+
+                                    data-time="<?= h(
+                                        $student['lesson_time']
+                                    ) ?>"
+
+                                >
+
+                                    <?= h(
+                                        $student['student_name']
+                                    ) ?>
+
+                                    -
+
+                                    <?= h(
+                                        $student['subjects']
+                                    ) ?>
+
+                                    -
+
+                                    <?= h(
+                                        $student['booking_reference']
+                                    ) ?>
+
+                                </option>
+
+
+                            <?php endforeach; ?>
+
+
+                        </select>
+
+
+                        <div
+                            class="student-preview"
+                            id="studentPreview"
+                            style="display:none;"
+                        >
+
+                            <strong
+                                id="previewName"
+                            ></strong>
+
+                            <br>
+
+                            <span
+                                id="previewDetails"
+                            ></span>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <!-- DATE -->
+
+                    <div class="form-group">
+
+
+                        <label for="lesson_date">
+
+                            Lesson Date
+
+                        </label>
+
+
+                        <input
+                            type="date"
+                            name="lesson_date"
+                            id="lesson_date"
+                            required
+                        >
+
+
+                    </div>
+
+
+                    <!-- TIME -->
+
+                    <div class="form-group">
+
+
+                        <label for="lesson_time">
+
+                            Lesson Time
+
+                        </label>
+
+
+                        <input
+                            type="time"
+                            name="lesson_time"
+                            id="lesson_time"
+                            required
+                        >
+
+
+                    </div>
+
+
+                    <!-- STATUS -->
+
+                    <div class="form-group">
+
+
+                        <label for="lesson_status">
+
+                            Lesson Status
+
+                        </label>
+
+
+                        <select
+                            name="lesson_status"
+                            id="lesson_status"
+                        >
+
+
+                            <option
+                                value="Scheduled"
+                            >
+
+                                Scheduled
+
+                            </option>
+
+
+                            <option
+                                value="Completed"
+                            >
+
+                                Completed
+
+                            </option>
+
+
+                            <option
+                                value="Cancelled"
+                            >
+
+                                Cancelled
+
+                            </option>
+
+
+                        </select>
+
+
+                    </div>
+
+
+                    <!-- BUTTON -->
+
+                    <div class="form-group">
+
+
+                        <label>
+                            &nbsp;
+                        </label>
+
+
+                        <button
+                            type="submit"
+                            name="update_schedule"
+                            class="save-button"
+                        >
+
+                            💾 Save Schedule
+
+                        </button>
+
+
+                    </div>
 
 
                 </div>
 
 
-
-                <!-- START DATE -->
-
-                <div class="form-group">
-
-                    <label>
-
-                        Starting Date
-
-                    </label>
+            </form>
 
 
-                    <input
-                        type="date"
-                        name="start_date"
-                        required
-                    >
+        <?php else: ?>
 
+
+            <div class="no-data">
+
+
+                <div class="no-data-icon">
+
+                    👨‍🎓
 
                 </div>
 
 
+                <strong>
 
-                <!-- DAY ONE -->
+                    No Students Assigned
 
-                <div class="form-group">
+                </strong>
 
-                    <label>
 
-                        First Lesson Day
+                <p>
 
-                    </label>
+                    Students assigned to you will
+                    appear here.
 
-
-                    <select
-                        name="day_one"
-                        required
-                    >
-
-                        <option value="">
-
-                            Select Day
-
-                        </option>
-
-
-                        <option value="Monday">
-                            Monday
-                        </option>
-
-
-                        <option value="Tuesday">
-                            Tuesday
-                        </option>
-
-
-                        <option value="Wednesday">
-                            Wednesday
-                        </option>
-
-
-                        <option value="Thursday">
-                            Thursday
-                        </option>
-
-
-                        <option value="Friday">
-                            Friday
-                        </option>
-
-
-                        <option value="Saturday">
-                            Saturday
-                        </option>
-
-
-                        <option value="Sunday">
-                            Sunday
-                        </option>
-
-
-                    </select>
-
-
-                </div>
-
-
-
-                <!-- DAY TWO -->
-
-                <div class="form-group">
-
-                    <label>
-
-                        Second Lesson Day
-
-                    </label>
-
-
-                    <select
-                        name="day_two"
-                        required
-                    >
-
-                        <option value="">
-
-                            Select Day
-
-                        </option>
-
-
-                        <option value="Monday">
-                            Monday
-                        </option>
-
-
-                        <option value="Tuesday">
-                            Tuesday
-                        </option>
-
-
-                        <option value="Wednesday">
-                            Wednesday
-                        </option>
-
-
-                        <option value="Thursday">
-                            Thursday
-                        </option>
-
-
-                        <option value="Friday">
-                            Friday
-                        </option>
-
-
-                        <option value="Saturday">
-                            Saturday
-                        </option>
-
-
-                        <option value="Sunday">
-                            Sunday
-                        </option>
-
-
-                    </select>
-
-
-                </div>
-
-
-
-                <!-- TIME -->
-
-                <div class="form-group">
-
-                    <label>
-
-                        Lesson Time
-
-                    </label>
-
-
-                    <input
-                        type="time"
-                        name="lesson_time"
-                        required
-                    >
-
-
-                </div>
+                </p>
 
 
             </div>
 
 
-
-            <button
-                type="submit"
-                name="create_schedule"
-                class="create-button"
-            >
-
-                Create 8-Lesson Schedule
-
-            </button>
-
-
-        </form>
-
-
-
-        <div class="info-box">
-
-            <strong>
-
-                Example:
-
-            </strong>
-
-            If you select
-
-            <strong>
-                Monday & Thursday
-            </strong>
-
-            at
-
-            <strong>
-                4:00 PM
-            </strong>,
-
-            the system will create 8 lessons
-            across four weeks.
-
-        </div>
+        <?php endif; ?>
 
 
     </div>
 
 
-
     <!-- =================================================
          TODAY'S LESSONS
-    ================================================= -->
+    ================================================== -->
 
-    <div class="schedule-box">
+    <div class="today">
 
 
-        <h2>
+        <h3>
 
             📅 Today's Lessons
 
-        </h2>
+        </h3>
 
 
         <?php if (
-            count($today_lessons) > 0
+            !empty($todayLessons)
         ): ?>
 
 
-            <div class="table-wrapper">
+            <div
+                class="table-container"
+                style="box-shadow:none;padding:0;"
+            >
 
 
                 <table>
@@ -2188,7 +1787,11 @@ tr:hover {
                         </th>
 
                         <th>
-                            Lesson
+                            Curriculum
+                        </th>
+
+                        <th>
+                            Class
                         </th>
 
                         <th>
@@ -2199,8 +1802,8 @@ tr:hover {
 
 
                     <?php foreach (
-                        $today_lessons
-                        as $lesson
+                        $todayLessons
+                        as $today
                     ): ?>
 
 
@@ -2209,35 +1812,19 @@ tr:hover {
 
                             <td>
 
-                                <?php
-
-                                echo date(
-                                    "h:i A",
-                                    strtotime(
-                                        $lesson[
-                                            'lesson_time'
-                                        ]
-                                    )
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
                                 <strong>
 
-                                    <?php
+                                    <?= h(
 
-                                    echo htmlspecialchars(
-                                        $lesson[
-                                            'student_name'
-                                        ]
-                                    );
+                                        formatTimeValue(
 
-                                    ?>
+                                            $today[
+                                                'lesson_time'
+                                            ]
+
+                                        )
+
+                                    ) ?>
 
                                 </strong>
 
@@ -2246,101 +1833,86 @@ tr:hover {
 
                             <td>
 
-                                <?php
+                                <span
+                                    class="student-name"
+                                >
 
-                                echo htmlspecialchars(
-                                    $lesson[
+                                    <?= h(
+
+                                        $today[
+                                            'student_name'
+                                        ]
+
+                                    ) ?>
+
+                                </span>
+
+
+                                <div
+                                    class="reference"
+                                >
+
+                                    <?= h(
+
+                                        $today[
+                                            'booking_reference'
+                                        ]
+
+                                    ) ?>
+
+                                </div>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= h(
+
+                                    $today[
                                         'subjects'
                                     ]
-                                );
 
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                Lesson
-
-                                <?php
-
-                                echo (int)
-                                    $lesson[
-                                        'lesson_number'
-                                    ];
-
-                                ?>
-
-                                of 8
+                                ) ?>
 
                             </td>
 
 
                             <td>
 
+                                <?= h(
 
-                                <?php
+                                    $today[
+                                        'curriculum'
+                                    ]
 
-                                $status =
-                                    $lesson[
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= h(
+
+                                    $today[
+                                        'class_year'
+                                    ]
+
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= lessonStatusBadge(
+
+                                    $today[
                                         'lesson_status'
                                     ]
-                                    ?? 'Scheduled';
 
-
-                                if (
-                                    $status ===
-                                    'Completed'
-                                ) {
-
-                                    echo '
-
-                                    <span
-                                        class="badge completed"
-                                    >
-
-                                        Completed
-
-                                    </span>
-
-                                    ';
-
-                                } elseif (
-                                    $status ===
-                                    'Cancelled'
-                                ) {
-
-                                    echo '
-
-                                    <span
-                                        class="badge cancelled"
-                                    >
-
-                                        Cancelled
-
-                                    </span>
-
-                                    ';
-
-                                } else {
-
-                                    echo '
-
-                                    <span
-                                        class="badge scheduled"
-                                    >
-
-                                        Scheduled
-
-                                    </span>
-
-                                    ';
-
-                                }
-
-                                ?>
-
+                                ) ?>
 
                             </td>
 
@@ -2360,21 +1932,14 @@ tr:hover {
         <?php else: ?>
 
 
-            <div class="empty">
+            <div class="no-data">
 
 
-                <div class="empty-icon">
+                <div class="no-data-icon">
 
                     📅
 
                 </div>
-
-
-                <h3>
-
-                    No Lessons Today
-
-                </h3>
 
 
                 <p>
@@ -2394,76 +1959,263 @@ tr:hover {
     </div>
 
 
-
     <!-- =================================================
-         ALL LESSONS
-    ================================================= -->
+         UPCOMING LESSONS
+    ================================================== -->
 
-    <div class="schedule-box">
+    <div class="table-container">
 
 
-        <h2>
+        <h3>
 
-            📚 All My Scheduled Lessons
+            📚 Upcoming Lessons
 
-        </h2>
+        </h3>
 
 
         <?php if (
-            count($teacher_schedules) > 0
+            !empty($upcomingLessons)
         ): ?>
 
 
-            <div class="table-wrapper">
+            <?php foreach (
+                $upcomingLessons
+                as $lesson
+            ): ?>
 
 
-                <table>
+                <div class="upcoming">
 
+
+                    <div class="upcoming-date">
+
+                        📅
+
+                        <?= h(
+
+                            formatDateValue(
+
+                                $lesson[
+                                    'lesson_date'
+                                ]
+
+                            )
+
+                        ) ?>
+
+
+                        &nbsp;&nbsp;
+
+
+                        🕐
+
+                        <?= h(
+
+                            formatTimeValue(
+
+                                $lesson[
+                                    'lesson_time'
+                                ]
+
+                            )
+
+                        ) ?>
+
+                    </div>
+
+
+                    <div
+                        class="upcoming-subject"
+                    >
+
+                        <?= h(
+
+                            $lesson[
+                                'subjects'
+                            ]
+
+                        ) ?>
+
+                    </div>
+
+
+                    <div
+                        class="upcoming-info"
+                    >
+
+                        <strong>
+                            Student:
+                        </strong>
+
+                        <span
+                            class="student-name"
+                        >
+
+                            <?= h(
+
+                                $lesson[
+                                    'student_name'
+                                ]
+
+                            ) ?>
+
+                        </span>
+
+
+                        <br>
+
+
+                        <strong>
+                            Curriculum:
+                        </strong>
+
+                        <?= h(
+
+                            $lesson[
+                                'curriculum'
+                            ]
+
+                        ) ?>
+
+
+                        <br>
+
+
+                        <strong>
+                            Class:
+                        </strong>
+
+                        <?= h(
+
+                            $lesson[
+                                'class_year'
+                            ]
+
+                        ) ?>
+
+
+                        <br>
+
+
+                        <br>
+
+
+                        <?= lessonStatusBadge(
+
+                            $lesson[
+                                'lesson_status'
+                            ]
+
+                        ) ?>
+
+
+                    </div>
+
+
+                </div>
+
+
+            <?php endforeach; ?>
+
+
+        <?php else: ?>
+
+
+            <div class="no-data">
+
+
+                <div class="no-data-icon">
+
+                    📚
+
+                </div>
+
+
+                <p>
+
+                    No upcoming lessons.
+
+                </p>
+
+
+            </div>
+
+
+        <?php endif; ?>
+
+
+    </div>
+
+
+    <!-- =================================================
+         ALL ASSIGNED LESSONS
+    ================================================== -->
+
+    <div class="table-container">
+
+
+        <h3>
+
+            📋 All Assigned Lessons
+
+        </h3>
+
+
+        <?php if (
+            !empty($assignedStudents)
+        ): ?>
+
+
+            <table>
+
+
+                <thead>
 
                     <tr>
-
-
-                        <th>
-                            Lesson
-                        </th>
-
 
                         <th>
                             Student
                         </th>
 
-
                         <th>
                             Subject
                         </th>
 
-
                         <th>
-                            Date
+                            Curriculum
                         </th>
 
-
                         <th>
-                            Time
+                            Class
                         </th>
 
+                        <th>
+                            Lesson Date
+                        </th>
+
+                        <th>
+                            Lesson Time
+                        </th>
+
+                        <th>
+                            Payment
+                        </th>
 
                         <th>
                             Status
                         </th>
 
-
-                        <th>
-                            Update
-                        </th>
-
-
                     </tr>
+
+                </thead>
+
+
+                <tbody>
 
 
                     <?php foreach (
-                        $teacher_schedules
-                        as $lesson
+                        $assignedStudents
+                        as $row
                     ): ?>
 
 
@@ -2472,300 +2224,135 @@ tr:hover {
 
                             <td>
 
-                                <strong>
 
-                                    Lesson
-
-                                    <?php
-
-                                    echo (int)
-                                        $lesson[
-                                            'lesson_number'
-                                        ];
-
-                                    ?>
-
-                                </strong>
-
-                                <br>
-
-                                <small>
-
-                                    of 8
-
-                                </small>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'student_name'
-                                    ]
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'subjects'
-                                    ]
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-
-                                    date(
-                                        "d M Y",
-                                        strtotime(
-                                            $lesson[
-                                                'lesson_date'
-                                            ]
-                                        )
-                                    )
-
-                                );
-
-                                ?>
-
-
-                                <br>
-
-
-                                <small>
-
-                                    <?php
-
-                                    echo htmlspecialchars(
-
-                                        date(
-                                            "l",
-                                            strtotime(
-                                                $lesson[
-                                                    'lesson_date'
-                                                ]
-                                            )
-                                        )
-
-                                    );
-
-                                    ?>
-
-                                </small>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-
-                                    date(
-                                        "h:i A",
-                                        strtotime(
-                                            $lesson[
-                                                'lesson_time'
-                                            ]
-                                        )
-                                    )
-
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-
-                                <?php
-
-                                $status =
-                                    $lesson[
-                                        'lesson_status'
-                                    ]
-                                    ?? 'Scheduled';
-
-
-                                if (
-                                    $status ===
-                                    'Completed'
-                                ) {
-
-                                    echo '
-
-                                    <span
-                                        class="badge completed"
-                                    >
-
-                                        Completed
-
-                                    </span>
-
-                                    ';
-
-                                } elseif (
-                                    $status ===
-                                    'Cancelled'
-                                ) {
-
-                                    echo '
-
-                                    <span
-                                        class="badge cancelled"
-                                    >
-
-                                        Cancelled
-
-                                    </span>
-
-                                    ';
-
-                                } else {
-
-                                    echo '
-
-                                    <span
-                                        class="badge scheduled"
-                                    >
-
-                                        Scheduled
-
-                                    </span>
-
-                                    ';
-
-                                }
-
-                                ?>
-
-
-                            </td>
-
-
-                            <td>
-
-
-                                <form
-                                    method="POST"
-                                    class="status-form"
+                                <span
+                                    class="student-name"
                                 >
 
+                                    <?= h(
 
-                                    <input
-                                        type="hidden"
-                                        name="lesson_id"
-                                        value="<?php
-                                            echo htmlspecialchars(
-                                                $lesson[
-                                                    'lesson_id'
-                                                ]
-                                            );
-                                        ?>"
-                                    >
+                                        $row[
+                                            'student_name'
+                                        ]
+
+                                    ) ?>
+
+                                </span>
 
 
-                                    <select
-                                        name="lesson_status"
-                                    >
+                                <div
+                                    class="reference"
+                                >
 
-                                        <option
-                                            value="Scheduled"
-                                            <?php
-                                            if (
-                                                ($lesson[
-                                                    'lesson_status'
-                                                ] ?? '')
-                                                ===
-                                                'Scheduled'
-                                            ) {
-                                                echo "selected";
-                                            }
-                                            ?>
-                                        >
+                                    <?= h(
 
-                                            Scheduled
+                                        $row[
+                                            'booking_reference'
+                                        ]
 
-                                        </option>
+                                    ) ?>
+
+                                </div>
 
 
-                                        <option
-                                            value="Completed"
-                                            <?php
-                                            if (
-                                                ($lesson[
-                                                    'lesson_status'
-                                                ] ?? '')
-                                                ===
-                                                'Completed'
-                                            ) {
-                                                echo "selected";
-                                            }
-                                            ?>
-                                        >
-
-                                            Completed
-
-                                        </option>
+                            </td>
 
 
-                                        <option
-                                            value="Cancelled"
-                                            <?php
-                                            if (
-                                                ($lesson[
-                                                    'lesson_status'
-                                                ] ?? '')
-                                                ===
-                                                'Cancelled'
-                                            ) {
-                                                echo "selected";
-                                            }
-                                            ?>
-                                        >
+                            <td>
 
-                                            Cancelled
+                                <?= h(
 
-                                        </option>
+                                    $row[
+                                        'subjects'
+                                    ]
+
+                                ) ?>
+
+                            </td>
 
 
-                                    </select>
+                            <td>
+
+                                <?= h(
+
+                                    $row[
+                                        'curriculum'
+                                    ]
+
+                                ) ?>
+
+                            </td>
 
 
-                                    <button
-                                        type="submit"
-                                        name="update_status"
-                                    >
+                            <td>
 
-                                        Save
+                                <?= h(
 
-                                    </button>
+                                    $row[
+                                        'class_year'
+                                    ]
+
+                                ) ?>
+
+                            </td>
 
 
-                                </form>
+                            <td>
 
+                                <?= h(
+
+                                    formatDateValue(
+
+                                        $row[
+                                            'lesson_date'
+                                        ]
+
+                                    )
+
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= h(
+
+                                    formatTimeValue(
+
+                                        $row[
+                                            'lesson_time'
+                                        ]
+
+                                    )
+
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= paymentStatusBadge(
+
+                                    $row[
+                                        'payment_status'
+                                    ]
+
+                                ) ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?= lessonStatusBadge(
+
+                                    $row[
+                                        'lesson_status'
+                                    ]
+
+                                ) ?>
 
                             </td>
 
@@ -2776,36 +2363,29 @@ tr:hover {
                     <?php endforeach; ?>
 
 
-                </table>
+                </tbody>
 
 
-            </div>
+            </table>
 
 
         <?php else: ?>
 
 
-            <div class="empty">
+            <div class="no-data">
 
 
-                <div class="empty-icon">
+                <div class="no-data-icon">
 
-                    📚
+                    👨‍🎓
 
                 </div>
 
 
-                <h3>
-
-                    No Schedule Created
-
-                </h3>
-
-
                 <p>
 
-                    Select a student above and create
-                    their 8-lesson monthly schedule.
+                    You currently have no students
+                    assigned to you.
 
                 </p>
 
@@ -2820,6 +2400,193 @@ tr:hover {
 
 
 </div>
+
+
+<script>
+
+/*
+|--------------------------------------------------------------------------
+| STUDENT SELECTION
+|--------------------------------------------------------------------------
+|
+| When the teacher selects a student, the existing
+| date and time are loaded automatically.
+|
+|--------------------------------------------------------------------------
+*/
+
+const studentSelect =
+    document.getElementById(
+        "booking_id"
+    );
+
+
+const preview =
+    document.getElementById(
+        "studentPreview"
+    );
+
+
+const previewName =
+    document.getElementById(
+        "previewName"
+    );
+
+
+const previewDetails =
+    document.getElementById(
+        "previewDetails"
+    );
+
+
+const lessonDate =
+    document.getElementById(
+        "lesson_date"
+    );
+
+
+const lessonTime =
+    document.getElementById(
+        "lesson_time"
+    );
+
+
+const lessonStatus =
+    document.getElementById(
+        "lesson_status"
+    );
+
+
+if (studentSelect) {
+
+
+    studentSelect.addEventListener(
+        "change",
+        function()
+        {
+
+            const selected =
+                this.options[
+                    this.selectedIndex
+                ];
+
+
+            if (
+                !selected.value
+            ) {
+
+                preview.style.display =
+                    "none";
+
+                lessonDate.value =
+                    "";
+
+                lessonTime.value =
+                    "";
+
+                lessonStatus.value =
+                    "Scheduled";
+
+                return;
+            }
+
+
+            const name =
+                selected.dataset.name
+                || "";
+
+
+            const subject =
+                selected.dataset.subject
+                || "";
+
+
+            const curriculum =
+                selected.dataset.curriculum
+                || "";
+
+
+            const classYear =
+                selected.dataset.class
+                || "";
+
+
+            const existingDate =
+                selected.dataset.date
+                || "";
+
+
+            const existingTime =
+                selected.dataset.time
+                || "";
+
+
+            previewName.textContent =
+                name;
+
+
+            previewDetails.textContent =
+
+                subject
+                + " | "
+                + curriculum
+                + " | Class: "
+                + classYear;
+
+
+            preview.style.display =
+                "block";
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | LOAD EXISTING DATE
+            |--------------------------------------------------------------------------
+            */
+
+            if (existingDate) {
+
+                lessonDate.value =
+                    existingDate.substring(
+                        0,
+                        10
+                    );
+
+            } else {
+
+                lessonDate.value =
+                    "";
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | LOAD EXISTING TIME
+            |--------------------------------------------------------------------------
+            */
+
+            if (existingTime) {
+
+                lessonTime.value =
+                    existingTime.substring(
+                        0,
+                        5
+                    );
+
+            } else {
+
+                lessonTime.value =
+                    "";
+
+            }
+
+        }
+    );
+
+}
+
+</script>
 
 
 </body>
