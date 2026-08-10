@@ -329,7 +329,7 @@ Thank you for booking your lesson with
 
 </div>
 
-<a href="index.html" class="btn">
+<a href="index.php" class="btn">
 
 Return to Home
 
