@@ -1663,11 +1663,11 @@ img {
     <div class="top-bar-left">
 
         <span>
-            📞 0599363266
+            📞 +233599363266 | +233540587025
         </span>
 
         <span>
-            ✉️ info@niselonline.com
+            ✉️ info@niseleducation.online
         </span>
 
     </div>
@@ -1760,7 +1760,7 @@ img {
     </li>
 
     <li>
-        <a href="#teachers">
+        <a href="teacher.html">
             Teachers
         </a>
     </li>
@@ -1994,7 +1994,7 @@ img {
 
         <span class="slide-badge">
 
-            🌍 CAMBRIDGE • IB • GES
+            🌍 CAMBRIDGE • IB • GES 
 
         </span>
 
