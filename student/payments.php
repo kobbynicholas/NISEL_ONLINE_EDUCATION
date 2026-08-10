@@ -21,7 +21,7 @@ require __DIR__ . "/config/db.php";
  * DO NOT put pk_test_... here.
  */
 
-$secretKey = "PUT_YOUR_REAL_PAYSTACK_SECRET_KEY_HERE";
+$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
 
 
 /* =========================================================
