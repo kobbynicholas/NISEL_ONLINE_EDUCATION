@@ -3,427 +3,1460 @@
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+
+/* =========================================================
+   DATABASE
+========================================================= */
+
 require __DIR__ . "/config/db.php";
+
+
+/* =========================================================
+   PHPMailer
+========================================================= */
 
 require_once __DIR__ . "/PHPMailer/src/Exception.php";
 require_once __DIR__ . "/PHPMailer/src/PHPMailer.php";
 require_once __DIR__ . "/PHPMailer/src/SMTP.php";
 
+
+/* =========================================================
+   SESSION
+========================================================= */
+
+session_start();
+
+
+/* =========================================================
+   PAYSTACK SECRET KEY
+========================================================= */
+
 /*
-==========================================
-PAYSTACK SECRET KEY
-==========================================
-*/
+ * IMPORTANT:
+ *
+ * Put your actual Paystack SECRET KEY here locally.
+ *
+ * Do not publish your secret key online.
+ */
 
-$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
+$secretKey = "YOUR_PAYSTACK_SECRET_KEY";
 
-/*
-==========================================
-CHECK PAYMENT REFERENCE
-==========================================
-*/
 
-if (!isset($_GET['reference'])) {
-    die("Payment reference not found.");
+/* =========================================================
+   GET PAYSTACK REFERENCE
+========================================================= */
+
+$reference =
+    trim(
+        $_GET['reference'] ?? ''
+    );
+
+
+if ($reference === '') {
+
+    showError(
+        "Payment reference not found."
+    );
+
+    exit;
+
 }
 
-$reference = $_GET['reference'];
 
-/*
-==========================================
-VERIFY PAYMENT WITH PAYSTACK
-==========================================
-*/
+/* =========================================================
+   VERIFY PAYMENT WITH PAYSTACK
+========================================================= */
 
-$url = "https://api.paystack.co/transaction/verify/" . urlencode($reference);
+$url =
+    "https://api.paystack.co/transaction/verify/"
+    .
+    urlencode(
+        $reference
+    );
 
-$ch = curl_init();
 
-curl_setopt($ch, CURLOPT_URL, $url);
-curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+$ch =
+    curl_init();
 
-curl_setopt($ch, CURLOPT_HTTPHEADER, [
-    "Authorization: Bearer " . $secretKey,
-    "Cache-Control: no-cache"
-]);
 
-$response = curl_exec($ch);
+curl_setopt(
+    $ch,
+    CURLOPT_URL,
+    $url
+);
 
-if (curl_errno($ch)) {
-    die("Unable to connect to Paystack.");
+
+curl_setopt(
+    $ch,
+    CURLOPT_RETURNTRANSFER,
+    true
+);
+
+
+curl_setopt(
+    $ch,
+    CURLOPT_HTTPHEADER,
+    [
+
+        "Authorization: Bearer "
+        .
+        $secretKey,
+
+        "Cache-Control: no-cache"
+
+    ]
+);
+
+
+curl_setopt(
+    $ch,
+    CURLOPT_TIMEOUT,
+    30
+);
+
+
+$response =
+    curl_exec($ch);
+
+
+if (
+    curl_errno($ch)
+) {
+
+    $error =
+        curl_error($ch);
+
+    curl_close($ch);
+
+
+    showError(
+        "Unable to contact Paystack: "
+        .
+        $error
+    );
+
+    exit;
+
 }
+
+
+$httpCode =
+    curl_getinfo(
+        $ch,
+        CURLINFO_HTTP_CODE
+    );
+
 
 curl_close($ch);
 
-$result = json_decode($response, true);
 
-/*
-==========================================
-CHECK PAYMENT STATUS
-==========================================
-*/
+/* =========================================================
+   DECODE RESPONSE
+========================================================= */
 
-if (
-
-    isset($result['status']) &&
-    $result['status'] === true &&
-    isset($result['data']['status']) &&
-    $result['data']['status'] === "success"
-
-) {
-
-    $bookingReference = $result['data']['metadata']['booking_reference'];
-
-    $paystackReference = $result['data']['reference'];
-
-    $paymentMethod = $result['data']['channel'];
-
-    $amountPaid = $result['data']['amount'] / 100;
-
-    /*
-    ==========================================
-    UPDATE BOOKINGS TABLE
-    ==========================================
-    */
-
-    $stmt = $conn->prepare("
-        UPDATE bookings
-        SET
-            payment_status='Paid',
-            paystack_reference=?,
-            amount=?
-        WHERE booking_reference=?
-    ");
-
-    $stmt->bind_param(
-        "sds",
-        $paystackReference,
-        $amountPaid,
-        $bookingReference
+$result =
+    json_decode(
+        $response,
+        true
     );
 
-    $stmt->execute();
 
-    $stmt->close();
+/* =========================================================
+   CHECK PAYSTACK RESPONSE
+========================================================= */
 
-    /*
-    ==========================================
-    GET STUDENT DETAILS
-    ==========================================
-    */
+if (
+    $httpCode !== 200
+    ||
+    !isset(
+        $result['status']
+    )
+    ||
+    $result['status'] !== true
+) {
 
-    $stmt = $conn->prepare("
-        SELECT *
-        FROM bookings
-        WHERE booking_reference=?
-    ");
+    showError(
+        "Paystack could not verify this payment."
+    );
 
-    $stmt->bind_param("s", $bookingReference);
+    exit;
 
-    $stmt->execute();
+}
 
-    $student = $stmt->get_result()->fetch_assoc();
 
-    $stmt->close();
+/* =========================================================
+   CHECK TRANSACTION STATUS
+========================================================= */
 
-    if (!$student) {
-        die("Booking record not found.");
-    }
+if (
+    !isset(
+        $result['data']['status']
+    )
+    ||
+    $result['data']['status'] !== 'success'
+) {
 
-    /*
-    ==========================================
-    PREVENT DUPLICATE PAYMENT RECORDS
-    ==========================================
-    */
+    showError(
+        "The payment was not successful."
+    );
 
-    $check = $conn->prepare("
-        SELECT id
-        FROM payments
-        WHERE transaction_reference=?
-    ");
+    exit;
 
-    $check->bind_param("s", $paystackReference);
+}
 
-    $check->execute();
 
-    $exists = $check->get_result();
+/* =========================================================
+   PAYSTACK DATA
+========================================================= */
 
-    if ($exists->num_rows == 0) {
+$paymentData =
+    $result['data'];
 
-        /*
-        ==========================================
-        INSERT PAYMENT RECORD
-        ==========================================
-        */
 
-        $status = "success";
+$paystackReference =
+    $paymentData['reference']
+    ??
+    $reference;
 
-        $insert = $conn->prepare("
-            INSERT INTO payments
-            (
-                booking_reference,
-                student_name,
-                email,
-                amount,
-                payment_method,
-                transaction_reference,
-                status
-            )
-            VALUES
-            (?,?,?,?,?,?,?)
+
+$paymentStatus =
+    $paymentData['status']
+    ??
+    '';
+
+
+$paymentChannel =
+    $paymentData['channel']
+    ??
+    'Unknown';
+
+
+$amountPaid =
+    (
+        (float)(
+            $paymentData['amount']
+            ?? 0
+        )
+        / 100
+    );
+
+
+/* =========================================================
+   EXPECTED PRICE
+========================================================= */
+
+$expectedAmount =
+    1000;
+
+
+/* =========================================================
+   VERIFY AMOUNT
+========================================================= */
+
+if (
+    $amountPaid < $expectedAmount
+) {
+
+    showError(
+
+        "The payment amount does not match "
+        .
+        "the NISEL lesson package price."
+
+    );
+
+    exit;
+
+}
+
+
+/* =========================================================
+   GET BOOKING REFERENCE
+========================================================= */
+
+/*
+ * The new payment.php uses the booking reference
+ * itself as the Paystack reference.
+ *
+ * We also check metadata as a fallback.
+ */
+
+$bookingReference =
+    $reference;
+
+
+if (
+    isset(
+        $paymentData['metadata']
+    )
+    &&
+    is_array(
+        $paymentData['metadata']
+    )
+    &&
+    !empty(
+        $paymentData['metadata']
+        ['booking_reference']
+    )
+) {
+
+    $bookingReference =
+        $paymentData['metadata']
+        ['booking_reference'];
+
+}
+
+
+/* =========================================================
+   FIND BOOKING
+========================================================= */
+
+try {
+
+    $stmt =
+        $pdo->prepare("
+
+            SELECT *
+
+            FROM bookings
+
+            WHERE booking_reference = ?
+
+            LIMIT 1
+
         ");
 
-        $insert->bind_param(
 
-            "ssdssss",
+    $stmt->execute([
 
-            $bookingReference,
+        $bookingReference
 
-            $student['student_name'],
+    ]);
 
-            $student['email'],
 
-            $amountPaid,
+    $booking =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
 
-            $paymentMethod,
 
-            $paystackReference,
+} catch (PDOException $e) {
 
-            $status
+    showError(
+
+        "Unable to retrieve the booking."
+
+    );
+
+    exit;
+
+}
+
+
+/* =========================================================
+   BOOKING NOT FOUND
+========================================================= */
+
+if (!$booking) {
+
+    showError(
+
+        "The booking associated with this payment "
+        .
+        "could not be found."
+
+    );
+
+    exit;
+
+}
+
+
+/* =========================================================
+   BOOKING DETAILS
+========================================================= */
+
+$bookingId =
+    $booking['id'];
+
+
+$studentName =
+    $booking['student_name']
+    ??
+    'Student';
+
+
+$email =
+    $booking['email']
+    ??
+    '';
+
+
+$phone =
+    $booking['phone']
+    ??
+    '';
+
+
+$subject =
+    $booking['subjects']
+    ??
+    '';
+
+
+$curriculum =
+    $booking['curriculum']
+    ??
+    '';
+
+
+$classYear =
+    $booking['class_year']
+    ??
+    '';
+
+
+/* =========================================================
+   UPDATE BOOKING
+========================================================= */
+
+try {
+
+    $pdo->beginTransaction();
+
+
+    /* =====================================================
+       UPDATE BOOKING PAYMENT
+    ===================================================== */
+
+    $update =
+        $pdo->prepare("
+
+            UPDATE bookings
+
+            SET
+
+                payment_status = 'Paid',
+
+                paystack_reference = ?,
+
+                amount = ?,
+
+                assignment_status =
+                    COALESCE(
+                        NULLIF(
+                            assignment_status,
+                            ''
+                        ),
+                        'Pending'
+                    )
+
+            WHERE id = ?
+
+        ");
+
+
+    $update->execute([
+
+        $paystackReference,
+
+        $amountPaid,
+
+        $bookingId
+
+    ]);
+
+
+    /* =====================================================
+       CREATE PAYMENT RECORD
+    ===================================================== */
+
+    /*
+     * We check whether a payment record already exists
+     * using the Paystack reference.
+     */
+
+    $paymentExists = false;
+
+
+    try {
+
+        $checkPayment =
+            $pdo->prepare("
+
+                SELECT id
+
+                FROM payments
+
+                WHERE paystack_reference = ?
+
+                LIMIT 1
+
+            ");
+
+
+        $checkPayment->execute([
+
+            $paystackReference
+
+        ]);
+
+
+        $paymentExists =
+            (bool)$checkPayment->fetch(
+                PDO::FETCH_ASSOC
+            );
+
+
+    } catch (PDOException $e) {
+
+        /*
+         * If the payments table does not have
+         * paystack_reference, we don't stop the
+         * successful booking update.
+         */
+
+        $paymentExists = false;
+
+    }
+
+
+    /* =====================================================
+       INSERT PAYMENT
+    ===================================================== */
+
+    if (!$paymentExists) {
+
+        try {
+
+            /*
+             * This matches the payment fields used
+             * by the NISEL payment records page.
+             */
+
+            $insertPayment =
+                $pdo->prepare("
+
+                    INSERT INTO payments (
+
+                        student_name,
+
+                        amount,
+
+                        payment_method,
+
+                        status,
+
+                        payment_date,
+
+                        paystack_reference
+
+                    )
+
+                    VALUES (
+
+                        ?,
+                        ?,
+                        ?,
+                        'Paid',
+                        NOW(),
+                        ?
+
+                    )
+
+                ");
+
+
+            $insertPayment->execute([
+
+                $studentName,
+
+                $amountPaid,
+
+                $paymentChannel,
+
+                $paystackReference
+
+            ]);
+
+
+        } catch (PDOException $e) {
+
+            /*
+             * If paystack_reference does not exist
+             * in your payments table, try the simpler
+             * version.
+             */
+
+            try {
+
+                $insertPayment =
+                    $pdo->prepare("
+
+                        INSERT INTO payments (
+
+                            student_name,
+
+                            amount,
+
+                            payment_method,
+
+                            status,
+
+                            payment_date
+
+                        )
+
+                        VALUES (
+
+                            ?,
+                            ?,
+                            ?,
+                            'Paid',
+                            NOW()
+
+                        )
+
+                    ");
+
+
+                $insertPayment->execute([
+
+                    $studentName,
+
+                    $amountPaid,
+
+                    $paymentChannel
+
+                ]);
+
+
+            } catch (PDOException $e2) {
+
+                /*
+                 * We don't cancel the booking because
+                 * the Paystack payment itself has already
+                 * been successfully verified.
+                 */
+
+            }
+
+        }
+
+    }
+
+
+    $pdo->commit();
+
+
+} catch (PDOException $e) {
+
+    if (
+        $pdo->inTransaction()
+    ) {
+
+        $pdo->rollBack();
+
+    }
+
+
+    showError(
+
+        "Unable to update your booking after payment."
+
+    );
+
+    exit;
+
+}
+
+
+/* =========================================================
+   CREATE 8-LESSON SCHEDULE
+========================================================= */
+
+/*
+ * Every subject booking receives:
+ *
+ * 8 lessons
+ * 2 lessons per week
+ *
+ * The first lesson is scheduled from the booking
+ * creation date.
+ *
+ * Admin/teacher can later adjust the actual dates.
+ */
+
+
+/* =========================================================
+   SCHEDULE DIRECTORY
+========================================================= */
+
+$dataDirectory =
+    __DIR__ . "/data";
+
+
+if (
+    !is_dir(
+        $dataDirectory
+    )
+) {
+
+    mkdir(
+        $dataDirectory,
+        0777,
+        true
+    );
+
+}
+
+
+/* =========================================================
+   SCHEDULE FILE
+========================================================= */
+
+$scheduleFile =
+    $dataDirectory
+    .
+    "/schedules.json";
+
+
+if (
+    !file_exists(
+        $scheduleFile
+    )
+) {
+
+    file_put_contents(
+
+        $scheduleFile,
+
+        json_encode(
+            [],
+            JSON_PRETTY_PRINT
+        )
+
+    );
+
+}
+
+
+/* =========================================================
+   READ EXISTING SCHEDULES
+========================================================= */
+
+$schedules = [];
+
+
+$json =
+    file_get_contents(
+        $scheduleFile
+    );
+
+
+if (
+    $json !== false
+    &&
+    trim($json) !== ''
+) {
+
+    $decoded =
+        json_decode(
+            $json,
+            true
+        );
+
+
+    if (
+        is_array(
+            $decoded
+        )
+    ) {
+
+        $schedules =
+            $decoded;
+
+    }
+
+}
+
+
+/* =========================================================
+   CHECK WHETHER 8 LESSONS ALREADY EXIST
+========================================================= */
+
+$existingLessons = 0;
+
+
+foreach (
+    $schedules as $lesson
+) {
+
+    if (
+        isset(
+            $lesson['booking_id']
+        )
+        &&
+        (string)$lesson['booking_id']
+        ===
+        (string)$bookingId
+    ) {
+
+        $existingLessons++;
+
+    }
+
+}
+
+
+/* =========================================================
+   CREATE 8 LESSONS
+========================================================= */
+
+if (
+    $existingLessons === 0
+) {
+
+
+    /*
+     * We create two lessons per week.
+     *
+     * For now, the dates are generated automatically.
+     *
+     * Admin can later modify the schedule.
+     */
+
+    $startDate =
+        new DateTime();
+
+
+    for (
+        $i = 1;
+        $i <= 8;
+        $i++
+    ) {
+
+
+        /*
+         * Every two lessons represent one week.
+         */
+
+        $week =
+            ceil(
+                $i / 2
+            );
+
+
+        /*
+         * Lesson 1 and 2:
+         * Week 1
+         *
+         * Lesson 3 and 4:
+         * Week 2
+         *
+         * etc.
+         *
+         * We use 3-day spacing for the two weekly
+         * lessons.
+         */
+
+        if (
+            $i % 2 === 1
+        ) {
+
+            $daysToAdd =
+                (
+                    $week - 1
+                )
+                *
+                7;
+
+        } else {
+
+            $daysToAdd =
+                (
+                    (
+                        $week - 1
+                    )
+                    *
+                    7
+                )
+                +
+                3;
+
+        }
+
+
+        $lessonDate =
+            clone $startDate;
+
+
+        $lessonDate->modify(
+
+            "+"
+            .
+            $daysToAdd
+            .
+            " days"
 
         );
 
-        $insert->execute();
 
-        $insert->close();
+        /*
+         * Default time.
+         *
+         * Admin/teacher can later change this.
+         */
+
+        $lessonTime =
+            "16:00";
+
+
+        /* =============================================
+           FIND TEACHER
+        ============================================== */
+
+        $teacherId =
+            $booking['teacher_id']
+            ??
+            '';
+
+
+        $teacherName =
+            $booking['teacher_name']
+            ??
+            'Not Assigned';
+
+
+        /* =============================================
+           ADD LESSON
+        ============================================== */
+
+        $schedules[] = [
+
+            "id" =>
+                uniqid(
+                    "lesson_",
+                    true
+                ),
+
+            "booking_id" =>
+                $bookingId,
+
+            "booking_reference" =>
+                $bookingReference,
+
+            "student_name" =>
+                $studentName,
+
+            "student_email" =>
+                $email,
+
+            "teacher_id" =>
+                $teacherId,
+
+            "teacher_name" =>
+                $teacherName,
+
+            "subjects" =>
+                $subject,
+
+            "curriculum" =>
+                $curriculum,
+
+            "class_year" =>
+                $classYear,
+
+            "lesson_number" =>
+                $i,
+
+            "week" =>
+                $week,
+
+            "lesson_date" =>
+                $lessonDate->format(
+                    "Y-m-d"
+                ),
+
+            "lesson_time" =>
+                $lessonTime,
+
+            "lesson_status" =>
+                "Scheduled",
+
+            "created_at" =>
+                date(
+                    "Y-m-d H:i:s"
+                )
+
+        ];
 
     }
 
-    $check->close();
 
-    /*
-    ==========================================
-    STUDENT DETAILS
-    ==========================================
-    */
+    /* =====================================================
+       SAVE SCHEDULES
+    ===================================================== */
 
-    $name = $student['student_name'];
+    file_put_contents(
 
-    $email = $student['email'];
+        $scheduleFile,
 
-    $subjects = $student['subjects'];
+        json_encode(
+            $schedules,
+            JSON_PRETTY_PRINT
+        )
 
-    $curriculum = $student['curriculum'];
+    );
+
+}
 
 
+/* =========================================================
+   SEND CONFIRMATION EMAIL
+========================================================= */
 
+if (
+    !empty($email)
+) {
 
-    /*
-    ==========================================
-    SEND CONFIRMATION EMAIL
-    ==========================================
-    */
+    $mail =
+        new PHPMailer(true);
 
-    $mail = new PHPMailer(true);
 
     try {
 
         $mail->isSMTP();
 
-        $mail->Host = 'smtp.gmail.com';
 
-        $mail->SMTPAuth = true;
+        $mail->Host =
+            'smtp.gmail.com';
 
-        $mail->Username = 'kobbynicholas.kn@gmail.com';
 
-        $mail->Password = '';
+        $mail->SMTPAuth =
+            true;
 
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
 
-        $mail->Port = 587;
+        /*
+         * Use your actual Gmail account here.
+         */
+
+        $mail->Username =
+            'YOUR_GMAIL_ADDRESS';
+
+
+        /*
+         * Use your Gmail APP PASSWORD here.
+         *
+         * Do not use your normal Gmail password.
+         */
+
+        $mail->Password =
+            'YOUR_GMAIL_APP_PASSWORD';
+
+
+        $mail->SMTPSecure =
+            PHPMailer::ENCRYPTION_STARTTLS;
+
+
+        $mail->Port =
+            587;
+
 
         $mail->setFrom(
-            'kobbynicholas.kn@gmail.com',
+
+            'YOUR_GMAIL_ADDRESS',
+
             'NISEL ONLINE EDUCATION'
+
         );
 
-        $mail->addAddress($email, $name);
+
+        $mail->addAddress(
+
+            $email,
+
+            $studentName
+
+        );
+
 
         $mail->isHTML(true);
 
-        $mail->Subject = "Payment Successful - NISEL ONLINE EDUCATION";
 
-        $mail->Body = "
+        $mail->Subject =
+            'NISEL ONLINE EDUCATION - Payment Confirmation';
 
-        <h2>Welcome to NISEL ONLINE EDUCATION</h2>
 
-        <p>Dear <strong>$name</strong>,</p>
+        $mail->Body = '
 
-        <p>
+        <div
+            style="
+                font-family:Arial;
+                max-width:650px;
+                margin:auto;
+                padding:20px;
+            "
+        >
 
-        Thank you for your successful payment.
+            <h2
+                style="
+                    color:#003366;
+                "
+            >
 
-        </p>
+                NISEL ONLINE EDUCATION
 
-        <p>
+            </h2>
 
-        Your lesson booking has been confirmed.
 
-        </p>
+            <h3>
 
-        <table
-        border='1'
-        cellpadding='8'
-        cellspacing='0'
-        style='border-collapse:collapse;'>
+                Payment Successful
 
-        <tr>
+            </h3>
 
-        <td><strong>Booking Reference</strong></td>
 
-        <td>$bookingReference</td>
+            <p>
 
-        </tr>
+                Dear
+                <strong>
+                    '
+                    .
+                    htmlspecialchars(
+                        $studentName
+                    )
+                    .
+                    '
+                </strong>,
 
-        <tr>
+            </p>
 
-        <td><strong>Subjects</strong></td>
 
-        <td>$subjects</td>
+            <p>
 
-        </tr>
+                Your payment has been successfully
+                verified.
 
-        <tr>
+            </p>
 
-        <td><strong>Curriculum</strong></td>
 
-        <td>$curriculum</td>
+            <hr>
 
-        </tr>
 
-        <tr>
+            <p>
 
-        <td><strong>Amount Paid</strong></td>
+                <strong>
+                    Booking Reference:
+                </strong>
 
-        <td>GHS " . number_format($amountPaid,2) . "</td>
+                '
+                .
+                htmlspecialchars(
+                    $bookingReference
+                )
+                .
+                '
 
-        </tr>
+            </p>
 
-        </table>
 
-        <br>
+            <p>
 
-        <p>
+                <strong>
+                    Subject:
+                </strong>
 
-        A qualified tutor will be assigned to you shortly.
+                '
+                .
+                htmlspecialchars(
+                    $subject
+                )
+                .
+                '
 
-        </p>
+            </p>
 
-        <p>
 
-        Thank you for choosing
+            <p>
 
-        <strong>NISEL ONLINE EDUCATION.</strong>
+                <strong>
+                    Curriculum:
+                </strong>
 
-        </p>
+                '
+                .
+                htmlspecialchars(
+                    $curriculum
+                )
+                .
+                '
 
-        ";
+            </p>
+
+
+            <p>
+
+                <strong>
+                    Class:
+                </strong>
+
+                '
+                .
+                htmlspecialchars(
+                    $classYear
+                )
+                .
+                '
+
+            </p>
+
+
+            <p>
+
+                <strong>
+                    Package:
+                </strong>
+
+                8 lessons per month
+                (2 lessons per week)
+
+            </p>
+
+
+            <p>
+
+                <strong>
+                    Amount Paid:
+                </strong>
+
+                GHS
+                '
+                .
+                number_format(
+                    $amountPaid,
+                    2
+                )
+                .
+                '
+
+            </p>
+
+
+            <p>
+
+                <strong>
+                    Payment Method:
+                </strong>
+
+                '
+                .
+                htmlspecialchars(
+                    $paymentChannel
+                )
+                .
+                '
+
+            </p>
+
+
+            <p>
+
+                Your teacher will be assigned by
+                NISEL ONLINE EDUCATION.
+
+            </p>
+
+
+            <p>
+
+                Thank you for choosing
+                <strong>
+                    NISEL ONLINE EDUCATION
+                </strong>.
+
+            </p>
+
+
+            <hr>
+
+
+            <p>
+
+                NISEL ONLINE EDUCATION<br>
+
+                Empowering Learners Worldwide
+
+            </p>
+
+        </div>
+
+        ';
+
 
         $mail->send();
 
+
+    } catch (Exception $e) {
+
+        /*
+         * Email failure should NOT make the
+         * successful payment appear as failed.
+         */
+
     }
-
-    catch(Exception $e){
-
-        // Ignore email errors
-
-    }
-
-    $conn->close();
-
-    header("Location: success.php?booking=" . urlencode($bookingReference));
-
-    exit();
 
 }
 
-/*
-==========================================
-PAYMENT FAILED
-==========================================
-*/
 
-$conn->close();
+/* =========================================================
+   SAVE SUCCESS SESSION
+========================================================= */
+
+$_SESSION[
+    'last_payment'
+] = [
+
+    "booking_reference" =>
+        $bookingReference,
+
+    "student_name" =>
+        $studentName,
+
+    "email" =>
+        $email,
+
+    "subject" =>
+        $subject,
+
+    "curriculum" =>
+        $curriculum,
+
+    "class_year" =>
+        $classYear,
+
+    "amount" =>
+        $amountPaid,
+
+    "payment_method" =>
+        $paymentChannel
+
+];
+
+
+/* =========================================================
+   REDIRECT TO SUCCESS PAGE
+========================================================= */
+
+header(
+
+    "Location: success.php?booking="
+    .
+    urlencode(
+        $bookingReference
+    )
+
+);
+
+exit;
+
+
+/* =========================================================
+   ERROR FUNCTION
+========================================================= */
+
+function showError(
+    string $message
+): void
+{
 
 ?>
 
 <!DOCTYPE html>
 
-<html>
+<html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
 
-<title>Payment Failed</title>
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
+
+<title>
+Payment Failed |
+NISEL ONLINE EDUCATION
+</title>
+
 
 <style>
 
-body{
+body {
 
-font-family:Arial;
+    margin: 0;
 
-background:#f4f4f4;
+    font-family: Arial, sans-serif;
 
-display:flex;
+    background: #fff4f4;
 
-justify-content:center;
+    text-align: center;
 
-align-items:center;
-
-height:100vh;
-
-margin:0;
+    padding: 50px 20px;
 
 }
 
-.card{
 
-background:white;
+.box {
 
-padding:40px;
+    background: white;
 
-border-radius:10px;
+    max-width: 650px;
 
-box-shadow:0 5px 15px rgba(0,0,0,.2);
+    margin: auto;
 
-text-align:center;
+    padding: 40px;
 
-max-width:500px;
+    border-radius: 12px;
 
-}
-
-h1{
-
-color:#d9534f;
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.12);
 
 }
 
-a{
 
-display:inline-block;
+h1 {
 
-margin-top:25px;
+    color: #c82333;
 
-padding:12px 25px;
+}
 
-background:#003366;
 
-color:white;
+p {
 
-text-decoration:none;
+    color: #555;
 
-border-radius:5px;
+    line-height: 1.6;
+
+}
+
+
+.button {
+
+    display: inline-block;
+
+    margin-top: 20px;
+
+    padding: 13px 25px;
+
+    background: #003366;
+
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 6px;
 
 }
 
@@ -431,35 +1464,51 @@ border-radius:5px;
 
 </head>
 
+
 <body>
 
-<div class="card">
 
-<h1>Payment Verification Failed</h1>
+<div class="box">
+
+
+<h1>
+
+❌ Payment Verification Failed
+
+</h1>
+
 
 <p>
 
-Unfortunately we could not verify your payment.
+<?php
+
+echo htmlspecialchars(
+    $message
+);
+
+?>
 
 </p>
 
-<p>
 
-If your account has already been debited,
+<a
+    href="student/book_lesson.php"
+    class="button"
+>
 
-please contact NISEL ONLINE EDUCATION.
-
-</p>
-
-<a href="payment.php">
-
-Try Again
+    Return to Booking
 
 </a>
 
+
 </div>
+
 
 </body>
 
 </html>
 
+<?php
+
+}
+?>
