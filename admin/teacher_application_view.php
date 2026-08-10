@@ -741,16 +741,12 @@ $photoFile =
     );
 
 
-$photoUrl = "";
-
-if (!empty($photoFile)) {
-
-    $photoUrl =
-        "../uploads/teachers/photos/"
-        .
-        rawurlencode(
-            basename($photoFile)
-        );
+$photoUrl =
+    "../teacher/uploads/teachers/"
+    .
+    rawurlencode(
+        basename($photoFile)
+    );
 
 }
 
