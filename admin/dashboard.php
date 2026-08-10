@@ -606,7 +606,7 @@ NISEL ONLINE EDUCATION
 </a>
 
 <a href="schedules.php">
-    📅 Schedules
+📅 Schedules
 </a>
    
 
