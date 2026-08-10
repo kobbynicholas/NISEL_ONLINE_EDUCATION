@@ -1,514 +1,353 @@
 <?php
 
-session_start();
-
+require "../student_auth.php";
 require "../config/db.php";
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
-/* =========================================================
-   CHECK STUDENT LOGIN
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| NISEL ONLINE EDUCATION
+| STUDENT SCHEDULE
+|--------------------------------------------------------------------------
+| PDO VERSION
+|--------------------------------------------------------------------------
+*/
 
-if (
-    !isset($_SESSION['student_logged_in']) ||
-    $_SESSION['student_logged_in'] !== true
-) {
 
+/*
+|--------------------------------------------------------------------------
+| LOGGED-IN STUDENT
+|--------------------------------------------------------------------------
+*/
+
+$student_id = $_SESSION['student_id'] ?? null;
+$student_name = $_SESSION['student_name'] ?? 'Student';
+
+if (!$student_id) {
     header("Location: login.php");
     exit;
-
 }
 
 
-/* =========================================================
-   STUDENT INFORMATION
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| MESSAGES
+|--------------------------------------------------------------------------
+*/
 
-$student_id =
-    $_SESSION['student_id'] ?? '';
-
-$student_name =
-    $_SESSION['student_name'] ?? 'Student';
-
-$student_email =
-    $_SESSION['student_email'] ?? '';
+$message = "";
+$message_type = "";
 
 
-/* =========================================================
-   SCHEDULE FILE
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| GET STUDENT BOOKINGS
+|--------------------------------------------------------------------------
+|
+| The teacher's Zoom link is retrieved from the teachers table.
+|
+| bookings.teacher_id is matched against teachers.teacher_id.
+|
+*/
 
-$data_directory =
-    dirname(__DIR__) . "/data";
+$scheduleStmt = $conn->prepare("
+    SELECT
+        b.id,
+        b.booking_reference,
+        b.student_name,
+        b.email,
+        b.phone,
+        b.curriculum,
+        b.class_year,
+        b.subjects,
+        b.lesson_date,
+        b.lesson_time,
+        b.lesson_status,
+        b.payment_status,
 
-$schedule_file =
-    $data_directory . "/schedules.json";
+        t.teacher_id AS assigned_teacher_id,
+        t.teacher_name AS assigned_teacher_name,
+        t.email AS teacher_email,
+        t.phone AS teacher_phone,
+        t.zoom_link AS teacher_zoom_link
+
+    FROM bookings b
+
+    LEFT JOIN teachers t
+        ON b.teacher_id = t.teacher_id
+
+    WHERE
+        b.student_id = ?
+
+    ORDER BY
+
+        CASE
+            WHEN b.lesson_date IS NULL THEN 1
+            ELSE 0
+        END,
+
+        b.lesson_date ASC,
+        b.lesson_time ASC
+");
+
+$scheduleStmt->execute([
+    $student_id
+]);
+
+$schedules = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-/* =========================================================
-   CREATE DATA FOLDER IF NEEDED
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| TOTAL LESSONS
+|--------------------------------------------------------------------------
+*/
 
-if (!is_dir($data_directory)) {
+$totalLessons = count($schedules);
 
-    mkdir(
-        $data_directory,
-        0777,
-        true
+
+/*
+|--------------------------------------------------------------------------
+| TODAY'S LESSONS
+|--------------------------------------------------------------------------
+*/
+
+$todayStmt = $conn->prepare("
+    SELECT
+        b.id,
+        b.booking_reference,
+        b.student_name,
+        b.email,
+        b.phone,
+        b.curriculum,
+        b.class_year,
+        b.subjects,
+        b.lesson_date,
+        b.lesson_time,
+        b.lesson_status,
+        b.payment_status,
+
+        t.teacher_id AS assigned_teacher_id,
+        t.teacher_name AS assigned_teacher_name,
+        t.email AS teacher_email,
+        t.phone AS teacher_phone,
+        t.zoom_link AS teacher_zoom_link
+
+    FROM bookings b
+
+    LEFT JOIN teachers t
+        ON b.teacher_id = t.teacher_id
+
+    WHERE
+        b.student_id = ?
+        AND b.lesson_date = CURDATE()
+
+    ORDER BY b.lesson_time ASC
+");
+
+$todayStmt->execute([
+    $student_id
+]);
+
+$todayLessons = $todayStmt->fetchAll(PDO::FETCH_ASSOC);
+
+$totalToday = count($todayLessons);
+
+
+/*
+|--------------------------------------------------------------------------
+| UPCOMING LESSONS
+|--------------------------------------------------------------------------
+*/
+
+$upcomingStmt = $conn->prepare("
+    SELECT
+        b.id,
+        b.booking_reference,
+        b.student_name,
+        b.email,
+        b.phone,
+        b.curriculum,
+        b.class_year,
+        b.subjects,
+        b.lesson_date,
+        b.lesson_time,
+        b.lesson_status,
+        b.payment_status,
+
+        t.teacher_id AS assigned_teacher_id,
+        t.teacher_name AS assigned_teacher_name,
+        t.email AS teacher_email,
+        t.phone AS teacher_phone,
+        t.zoom_link AS teacher_zoom_link
+
+    FROM bookings b
+
+    LEFT JOIN teachers t
+        ON b.teacher_id = t.teacher_id
+
+    WHERE
+        b.student_id = ?
+        AND b.lesson_date > CURDATE()
+
+    ORDER BY
+        b.lesson_date ASC,
+        b.lesson_time ASC
+
+    LIMIT 8
+");
+
+$upcomingStmt->execute([
+    $student_id
+]);
+
+$upcomingLessons = $upcomingStmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+/*
+|--------------------------------------------------------------------------
+| HELPER FUNCTIONS
+|--------------------------------------------------------------------------
+*/
+
+function h($value)
+{
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+}
+
+
+function formatDateValue($date)
+{
+    if (empty($date)) {
+        return "Not scheduled";
+    }
+
+    return date(
+        "d M Y",
+        strtotime($date)
+    );
+}
+
+
+function formatTimeValue($time)
+{
+    if (empty($time)) {
+        return "Not set";
+    }
+
+    return date(
+        "h:i A",
+        strtotime($time)
+    );
+}
+
+
+function lessonStatusBadge($status)
+{
+    $status = strtolower(
+        trim($status ?? 'scheduled')
     );
 
+    if ($status === "completed") {
+
+        return '<span class="badge completed">
+                    Completed
+                </span>';
+
+    }
+
+    if ($status === "cancelled") {
+
+        return '<span class="badge cancelled">
+                    Cancelled
+                </span>';
+
+    }
+
+    return '<span class="badge scheduled">
+                Scheduled
+            </span>';
 }
 
 
-/* =========================================================
-   CREATE SCHEDULE FILE IF NEEDED
-========================================================= */
-
-if (!file_exists($schedule_file)) {
-
-    file_put_contents(
-        $schedule_file,
-        json_encode(
-            [],
-            JSON_PRETTY_PRINT
-        )
+function paymentStatusBadge($status)
+{
+    $status = strtolower(
+        trim($status ?? '')
     );
 
-}
-
-
-/* =========================================================
-   READ SCHEDULE FILE
-========================================================= */
-
-$schedules = [];
-
-$json =
-    file_get_contents($schedule_file);
-
-
-if (
-    $json !== false &&
-    trim($json) !== ""
-) {
-
-    $decoded =
-        json_decode(
-            $json,
-            true
-        );
-
-    if (is_array($decoded)) {
-
-        $schedules = $decoded;
-
-    }
-
-}
-
-
-/* =========================================================
-   GET STUDENT BOOKINGS
-========================================================= */
-
-$bookings = [];
-
-
-try {
-
-    /*
-     * We first try to identify the student using email.
-     */
-
-    if (!empty($student_email)) {
-
-        $stmt = $pdo->prepare("
-
-            SELECT *
-
-            FROM bookings
-
-            WHERE email = ?
-
-            ORDER BY id DESC
-
-        ");
-
-        $stmt->execute([
-            $student_email
-        ]);
-
-    } else {
-
-        /*
-         * If your student session contains an ID,
-         * use it as a fallback.
-         */
-
-        $stmt = $pdo->prepare("
-
-            SELECT *
-
-            FROM bookings
-
-            WHERE id = ?
-
-            ORDER BY id DESC
-
-        ");
-
-        $stmt->execute([
-            $student_id
-        ]);
-
-    }
-
-
-    $bookings =
-        $stmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
-
-
-} catch (PDOException $e) {
-
-    die(
-
-        "Unable to load student bookings: "
-
-        . htmlspecialchars(
-            $e->getMessage()
-        )
-
-    );
-
-}
-
-
-/* =========================================================
-   FIND STUDENT'S SCHEDULE
-========================================================= */
-
-$student_schedules = [];
-
-
-foreach (
-    $schedules as $lesson
-) {
-
-    $belongs_to_student = false;
-
-
-    /* =====================================================
-       MATCH BY EMAIL
-    ===================================================== */
-
     if (
-        !empty(
-            $lesson['student_email']
-            ?? ''
-        )
-        &&
-        !empty($student_email)
+        $status === "paid" ||
+        $status === "success"
     ) {
 
-        if (
-            strtolower(
-                trim(
-                    $lesson['student_email']
-                )
-            )
-            ===
-            strtolower(
-                trim(
-                    $student_email
-                )
-            )
-        ) {
-
-            $belongs_to_student = true;
-
-        }
+        return '<span class="badge paid">
+                    PAID
+                </span>';
 
     }
 
+    if (empty($status)) {
 
-    /* =====================================================
-       MATCH BY BOOKING ID
-    ===================================================== */
-
-    if (
-        !$belongs_to_student
-        &&
-        isset(
-            $lesson['booking_id']
-        )
-    ) {
-
-        foreach (
-            $bookings as $booking
-        ) {
-
-            if (
-                isset(
-                    $booking['id']
-                )
-                &&
-                (int)$lesson['booking_id']
-                ===
-                (int)$booking['id']
-            ) {
-
-                $belongs_to_student = true;
-
-                break;
-
-            }
-
-        }
+        return '<span class="badge pending">
+                    PENDING
+                </span>';
 
     }
 
-
-    /*
-     * Add lesson to student's schedule.
-     */
-
-    if ($belongs_to_student) {
-
-        $student_schedules[] =
-            $lesson;
-
-    }
-
+    return '<span class="badge pending">'
+        . h(strtoupper($status))
+        . '</span>';
 }
 
 
-/* =========================================================
-   SORT LESSONS
-========================================================= */
+function zoomButton($zoomLink)
+{
+    if (!empty($zoomLink)) {
 
-usort(
-
-    $student_schedules,
-
-    function (
-        $a,
-        $b
-    ) {
-
-        $date_a =
-            ($a['lesson_date'] ?? '')
-            . ' '
-            .
-            ($a['lesson_time'] ?? '');
-
-        $date_b =
-            ($b['lesson_date'] ?? '')
-            . ' '
-            .
-            ($b['lesson_time'] ?? '');
-
-        return strcmp(
-            $date_a,
-            $date_b
-        );
+        return '
+            <a
+                href="' . h($zoomLink) . '"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="zoom-button"
+            >
+                🎥 Join Zoom Class
+            </a>
+        ';
 
     }
 
-);
-
-
-/* =========================================================
-   STATISTICS
-========================================================= */
-
-$total_lessons =
-    count($student_schedules);
-
-$completed_lessons = 0;
-
-$scheduled_lessons = 0;
-
-$cancelled_lessons = 0;
-
-
-foreach (
-    $student_schedules
-    as $lesson
-) {
-
-    $status =
-        $lesson['lesson_status']
-        ?? 'Scheduled';
-
-
-    if (
-        strtolower($status)
-        === 'completed'
-    ) {
-
-        $completed_lessons++;
-
-    }
-
-    elseif (
-        strtolower($status)
-        === 'cancelled'
-    ) {
-
-        $cancelled_lessons++;
-
-    }
-
-    else {
-
-        $scheduled_lessons++;
-
-    }
-
+    return '
+        <span class="no-zoom">
+            Zoom link not available
+        </span>
+    ';
 }
-
-
-/* =========================================================
-   TODAY'S DATE
-========================================================= */
-
-$today =
-    date("Y-m-d");
-
-
-/* =========================================================
-   TODAY'S LESSONS
-========================================================= */
-
-$today_lessons = [];
-
-
-foreach (
-    $student_schedules
-    as $lesson
-) {
-
-    if (
-        ($lesson['lesson_date'] ?? '')
-        === $today
-        &&
-        strtolower(
-            $lesson['lesson_status']
-            ?? 'Scheduled'
-        )
-        !== 'cancelled'
-    ) {
-
-        $today_lessons[] =
-            $lesson;
-
-    }
-
-}
-
-
-/* =========================================================
-   UPCOMING LESSONS
-========================================================= */
-
-$upcoming_lessons = [];
-
-
-$current_datetime =
-    date("Y-m-d H:i");
-
-
-foreach (
-    $student_schedules
-    as $lesson
-) {
-
-    $status =
-        strtolower(
-            $lesson['lesson_status']
-            ?? 'Scheduled'
-        );
-
-
-    $lesson_datetime =
-        ($lesson['lesson_date'] ?? '')
-        . ' '
-        .
-        ($lesson['lesson_time'] ?? '00:00');
-
-
-    if (
-        $status === 'scheduled'
-        &&
-        $lesson_datetime >=
-        $current_datetime
-    ) {
-
-        $upcoming_lessons[] =
-            $lesson;
-
-    }
-
-}
-
-
-/* =========================================================
-   PROGRESS
-========================================================= */
-
-$progress = 0;
-
-
-if (
-    $total_lessons > 0
-) {
-
-    $progress =
-        round(
-            (
-                $completed_lessons
-                /
-                $total_lessons
-            )
-            * 100
-        );
-
-}
-
-
-/* =========================================================
-   CURRENT MONTH
-========================================================= */
-
-$current_month =
-    date("F Y");
 
 ?>
 
-
 <!DOCTYPE html>
-
 <html lang="en">
-
 
 <head>
 
 <meta charset="UTF-8">
-
 
 <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
 >
 
-
 <title>
-
-My Schedule |
-NISEL ONLINE EDUCATION
-
+    My Schedule | NISEL ONLINE EDUCATION
 </title>
 
 
@@ -519,22 +358,21 @@ NISEL ONLINE EDUCATION
 ===================================================== */
 
 * {
-
     box-sizing: border-box;
-
 }
-
 
 body {
 
     margin: 0;
 
-    font-family: Arial, sans-serif;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
 
     background: #eef3f8;
 
     color: #333;
-
 }
 
 
@@ -547,7 +385,6 @@ body {
     position: fixed;
 
     left: 0;
-
     top: 0;
 
     width: 240px;
@@ -560,6 +397,7 @@ body {
 
     padding: 25px 15px;
 
+    overflow-y: auto;
 }
 
 
@@ -574,11 +412,10 @@ body {
     line-height: 1.5;
 
     margin-bottom: 35px;
-
 }
 
 
-.sidebar a {
+.menu a {
 
     display: block;
 
@@ -592,36 +429,19 @@ body {
 
     border-radius: 7px;
 
+    transition: 0.2s;
 }
 
 
-.sidebar a:hover {
+.menu a:hover {
 
     background: #0055a5;
-
 }
 
 
-.sidebar a.active {
+.menu a.active {
 
     background: #0055a5;
-
-}
-
-
-.logout {
-
-    margin-top: 25px;
-
-    background: #c82333;
-
-}
-
-
-.logout:hover {
-
-    background: #a71d2a !important;
-
 }
 
 
@@ -634,15 +454,54 @@ body {
     margin-left: 240px;
 
     padding: 30px;
-
 }
 
 
 /* =====================================================
-   HEADER
+   TOP BAR
 ===================================================== */
 
-.header {
+.topbar {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 10px;
+
+    margin-bottom: 25px;
+
+    display: flex;
+
+    justify-content:
+        space-between;
+
+    align-items: center;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
+}
+
+
+.topbar h2 {
+
+    margin: 0;
+
+    color: #003366;
+}
+
+
+.student-name {
+
+    color: #666;
+}
+
+
+/* =====================================================
+   PAGE HEADER
+===================================================== */
+
+.page-header {
 
     background: white;
 
@@ -650,31 +509,27 @@ body {
 
     border-radius: 12px;
 
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 
     box-shadow:
         0 4px 12px rgba(0,0,0,.06);
-
 }
 
 
-.header h1 {
+.page-header h2 {
 
-    margin: 0 0 8px;
+    margin:
+        0 0 8px;
 
     color: #003366;
-
 }
 
 
-.header p {
+.page-header p {
 
     margin: 0;
 
     color: #666;
-
-    line-height: 1.6;
-
 }
 
 
@@ -687,12 +542,14 @@ body {
     display: grid;
 
     grid-template-columns:
-        repeat(auto-fit, minmax(180px, 1fr));
+        repeat(
+            auto-fit,
+            minmax(200px, 1fr)
+        );
 
     gap: 20px;
 
     margin-bottom: 25px;
-
 }
 
 
@@ -706,7 +563,6 @@ body {
 
     box-shadow:
         0 4px 12px rgba(0,0,0,.06);
-
 }
 
 
@@ -717,24 +573,23 @@ body {
     font-size: 30px;
 
     color: #003366;
-
 }
 
 
 .stat-card p {
 
-    margin: 8px 0 0;
+    margin:
+        8px 0 0;
 
     color: #777;
-
 }
 
 
 /* =====================================================
-   PROGRESS
+   TODAY'S LESSONS
 ===================================================== */
 
-.progress-card {
+.today {
 
     background: white;
 
@@ -746,144 +601,14 @@ body {
 
     box-shadow:
         0 4px 12px rgba(0,0,0,.06);
-
 }
 
 
-.progress-card h2 {
+.today h3 {
+
+    color: #003366;
 
     margin-top: 0;
-
-    color: #003366;
-
-}
-
-
-.progress-info {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    margin-bottom: 10px;
-
-}
-
-
-.progress-bar {
-
-    width: 100%;
-
-    height: 18px;
-
-    background: #e5e5e5;
-
-    border-radius: 20px;
-
-    overflow: hidden;
-
-}
-
-
-.progress-fill {
-
-    height: 100%;
-
-    background: #003366;
-
-    border-radius: 20px;
-
-    transition: width .4s ease;
-
-}
-
-
-/* =====================================================
-   SECTION
-===================================================== */
-
-.section {
-
-    background: white;
-
-    padding: 25px;
-
-    border-radius: 12px;
-
-    margin-bottom: 25px;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.06);
-
-}
-
-
-.section h2 {
-
-    margin-top: 0;
-
-    color: #003366;
-
-}
-
-
-/* =====================================================
-   TODAY'S LESSON CARD
-===================================================== */
-
-.today-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(auto-fit, minmax(260px, 1fr));
-
-    gap: 20px;
-
-}
-
-
-.today-card {
-
-    border: 1px solid #ddd;
-
-    border-radius: 10px;
-
-    padding: 20px;
-
-    background: #f8fbff;
-
-}
-
-
-.today-time {
-
-    font-size: 24px;
-
-    font-weight: bold;
-
-    color: #003366;
-
-}
-
-
-.today-student {
-
-    font-size: 18px;
-
-    font-weight: bold;
-
-    margin-top: 10px;
-
-}
-
-
-.today-subject {
-
-    color: #666;
-
-    margin-top: 6px;
-
 }
 
 
@@ -891,10 +616,26 @@ body {
    TABLE
 ===================================================== */
 
-.table-wrapper {
+.table-container {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 12px;
 
     overflow-x: auto;
 
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
+}
+
+
+.table-container h3 {
+
+    color: #003366;
+
+    margin-top: 0;
 }
 
 
@@ -904,8 +645,7 @@ table {
 
     border-collapse: collapse;
 
-    min-width: 850px;
-
+    min-width: 1200px;
 }
 
 
@@ -920,7 +660,6 @@ th {
     text-align: left;
 
     white-space: nowrap;
-
 }
 
 
@@ -928,17 +667,16 @@ td {
 
     padding: 12px;
 
-    border-bottom: 1px solid #ddd;
+    border-bottom:
+        1px solid #ddd;
 
     vertical-align: middle;
-
 }
 
 
 tr:hover {
 
     background: #f7faff;
-
 }
 
 
@@ -950,7 +688,8 @@ tr:hover {
 
     display: inline-block;
 
-    padding: 6px 11px;
+    padding:
+        6px 10px;
 
     border-radius: 20px;
 
@@ -958,6 +697,7 @@ tr:hover {
 
     font-weight: bold;
 
+    white-space: nowrap;
 }
 
 
@@ -966,7 +706,6 @@ tr:hover {
     background: #cfe2ff;
 
     color: #084298;
-
 }
 
 
@@ -975,7 +714,6 @@ tr:hover {
     background: #d4edda;
 
     color: #155724;
-
 }
 
 
@@ -984,54 +722,120 @@ tr:hover {
     background: #f8d7da;
 
     color: #721c24;
+}
 
+
+.pending {
+
+    background: #fff3cd;
+
+    color: #856404;
+}
+
+
+.paid {
+
+    background: #d4edda;
+
+    color: #155724;
 }
 
 
 /* =====================================================
-   WEEK LABEL
+   ZOOM BUTTON
 ===================================================== */
 
-.week-label {
+.zoom-button {
 
     display: inline-block;
 
-    padding: 5px 9px;
+    padding:
+        9px 14px;
 
-    border-radius: 5px;
+    background: #2d8cff;
 
-    background: #eef3f8;
+    color: white;
 
-    color: #003366;
+    text-decoration: none;
 
-    font-size: 12px;
+    border-radius: 6px;
+
+    font-size: 13px;
 
     font-weight: bold;
 
+    white-space: nowrap;
+
+    transition:
+        background 0.2s,
+        transform 0.2s;
+}
+
+
+.zoom-button:hover {
+
+    background: #1769c2;
+
+    transform:
+        translateY(-1px);
+}
+
+
+.no-zoom {
+
+    color: #999;
+
+    font-size: 12px;
+
+    white-space: nowrap;
 }
 
 
 /* =====================================================
-   EMPTY
+   TEACHER
 ===================================================== */
 
-.empty {
+.teacher-info {
 
-    text-align: center;
-
-    padding: 50px 20px;
-
-    color: #777;
-
+    line-height: 1.5;
 }
 
 
-.empty-icon {
+.teacher-name {
 
-    font-size: 50px;
+    font-weight: bold;
 
-    margin-bottom: 15px;
+    color: #003366;
+}
 
+
+.teacher-contact {
+
+    font-size: 12px;
+
+    color: #777;
+}
+
+
+/* =====================================================
+   NO DATA
+===================================================== */
+
+.no-data {
+
+    padding: 35px;
+
+    text-align: center;
+
+    color: #777;
+}
+
+
+.no-data-icon {
+
+    font-size: 45px;
+
+    margin-bottom: 10px;
 }
 
 
@@ -1039,7 +843,7 @@ tr:hover {
    MOBILE
 ===================================================== */
 
-@media(max-width:800px) {
+@media(max-width: 800px) {
 
     .sidebar {
 
@@ -1048,7 +852,6 @@ tr:hover {
         width: 100%;
 
         height: auto;
-
     }
 
 
@@ -1057,13 +860,34 @@ tr:hover {
         margin-left: 0;
 
         padding: 15px;
+    }
 
+
+    .topbar {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 10px;
+    }
+
+
+    .stats {
+
+        grid-template-columns:
+            1fr;
+    }
+
+
+    .page-header {
+
+        padding: 20px;
     }
 
 }
 
 </style>
-
 
 </head>
 
@@ -1077,7 +901,6 @@ tr:hover {
 
 <div class="sidebar">
 
-
     <div class="logo">
 
         NISEL<br>
@@ -1087,118 +910,105 @@ tr:hover {
     </div>
 
 
-    <a href="dashboard.php">
+    <div class="menu">
 
-        🏠 Dashboard
+        <a href="dashboard.php">
 
-    </a>
+            🏠 Dashboard
 
-
-    <a href="profile.php">
-
-        👤 My Profile
-
-    </a>
+        </a>
 
 
-    <a href="bookings.php">
+        <a href="schedule.php"
+           class="active">
 
-        📚 My Bookings
+            📅 My Schedule
 
-    </a>
-
-
-    <a
-        href="schedule.php"
-        class="active"
-    >
-
-        📅 My Schedule
-
-    </a>
+        </a>
 
 
-    <a href="payments.php">
+        <a href="subjects.php">
 
-        💳 Payments
+            📚 My Subjects
 
-    </a>
+        </a>
 
 
-    <a
-        href="logout.php"
-        class="logout"
-    >
+        <a href="profile.php">
 
-        🚪 Logout
+            👤 My Profile
 
-    </a>
+        </a>
 
+
+        <a href="logout.php">
+
+            🚪 Logout
+
+        </a>
+
+    </div>
 
 </div>
 
 
-
 <!-- =====================================================
-     MAIN
+     MAIN CONTENT
 ===================================================== -->
 
 <div class="main">
 
 
-    <!-- =================================================
-         HEADER
-    ================================================= -->
+    <!-- TOP BAR -->
 
-    <div class="header">
+    <div class="topbar">
 
+        <h2>
 
-        <h1>
+            My Schedule
 
-            📅 My Lesson Schedule
-
-        </h1>
+        </h2>
 
 
-        <p>
+        <div class="student-name">
 
             Welcome,
 
             <strong>
 
-                <?php
+                <?= h($student_name) ?>
 
-                echo htmlspecialchars(
-                    $student_name
-                );
-
-                ?>
-
-            </strong>.
-
-            Your NISEL ONLINE EDUCATION lesson
-            package is designed for
-
-            <strong>
-                2 lessons per week
             </strong>
 
-            and
-
-            <strong>
-                8 lessons per month.
-            </strong>
-
-        </p>
-
+        </div>
 
     </div>
 
 
+    <!-- PAGE HEADER -->
+
+    <div class="page-header">
+
+        <h2>
+
+            📅 Lesson Schedule
+
+        </h2>
+
+        <p>
+
+            View your assigned lessons,
+            teachers and join your online
+            classes directly through Zoom.
+
+        </p>
+
+    </div>
+
 
     <!-- =================================================
          STATISTICS
-    ================================================= -->
+    ================================================== -->
 
     <div class="stats">
 
@@ -1207,17 +1017,13 @@ tr:hover {
 
             <h3>
 
-                <?php
-
-                echo $total_lessons;
-
-                ?>
+                <?= $totalLessons ?>
 
             </h3>
 
             <p>
 
-                Total Lessons
+                Total Assigned Lessons
 
             </p>
 
@@ -1228,17 +1034,13 @@ tr:hover {
 
             <h3>
 
-                <?php
-
-                echo $scheduled_lessons;
-
-                ?>
+                <?= $totalToday ?>
 
             </h3>
 
             <p>
 
-                Scheduled
+                Lessons Today
 
             </p>
 
@@ -1249,38 +1051,13 @@ tr:hover {
 
             <h3>
 
-                <?php
-
-                echo $completed_lessons;
-
-                ?>
+                <?= count($upcomingLessons) ?>
 
             </h3>
 
             <p>
 
-                Completed
-
-            </p>
-
-        </div>
-
-
-        <div class="stat-card">
-
-            <h3>
-
-                <?php
-
-                echo $cancelled_lessons;
-
-                ?>
-
-            </h3>
-
-            <p>
-
-                Cancelled
+                Upcoming Lessons
 
             </p>
 
@@ -1290,292 +1067,155 @@ tr:hover {
     </div>
 
 
-
-    <!-- =================================================
-         PROGRESS
-    ================================================= -->
-
-    <?php if (
-        $total_lessons > 0
-    ): ?>
-
-
-        <div class="progress-card">
-
-
-            <h2>
-
-                📊 <?php echo $current_month; ?>
-                Lesson Progress
-
-            </h2>
-
-
-            <div class="progress-info">
-
-                <span>
-
-                    Completed:
-
-                    <strong>
-
-                        <?php
-
-                        echo $completed_lessons;
-
-                        ?>
-
-                    </strong>
-
-                    of
-
-                    <strong>
-
-                        <?php
-
-                        echo $total_lessons;
-
-                        ?>
-
-                    </strong>
-
-                </span>
-
-
-                <strong>
-
-                    <?php
-
-                    echo $progress;
-
-                    ?>%
-
-                </strong>
-
-            </div>
-
-
-            <div class="progress-bar">
-
-
-                <div
-                    class="progress-fill"
-                    style="width:
-                        <?php
-                        echo $progress;
-                        ?>%;
-                    "
-                ></div>
-
-
-            </div>
-
-
-        </div>
-
-
-    <?php endif; ?>
-
-
-
     <!-- =================================================
          TODAY'S LESSONS
-    ================================================= -->
+    ================================================== -->
 
-    <div class="section">
+    <div class="today">
 
+        <h3>
 
-        <h2>
+            📌 Today's Lessons
 
-            📅 Today's Lessons
+        </h3>
 
-        </h2>
 
+        <?php if ($totalToday > 0): ?>
 
-        <?php if (
-            count($today_lessons) > 0
-        ): ?>
 
+            <div style="overflow-x:auto;">
 
-            <div class="today-grid">
+                <table>
 
+                    <tr>
 
-                <?php foreach (
-                    $today_lessons
-                    as $lesson
-                ): ?>
+                        <th>
+                            Time
+                        </th>
 
+                        <th>
+                            Subject(s)
+                        </th>
 
-                    <div class="today-card">
+                        <th>
+                            Curriculum
+                        </th>
 
+                        <th>
+                            Teacher
+                        </th>
 
-                        <div class="today-time">
+                        <th>
+                            Status
+                        </th>
 
-                            <?php
+                        <th>
+                            Zoom
+                        </th>
 
-                            echo date(
-                                "h:i A",
-                                strtotime(
-                                    $lesson[
-                                        'lesson_time'
-                                    ]
-                                )
-                            );
+                    </tr>
 
-                            ?>
 
-                        </div>
+                    <?php foreach ($todayLessons as $today): ?>
 
 
-                        <div class="today-student">
+                        <tr>
 
-                            <?php
+                            <td>
 
-                            echo htmlspecialchars(
-                                $lesson[
-                                    'teacher_name'
-                                ]
-                            );
+                                <strong>
 
-                            ?>
+                                    <?= h(
+                                        formatTimeValue(
+                                            $today['lesson_time']
+                                        )
+                                    ) ?>
 
-                        </div>
+                                </strong>
 
+                            </td>
 
-                        <div class="today-subject">
 
-                            Subject:
+                            <td>
 
-                            <strong>
+                                <?= h(
+                                    $today['subjects']
+                                ) ?>
 
-                                <?php
+                            </td>
 
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'subjects'
-                                    ]
-                                );
 
-                                ?>
+                            <td>
 
-                            </strong>
+                                <?= h(
+                                    $today['curriculum']
+                                ) ?>
 
-                        </div>
+                            </td>
 
 
-                        <div
-                            style="
-                                margin-top:12px;
-                            "
-                        >
+                            <td>
 
-                            Lesson
+                                <div class="teacher-info">
 
-                            <strong>
+                                    <div class="teacher-name">
 
-                                <?php
+                                        <?= h(
+                                            $today['assigned_teacher_name']
+                                            ?? 'Not assigned'
+                                        ) ?>
 
-                                echo (int)
-                                    $lesson[
-                                        'lesson_number'
-                                    ];
+                                    </div>
 
-                                ?>
 
-                            </strong>
+                                    <?php if (
+                                        !empty(
+                                            $today['teacher_phone']
+                                        )
+                                    ): ?>
 
-                            of 8
+                                        <div class="teacher-contact">
 
-                        </div>
+                                            📞
 
+                                            <?= h(
+                                                $today['teacher_phone']
+                                            ) ?>
 
-                        <div
-                            style="
-                                margin-top:12px;
-                            "
-                        >
+                                        </div>
 
+                                    <?php endif; ?>
 
-                            <?php
+                                </div>
 
-                            $status =
-                                $lesson[
-                                    'lesson_status'
-                                ]
-                                ?? 'Scheduled';
+                            </td>
 
 
-                            if (
-                                strtolower(
-                                    $status
-                                )
-                                ===
-                                'completed'
-                            ) {
+                            <td>
 
-                                echo '
+                                <?= lessonStatusBadge(
+                                    $today['lesson_status']
+                                ) ?>
 
-                                <span
-                                    class="badge completed"
-                                >
+                            </td>
 
-                                    Completed
 
-                                </span>
+                            <td>
 
-                                ';
+                                <?= zoomButton(
+                                    $today['teacher_zoom_link']
+                                    ?? ''
+                                ) ?>
 
-                            }
+                            </td>
 
-                            elseif (
-                                strtolower(
-                                    $status
-                                )
-                                ===
-                                'cancelled'
-                            ) {
+                        </tr>
 
-                                echo '
 
-                                <span
-                                    class="badge cancelled"
-                                >
+                    <?php endforeach; ?>
 
-                                    Cancelled
 
-                                </span>
-
-                                ';
-
-                            }
-
-                            else {
-
-                                echo '
-
-                                <span
-                                    class="badge scheduled"
-                                >
-
-                                    Scheduled
-
-                                </span>
-
-                                ';
-
-                            }
-
-                            ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-                <?php endforeach; ?>
-
+                </table>
 
             </div>
 
@@ -1583,31 +1223,21 @@ tr:hover {
         <?php else: ?>
 
 
-            <div class="empty">
+            <div class="no-data">
 
-
-                <div class="empty-icon">
+                <div class="no-data-icon">
 
                     📅
 
                 </div>
 
-
-                <h3>
-
-                    No Lesson Today
-
-                </h3>
-
-
                 <p>
 
-                    You do not have a lesson scheduled
-                    for today.
+                    You have no lessons
+                    scheduled for today.
 
                 </p>
 
-
             </div>
 
 
@@ -1615,656 +1245,319 @@ tr:hover {
 
 
     </div>
-
 
 
     <!-- =================================================
-         UPCOMING LESSONS
-    ================================================= -->
+         ALL ASSIGNED LESSONS
+    ================================================== -->
 
-    <div class="section">
+    <div class="table-container">
 
 
-        <h2>
+        <h3>
 
-            ⏰ Upcoming Lessons
+            📚 All Assigned Lessons
 
-        </h2>
+        </h3>
 
 
-        <?php if (
-            count($upcoming_lessons) > 0
-        ): ?>
+        <?php if ($totalLessons > 0): ?>
 
 
-            <div class="table-wrapper">
+            <table>
 
+                <tr>
 
-                <table>
+                    <th>
+                        Student
+                    </th>
 
+                    <th>
+                        Subject(s)
+                    </th>
 
-                    <tr>
+                    <th>
+                        Curriculum
+                    </th>
 
-                        <th>
-                            Lesson
-                        </th>
+                    <th>
+                        Class
+                    </th>
 
-                        <th>
-                            Date
-                        </th>
+                    <th>
+                        Lesson Date
+                    </th>
 
-                        <th>
-                            Day
-                        </th>
+                    <th>
+                        Lesson Time
+                    </th>
 
-                        <th>
-                            Time
-                        </th>
+                    <th>
+                        Teacher
+                    </th>
 
-                        <th>
-                            Teacher
-                        </th>
+                    <th>
+                        Payment
+                    </th>
 
-                        <th>
-                            Subject
-                        </th>
+                    <th>
+                        Status
+                    </th>
 
-                    </tr>
+                    <th>
+                        Zoom Class
+                    </th>
 
+                </tr>
 
-                    <?php foreach (
-                        $upcoming_lessons
-                        as $lesson
-                    ): ?>
 
-
-                        <tr>
-
-
-                            <td>
-
-                                Lesson
-
-                                <strong>
-
-                                    <?php
-
-                                    echo (int)
-                                        $lesson[
-                                            'lesson_number'
-                                        ];
-
-                                    ?>
-
-                                </strong>
-
-                                of 8
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo date(
-                                    "d M Y",
-                                    strtotime(
-                                        $lesson[
-                                            'lesson_date'
-                                        ]
-                                    )
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo date(
-                                    "l",
-                                    strtotime(
-                                        $lesson[
-                                            'lesson_date'
-                                        ]
-                                    )
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <strong>
-
-                                    <?php
-
-                                    echo date(
-                                        "h:i A",
-                                        strtotime(
-                                            $lesson[
-                                                'lesson_time'
-                                            ]
-                                        )
-                                    );
-
-                                    ?>
-
-                                </strong>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'teacher_name'
-                                    ]
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'subjects'
-                                    ]
-                                );
-
-                                ?>
-
-                            </td>
-
-
-                        </tr>
-
-
-                    <?php endforeach; ?>
-
-
-                </table>
-
-
-            </div>
-
-
-        <?php else: ?>
-
-
-            <div class="empty">
-
-
-                <div class="empty-icon">
-
-                    ⏰
-
-                </div>
-
-
-                <h3>
-
-                    No Upcoming Lessons
-
-                </h3>
-
-
-                <p>
-
-                    You currently have no upcoming
-                    scheduled lessons.
-
-                </p>
-
-
-            </div>
-
-
-        <?php endif; ?>
-
-
-    </div>
-
-
- <!-- ==========================================
-             ZOOM BUTTON — PLACE IT HERE
-        =========================================== -->
-
-        <?php if (
-            !empty($lesson['zoom_link'])
-        ): ?>
-
-            <a
-                href="<?php
-                    echo htmlspecialchars(
-                        $lesson['zoom_link']
-                    );
-                ?>"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="join-button"
-            >
-
-                🎥 Join Zoom Class
-
-            </a>
-
-        <?php else: ?>
-
-            <span class="no-link">
-
-                🎥 Zoom link not available yet
-
-            </span>
-
-        <?php endif; ?>
-
-
-    </div>
-
-<?php endforeach; ?>
-
-
-
-   
-
-    <!-- =================================================
-         COMPLETE MONTHLY SCHEDULE
-    ================================================= -->
-
-    <div class="section">
-
-
-        <h2>
-
-            📚 Complete 8-Lesson Schedule
-
-        </h2>
-
-
-        <?php if (
-            count($student_schedules) > 0
-        ): ?>
-
-
-            <div class="table-wrapper">
-
-
-                <table>
+                <?php foreach ($schedules as $row): ?>
 
 
                     <tr>
 
 
-                        <th>
+                        <!-- STUDENT -->
 
-                            Lesson
+                        <td>
 
-                        </th>
+                            <strong>
 
+                                <?= h(
+                                    $row['student_name']
+                                ) ?>
 
-                        <th>
-
-                            Week
-
-                        </th>
-
-
-                        <th>
-
-                            Date
-
-                        </th>
+                            </strong>
 
 
-                        <th>
-
-                            Day
-
-                        </th>
+                            <br>
 
 
-                        <th>
+                            <small>
 
-                            Time
+                                <?= h(
+                                    $row['booking_reference']
+                                ) ?>
 
-                        </th>
+                            </small>
 
-
-                        <th>
-
-                            Teacher
-
-                        </th>
+                        </td>
 
 
-                        <th>
+                        <!-- SUBJECT -->
 
-                            Subject
+                        <td>
 
-                        </th>
+                            <?= h(
+                                $row['subjects']
+                            ) ?>
 
-
-                        <th>
-
-                            Status
-
-                        </th>
+                        </td>
 
 
-                    </tr>
+                        <!-- CURRICULUM -->
+
+                        <td>
+
+                            <?= h(
+                                $row['curriculum']
+                            ) ?>
+
+                        </td>
 
 
-                    <?php foreach (
-                        $student_schedules
-                        as $lesson
-                    ): ?>
+                        <!-- CLASS -->
+
+                        <td>
+
+                            <?= h(
+                                $row['class_year']
+                            ) ?>
+
+                        </td>
 
 
-                        <?php
+                        <!-- DATE -->
 
-                        $lesson_number =
-                            (int)(
-                                $lesson[
-                                    'lesson_number'
-                                ]
-                                ?? 0
-                            );
+                        <td>
 
+                            <?php
 
-                        $week =
-                            $lesson_number > 0
-                            ?
-                            ceil(
-                                $lesson_number / 2
-                            )
-                            :
-                            1;
+                            if (
+                                !empty(
+                                    $row['lesson_date']
+                                )
+                            ):
 
-                        ?>
+                            ?>
 
+                                <?= h(
+                                    formatDateValue(
+                                        $row['lesson_date']
+                                    )
+                                ) ?>
 
-                        <tr>
-
-
-                            <td>
-
-                                <strong>
-
-                                    Lesson
-
-                                    <?php
-
-                                    echo $lesson_number;
-
-                                    ?>
-
-                                </strong>
-
-
-                                <br>
-
-
-                                <small>
-
-                                    of 8
-
-                                </small>
-
-                            </td>
-
-
-                            <td>
+                            <?php else: ?>
 
                                 <span
-                                    class="week-label"
+                                    style="color:#999;"
                                 >
 
-                                    Week
-
-                                    <?php
-
-                                    echo $week;
-
-                                    ?>
+                                    Not scheduled
 
                                 </span>
 
-                            </td>
+                            <?php endif; ?>
+
+                        </td>
 
 
-                            <td>
+                        <!-- TIME -->
 
-                                <?php
+                        <td>
 
-                                echo date(
-                                    "d M Y",
-                                    strtotime(
-                                        $lesson[
-                                            'lesson_date'
-                                        ]
+                            <?php
+
+                            if (
+                                !empty(
+                                    $row['lesson_time']
+                                )
+                            ):
+
+                            ?>
+
+                                <?= h(
+                                    formatTimeValue(
+                                        $row['lesson_time']
                                     )
-                                );
+                                ) ?>
 
-                                ?>
+                            <?php else: ?>
 
-                            </td>
+                                <span
+                                    style="color:#999;"
+                                >
+
+                                    Not set
+
+                                </span>
+
+                            <?php endif; ?>
+
+                        </td>
 
 
-                            <td>
+                        <!-- TEACHER -->
 
-                                <?php
+                        <td>
 
-                                echo date(
-                                    "l",
-                                    strtotime(
-                                        $lesson[
-                                            'lesson_date'
-                                        ]
+                            <div class="teacher-info">
+
+
+                                <div class="teacher-name">
+
+                                    <?= h(
+                                        $row['assigned_teacher_name']
+                                        ?? 'Not assigned'
+                                    ) ?>
+
+                                </div>
+
+
+                                <?php if (
+                                    !empty(
+                                        $row['teacher_phone']
                                     )
-                                );
+                                ): ?>
 
-                                ?>
+                                    <div class="teacher-contact">
 
-                            </td>
+                                        📞
 
+                                        <?= h(
+                                            $row['teacher_phone']
+                                        ) ?>
 
-                            <td>
+                                    </div>
 
-                                <strong>
-
-                                    <?php
-
-                                    echo date(
-                                        "h:i A",
-                                        strtotime(
-                                            $lesson[
-                                                'lesson_time'
-                                            ]
-                                        )
-                                    );
-
-                                    ?>
-
-                                </strong>
-
-                            </td>
+                                <?php endif; ?>
 
 
-                            <td>
+                            </div>
 
-                                <?php
-
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'teacher_name'
-                                    ]
-                                    ??
-                                    'Not Assigned'
-                                );
-
-                                ?>
-
-                            </td>
+                        </td>
 
 
-                            <td>
+                        <!-- PAYMENT -->
 
-                                <?php
+                        <td>
 
-                                echo htmlspecialchars(
-                                    $lesson[
-                                        'subjects'
-                                    ]
-                                    ??
-                                    'N/A'
-                                );
+                            <?= paymentStatusBadge(
+                                $row['payment_status']
+                            ) ?>
 
-                                ?>
-
-                            </td>
+                        </td>
 
 
-                            <td>
+                        <!-- STATUS -->
+
+                        <td>
+
+                            <?= lessonStatusBadge(
+                                $row['lesson_status']
+                            ) ?>
+
+                        </td>
 
 
-                                <?php
+                        <!-- ZOOM -->
 
-                                $status =
-                                    $lesson[
-                                        'lesson_status'
-                                    ]
-                                    ?? 'Scheduled';
+                        <td>
 
+                            <?= zoomButton(
+                                $row['teacher_zoom_link']
+                                ?? ''
+                            ) ?>
 
-                                if (
-                                    strtolower(
-                                        $status
-                                    )
-                                    ===
-                                    'completed'
-                                ) {
-
-                                    echo '
-
-                                    <span
-                                        class="badge completed"
-                                    >
-
-                                        Completed
-
-                                    </span>
-
-                                    ';
-
-                                }
-
-                                elseif (
-                                    strtolower(
-                                        $status
-                                    )
-                                    ===
-                                    'cancelled'
-                                ) {
-
-                                    echo '
-
-                                    <span
-                                        class="badge cancelled"
-                                    >
-
-                                        Cancelled
-
-                                    </span>
-
-                                    ';
-
-                                }
-
-                                else {
-
-                                    echo '
-
-                                    <span
-                                        class="badge scheduled"
-                                    >
-
-                                        Scheduled
-
-                                    </span>
-
-                                    ';
-
-                                }
-
-                                ?>
+                        </td>
 
 
-                            </td>
+                    </tr>
 
 
-                        </tr>
+                <?php endforeach; ?>
 
 
-                    <?php endforeach; ?>
-
-
-                </table>
-
-
-            </div>
+            </table>
 
 
         <?php else: ?>
 
 
-            <div class="empty">
+            <div class="no-data">
 
-
-                <div class="empty-icon">
+                <div class="no-data-icon">
 
                     📚
 
                 </div>
 
 
-                <h3>
-
-                    Your Schedule Is Not Ready Yet
-
-                </h3>
-
-
                 <p>
 
-                    Your teacher has not created your
-                    8-lesson monthly schedule yet.
+                    You currently have
+                    no lessons assigned to you.
 
                 </p>
 
 
                 <p>
 
-                    Once your teacher creates the
-                    schedule, all your lessons will
-                    appear here automatically.
+                    Your schedule will appear
+                    here when the administrator
+                    assigns your classes.
 
                 </p>
-
 
             </div>
 
