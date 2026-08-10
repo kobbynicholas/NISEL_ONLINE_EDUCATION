@@ -4,7 +4,7 @@ session_start();
 /*
 |--------------------------------------------------------------------------
 | NISEL ONLINE EDUCATION
-| MODERN FRONT-END HOME PAGE
+| MODERN PUBLIC FRONT-END DASHBOARD
 |--------------------------------------------------------------------------
 */
 ?>
@@ -109,56 +109,44 @@ img {
 
 .top-bar {
 
-    background:
-        var(--primary);
+    background: var(--primary);
 
-    color:
-        white;
+    color: white;
 
-    padding:
-        8px 6%;
+    padding: 8px 6%;
 
-    display:
-        flex;
+    display: flex;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
-    align-items:
-        center;
+    align-items: center;
 
-    font-size:
-        13px;
+    font-size: 13px;
 
 }
 
 
 .top-bar-left {
 
-    display:
-        flex;
+    display: flex;
 
-    gap:
-        20px;
+    gap: 20px;
 
 }
 
 
 .top-bar-right {
 
-    display:
-        flex;
+    display: flex;
 
-    gap:
-        15px;
+    gap: 15px;
 
 }
 
 
 .top-bar a {
 
-    color:
-        white;
+    color: white;
 
 }
 
@@ -169,14 +157,11 @@ img {
 
 .navbar {
 
-    position:
-        sticky;
+    position: sticky;
 
-    top:
-        0;
+    top: 0;
 
-    z-index:
-        1000;
+    z-index: 1000;
 
     background:
         rgba(255,255,255,.97);
@@ -193,54 +178,41 @@ img {
 
 .nav-container {
 
-    width:
-        90%;
+    width: 90%;
 
-    max-width:
-        1250px;
+    max-width: 1250px;
 
-    margin:
-        auto;
+    margin: auto;
 
-    height:
-        78px;
+    height: 78px;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
 }
 
 
 .logo {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        12px;
+    gap: 12px;
 
 }
 
 
 .logo-icon {
 
-    width:
-        46px;
+    width: 46px;
 
-    height:
-        46px;
+    height: 46px;
 
-    border-radius:
-        12px;
+    border-radius: 12px;
 
     background:
         linear-gradient(
@@ -249,176 +221,134 @@ img {
             var(--secondary)
         );
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    color:
-        white;
+    color: white;
 
-    font-size:
-        22px;
+    font-size: 22px;
 
-    font-weight:
-        800;
+    font-weight: 800;
 
 }
 
 
 .logo-text {
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
-    font-weight:
-        900;
+    font-weight: 900;
 
-    font-size:
-        19px;
+    font-size: 19px;
 
-    line-height:
-        1.1;
+    line-height: 1.1;
 
 }
 
 
 .logo-text span {
 
-    display:
-        block;
+    display: block;
 
-    font-size:
-        10px;
+    font-size: 10px;
 
-    color:
-        var(--secondary);
+    color: var(--secondary);
 
-    letter-spacing:
-        1.8px;
+    letter-spacing: 1.8px;
 
-    margin-top:
-        3px;
+    margin-top: 3px;
 
 }
 
 
 .nav-links {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        26px;
+    gap: 26px;
 
-    list-style:
-        none;
+    list-style: none;
 
 }
 
 
 .nav-links a {
 
-    color:
-        #334155;
+    color: #334155;
 
-    font-weight:
-        600;
+    font-weight: 600;
 
-    font-size:
-        14px;
+    font-size: 14px;
 
-    transition:
-        .2s;
+    transition: .2s;
 
 }
 
 
 .nav-links a:hover {
 
-    color:
-        var(--secondary);
+    color: var(--secondary);
 
 }
 
 
 .nav-buttons {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        10px;
+    gap: 8px;
 
 }
 
 
 .btn {
 
-    display:
-        inline-flex;
+    display: inline-flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    gap:
-        7px;
+    gap: 7px;
 
-    padding:
-        11px 18px;
+    padding: 11px 17px;
 
-    border-radius:
-        8px;
+    border-radius: 8px;
 
-    font-weight:
-        700;
+    font-weight: 700;
 
-    font-size:
-        14px;
+    font-size: 14px;
 
-    transition:
-        .25s;
+    transition: .25s;
 
-    border:
-        none;
+    border: none;
 
-    cursor:
-        pointer;
+    cursor: pointer;
 
 }
 
 
 .btn-primary {
 
-    background:
-        var(--primary);
+    background: var(--primary);
 
-    color:
-        white;
+    color: white;
 
 }
 
 
 .btn-primary:hover {
 
-    background:
-        #002d55;
+    background: #002d55;
 
-    transform:
-        translateY(-2px);
+    transform: translateY(-2px);
 
 }
 
@@ -429,45 +359,35 @@ img {
         1.5px solid
         var(--primary);
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
-    background:
-        transparent;
+    background: transparent;
 
 }
 
 
 .btn-outline:hover {
 
-    background:
-        var(--primary);
+    background: var(--primary);
 
-    color:
-        white;
+    color: white;
 
 }
 
 
 .menu-toggle {
 
-    display:
-        none;
+    display: none;
 
-    border:
-        none;
+    border: none;
 
-    background:
-        transparent;
+    background: transparent;
 
-    font-size:
-        27px;
+    font-size: 27px;
 
-    cursor:
-        pointer;
+    cursor: pointer;
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
 }
 
@@ -478,31 +398,24 @@ img {
 
 .hero {
 
-    position:
-        relative;
+    position: relative;
 
-    height:
-        640px;
+    height: 640px;
 
-    overflow:
-        hidden;
+    overflow: hidden;
 
 }
 
 
 .slide {
 
-    position:
-        absolute;
+    position: absolute;
 
-    inset:
-        0;
+    inset: 0;
 
-    opacity:
-        0;
+    opacity: 0;
 
-    visibility:
-        hidden;
+    visibility: hidden;
 
     transition:
         opacity .8s ease;
@@ -512,42 +425,33 @@ img {
 
 .slide.active {
 
-    opacity:
-        1;
+    opacity: 1;
 
-    visibility:
-        visible;
+    visibility: visible;
 
 }
 
 
 .slide-image {
 
-    position:
-        absolute;
+    position: absolute;
 
-    inset:
-        0;
+    inset: 0;
 
-    width:
-        100%;
+    width: 100%;
 
-    height:
-        100%;
+    height: 100%;
 
-    object-fit:
-        cover;
+    object-fit: cover;
 
 }
 
 
 .slide-overlay {
 
-    position:
-        absolute;
+    position: absolute;
 
-    inset:
-        0;
+    inset: 0;
 
     background:
         linear-gradient(
@@ -562,55 +466,40 @@ img {
 
 .slide-content {
 
-    position:
-        relative;
+    position: relative;
 
-    z-index:
-        2;
+    z-index: 2;
 
-    width:
-        90%;
+    width: 90%;
 
-    max-width:
-        1250px;
+    max-width: 1250px;
 
-    margin:
-        auto;
+    margin: auto;
 
-    height:
-        100%;
+    height: 100%;
 
-    display:
-        flex;
+    display: flex;
 
-    flex-direction:
-        column;
+    flex-direction: column;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    color:
-        white;
+    color: white;
 
-    padding:
-        20px;
+    padding: 20px;
 
 }
 
 
 .slide-badge {
 
-    display:
-        inline-block;
+    display: inline-block;
 
-    width:
-        fit-content;
+    width: fit-content;
 
-    padding:
-        7px 14px;
+    padding: 7px 14px;
 
-    border-radius:
-        30px;
+    border-radius: 30px;
 
     background:
         rgba(0,166,232,.2);
@@ -619,14 +508,11 @@ img {
         1px solid
         rgba(255,255,255,.3);
 
-    font-size:
-        13px;
+    font-size: 13px;
 
-    font-weight:
-        700;
+    font-weight: 700;
 
-    margin-bottom:
-        20px;
+    margin-bottom: 20px;
 
 }
 
@@ -636,89 +522,71 @@ img {
     font-size:
         clamp(38px, 5vw, 68px);
 
-    line-height:
-        1.05;
+    line-height: 1.05;
 
-    max-width:
-        750px;
+    max-width: 750px;
 
-    margin-bottom:
-        22px;
+    margin-bottom: 22px;
 
 }
 
 
 .slide-content h1 span {
 
-    color:
-        #5dd7ff;
+    color: #5dd7ff;
 
 }
 
 
 .slide-content p {
 
-    max-width:
-        650px;
+    max-width: 650px;
 
-    font-size:
-        18px;
+    font-size: 18px;
 
-    color:
-        #e2e8f0;
+    color: #e2e8f0;
 
-    margin-bottom:
-        30px;
+    margin-bottom: 30px;
 
 }
 
 
 .hero-buttons {
 
-    display:
-        flex;
+    display: flex;
 
-    gap:
-        12px;
+    gap: 12px;
 
-    flex-wrap:
-        wrap;
+    flex-wrap: wrap;
 
 }
 
 
 .btn-hero {
 
-    padding:
-        14px 24px;
+    padding: 14px 24px;
 
-    border-radius:
-        8px;
+    border-radius: 8px;
 
-    font-size:
-        15px;
+    font-size: 15px;
 
 }
 
 
 .btn-hero-primary {
 
-    background:
-        #00a6e8;
+    background: #00a6e8;
 
-    color:
-        white;
+    color: white;
 
 }
 
 
 .btn-hero-secondary {
 
-    background:
-        white;
+    background: white;
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
 }
 
@@ -729,23 +597,17 @@ img {
 
 .slider-arrow {
 
-    position:
-        absolute;
+    position: absolute;
 
-    top:
-        50%;
+    top: 50%;
 
-    transform:
-        translateY(-50%);
+    transform: translateY(-50%);
 
-    z-index:
-        5;
+    z-index: 5;
 
-    width:
-        48px;
+    width: 48px;
 
-    height:
-        48px;
+    height: 48px;
 
     border:
         1px solid
@@ -754,20 +616,15 @@ img {
     background:
         rgba(0,0,0,.25);
 
-    color:
-        white;
+    color: white;
 
-    border-radius:
-        50%;
+    border-radius: 50%;
 
-    font-size:
-        22px;
+    font-size: 22px;
 
-    cursor:
-        pointer;
+    cursor: pointer;
 
-    transition:
-        .2s;
+    transition: .2s;
 
 }
 
@@ -782,79 +639,62 @@ img {
 
 .prev {
 
-    left:
-        25px;
+    left: 25px;
 
 }
 
 
 .next {
 
-    right:
-        25px;
+    right: 25px;
 
 }
 
 
 .slider-dots {
 
-    position:
-        absolute;
+    position: absolute;
 
-    bottom:
-        28px;
+    bottom: 28px;
 
-    left:
-        50%;
+    left: 50%;
 
-    transform:
-        translateX(-50%);
+    transform: translateX(-50%);
 
-    display:
-        flex;
+    display: flex;
 
-    gap:
-        8px;
+    gap: 8px;
 
-    z-index:
-        5;
+    z-index: 5;
 
 }
 
 
 .dot {
 
-    width:
-        10px;
+    width: 10px;
 
-    height:
-        10px;
+    height: 10px;
 
-    border-radius:
-        50%;
+    border-radius: 50%;
 
-    border:
-        none;
+    border: none;
 
     background:
         rgba(255,255,255,.5);
 
-    cursor:
-        pointer;
+    cursor: pointer;
 
 }
 
 
 .dot.active {
 
-    width:
-        28px;
+    width: 28px;
 
-    border-radius:
-        10px;
+    border-radius: 10px;
 
-    background:
-        white;
+    background: white;
 
 }
 
@@ -865,36 +705,27 @@ img {
 
 .stats {
 
-    width:
-        90%;
+    width: 90%;
 
-    max-width:
-        1100px;
+    max-width: 1100px;
 
-    margin:
-        -55px auto 0;
+    margin: -55px auto 0;
 
-    position:
-        relative;
+    position: relative;
 
-    z-index:
-        10;
+    z-index: 10;
 
-    background:
-        white;
+    background: white;
 
-    border-radius:
-        15px;
+    border-radius: 15px;
 
-    padding:
-        25px;
+    padding: 25px;
 
     box-shadow:
         0 15px 40px
         rgba(15,23,42,.12);
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         repeat(4,1fr);
@@ -904,8 +735,7 @@ img {
 
 .stat {
 
-    text-align:
-        center;
+    text-align: center;
 
     border-right:
         1px solid
@@ -916,33 +746,25 @@ img {
 
 .stat:last-child {
 
-    border:
-        none;
+    border: none;
 
 }
 
 
 .stat h3 {
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
-    font-size:
-        30px;
-
-    margin-bottom:
-        2px;
+    font-size: 30px;
 
 }
 
 
 .stat p {
 
-    color:
-        var(--text);
+    color: var(--text);
 
-    font-size:
-        13px;
+    font-size: 13px;
 
 }
 
@@ -953,81 +775,65 @@ img {
 
 .section {
 
-    padding:
-        90px 0;
+    padding: 90px 0;
 
 }
 
 
 .container {
 
-    width:
-        90%;
+    width: 90%;
 
-    max-width:
-        1250px;
+    max-width: 1250px;
 
-    margin:
-        auto;
+    margin: auto;
 
 }
 
 
 .section-heading {
 
-    text-align:
-        center;
+    text-align: center;
 
-    max-width:
-        700px;
+    max-width: 700px;
 
-    margin:
-        0 auto 45px;
+    margin: 0 auto 45px;
 
 }
 
 
 .section-heading .eyebrow {
 
-    color:
-        var(--secondary);
+    color: var(--secondary);
 
-    text-transform:
-        uppercase;
+    text-transform: uppercase;
 
-    letter-spacing:
-        2px;
+    letter-spacing: 2px;
 
-    font-size:
-        12px;
+    font-size: 12px;
 
-    font-weight:
-        800;
+    font-weight: 800;
 
-    margin-bottom:
-        10px;
+    margin-bottom: 10px;
 
 }
 
 
 .section-heading h2 {
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
     font-size:
         clamp(30px,4vw,44px);
 
-    margin-bottom:
-        12px;
+    margin-bottom: 12px;
 
 }
 
 
 .section-heading p {
 
-    color:
-        var(--text);
+    color: var(--text);
 
 }
 
@@ -1038,43 +844,33 @@ img {
 
 .curriculum-grid {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         repeat(3,1fr);
 
-    gap:
-        24px;
+    gap: 24px;
 
 }
 
 
 .curriculum-card {
 
-    position:
-        relative;
+    position: relative;
 
-    overflow:
-        hidden;
+    overflow: hidden;
 
-    min-height:
-        340px;
+    min-height: 340px;
 
-    border-radius:
-        16px;
+    border-radius: 16px;
 
-    color:
-        white;
+    color: white;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        flex-end;
+    align-items: flex-end;
 
-    padding:
-        28px;
+    padding: 28px;
 
     box-shadow:
         0 10px 30px
@@ -1085,14 +881,11 @@ img {
 
 .curriculum-card::before {
 
-    content:
-        "";
+    content: "";
 
-    position:
-        absolute;
+    position: absolute;
 
-    inset:
-        0;
+    inset: 0;
 
     background:
         linear-gradient(
@@ -1105,59 +898,46 @@ img {
 
 .curriculum-bg {
 
-    position:
-        absolute;
+    position: absolute;
 
-    inset:
-        0;
+    inset: 0;
 
-    width:
-        100%;
+    width: 100%;
 
-    height:
-        100%;
+    height: 100%;
 
-    object-fit:
-        cover;
+    object-fit: cover;
 
-    z-index:
-        -1;
+    z-index: -1;
 
 }
 
 
 .curriculum-content {
 
-    position:
-        relative;
+    position: relative;
 
-    z-index:
-        2;
+    z-index: 2;
 
 }
 
 
 .curriculum-content h3 {
 
-    font-size:
-        25px;
+    font-size: 25px;
 
-    margin-bottom:
-        8px;
+    margin-bottom: 8px;
 
 }
 
 
 .curriculum-content p {
 
-    color:
-        #e2e8f0;
+    color: #e2e8f0;
 
-    font-size:
-        14px;
+    font-size: 14px;
 
-    margin-bottom:
-        15px;
+    margin-bottom: 15px;
 
 }
 
@@ -1168,43 +948,36 @@ img {
 
 .features {
 
-    background:
-        #eef7fc;
+    background: #eef7fc;
 
 }
 
 
 .features-grid {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         repeat(3,1fr);
 
-    gap:
-        22px;
+    gap: 22px;
 
 }
 
 
 .feature {
 
-    background:
-        white;
+    background: white;
 
     border:
         1px solid
         var(--border);
 
-    padding:
-        28px;
+    padding: 28px;
 
-    border-radius:
-        14px;
+    border-radius: 14px;
 
-    transition:
-        .25s;
+    transition: .25s;
 
 }
 
@@ -1223,57 +996,161 @@ img {
 
 .feature-icon {
 
-    width:
-        54px;
+    width: 54px;
 
-    height:
-        54px;
+    height: 54px;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    background:
-        #e4f6ff;
+    background: #e4f6ff;
 
-    color:
-        var(--secondary);
+    color: var(--secondary);
 
-    border-radius:
-        12px;
+    border-radius: 12px;
 
-    font-size:
-        25px;
+    font-size: 25px;
 
-    margin-bottom:
-        18px;
+    margin-bottom: 18px;
 
 }
 
 
 .feature h3 {
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
-    margin-bottom:
-        8px;
+    margin-bottom: 8px;
 
 }
 
 
 .feature p {
 
-    color:
-        var(--text);
+    color: var(--text);
 
-    font-size:
-        14px;
+    font-size: 14px;
+
+}
+
+
+/* =========================================================
+   LOGIN PORTAL
+========================================================= */
+
+.login-section {
+
+    background:
+        linear-gradient(
+            180deg,
+            #f8fbff,
+            #eef7fc
+        );
+
+}
+
+
+.login-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3,1fr);
+
+    gap: 24px;
+
+}
+
+
+.login-card {
+
+    background: white;
+
+    border:
+        1px solid
+        var(--border);
+
+    border-radius: 18px;
+
+    padding: 32px;
+
+    text-align: center;
+
+    box-shadow:
+        0 8px 25px
+        rgba(15,23,42,.06);
+
+    transition: .25s;
+
+}
+
+
+.login-card:hover {
+
+    transform:
+        translateY(-6px);
+
+    box-shadow:
+        0 18px 40px
+        rgba(15,23,42,.10);
+
+}
+
+
+.login-icon {
+
+    width: 70px;
+
+    height: 70px;
+
+    margin: 0 auto 18px;
+
+    border-radius: 18px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 32px;
+
+    background:
+        #e8f5ff;
+
+}
+
+
+.login-card h3 {
+
+    color: var(--primary);
+
+    margin-bottom: 10px;
+
+    font-size: 21px;
+
+}
+
+
+.login-card p {
+
+    color: var(--text);
+
+    font-size: 14px;
+
+    min-height: 68px;
+
+    margin-bottom: 20px;
+
+}
+
+
+.login-card .btn {
+
+    width: 100%;
 
 }
 
@@ -1284,44 +1161,35 @@ img {
 
 .subject-grid {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         repeat(4,1fr);
 
-    gap:
-        15px;
+    gap: 15px;
 
 }
 
 
 .subject {
 
-    background:
-        white;
+    background: white;
 
     border:
         1px solid
         var(--border);
 
-    border-radius:
-        10px;
+    border-radius: 10px;
 
-    padding:
-        20px;
+    padding: 20px;
 
-    text-align:
-        center;
+    text-align: center;
 
-    font-weight:
-        700;
+    font-weight: 700;
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
-    transition:
-        .2s;
+    transition: .2s;
 
 }
 
@@ -1333,6 +1201,9 @@ img {
 
     color:
         var(--secondary);
+
+    transform:
+        translateY(-2px);
 
 }
 
@@ -1350,28 +1221,22 @@ img {
             #0877c9
         );
 
-    color:
-        white;
+    color: white;
 
-    padding:
-        70px 0;
+    padding: 70px 0;
 
 }
 
 
 .cta-inner {
 
-    display:
-        flex;
+    display: flex;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        30px;
+    gap: 30px;
 
 }
 
@@ -1381,16 +1246,14 @@ img {
     font-size:
         clamp(28px,4vw,42px);
 
-    margin-bottom:
-        10px;
+    margin-bottom: 10px;
 
 }
 
 
 .cta p {
 
-    color:
-        #dbeafe;
+    color: #dbeafe;
 
 }
 
@@ -1401,103 +1264,81 @@ img {
 
 .testimonial-grid {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         repeat(3,1fr);
 
-    gap:
-        22px;
+    gap: 22px;
 
 }
 
 
 .testimonial {
 
-    background:
-        white;
+    background: white;
 
     border:
         1px solid
         var(--border);
 
-    border-radius:
-        14px;
+    border-radius: 14px;
 
-    padding:
-        25px;
+    padding: 25px;
 
 }
 
 
 .stars {
 
-    color:
-        #f59e0b;
+    color: #f59e0b;
 
-    margin-bottom:
-        15px;
+    margin-bottom: 15px;
 
 }
 
 
 .testimonial p {
 
-    color:
-        var(--text);
+    color: var(--text);
 
-    font-size:
-        14px;
+    font-size: 14px;
 
-    margin-bottom:
-        20px;
+    margin-bottom: 20px;
 
 }
 
 
 .student {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        12px;
+    gap: 12px;
 
 }
 
 
 .avatar {
 
-    width:
-        42px;
+    width: 42px;
 
-    height:
-        42px;
+    height: 42px;
 
-    border-radius:
-        50%;
+    border-radius: 50%;
 
-    background:
-        #dbeafe;
+    background: #dbeafe;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    font-weight:
-        800;
+    font-weight: 800;
 
-    color:
-        var(--primary);
+    color: var(--primary);
 
 }
 
@@ -1508,102 +1349,84 @@ img {
 
 .footer {
 
-    background:
-        #071b30;
+    background: #071b30;
 
-    color:
-        #cbd5e1;
+    color: #cbd5e1;
 
-    padding:
-        65px 0 25px;
+    padding: 65px 0 25px;
 
 }
 
 
 .footer-grid {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         2fr 1fr 1fr 1fr;
 
-    gap:
-        40px;
+    gap: 40px;
 
-    margin-bottom:
-        45px;
+    margin-bottom: 45px;
 
 }
 
 
 .footer-brand h3 {
 
-    color:
-        white;
+    color: white;
 
-    font-size:
-        22px;
+    font-size: 22px;
 
-    margin-bottom:
-        10px;
+    margin-bottom: 10px;
 
 }
 
 
 .footer-brand p {
 
-    font-size:
-        14px;
+    font-size: 14px;
 
-    max-width:
-        400px;
+    max-width: 400px;
 
 }
 
 
 .footer h4 {
 
-    color:
-        white;
+    color: white;
 
-    margin-bottom:
-        15px;
+    margin-bottom: 15px;
 
 }
 
 
 .footer ul {
 
-    list-style:
-        none;
+    list-style: none;
 
 }
 
 
 .footer li {
 
-    margin-bottom:
-        8px;
+    margin-bottom: 8px;
 
 }
 
 
 .footer a {
 
-    color:
-        #cbd5e1;
+    color: #cbd5e1;
 
-    font-size:
-        14px;
+    font-size: 14px;
 
 }
 
 
 .footer a:hover {
 
-    color:
-        #5dd7ff;
+    color: #5dd7ff;
 
 }
 
@@ -1614,14 +1437,11 @@ img {
         1px solid
         rgba(255,255,255,.1);
 
-    padding-top:
-        20px;
+    padding-top: 20px;
 
-    text-align:
-        center;
+    text-align: center;
 
-    font-size:
-        13px;
+    font-size: 13px;
 
 }
 
@@ -1635,48 +1455,37 @@ img {
     .nav-links,
     .nav-buttons {
 
-        display:
-            none;
+        display: none;
 
     }
 
 
     .menu-toggle {
 
-        display:
-            block;
+        display: block;
 
     }
 
 
     .nav-links.mobile-open {
 
-        display:
-            flex;
+        display: flex;
 
-        position:
-            absolute;
+        position: absolute;
 
-        top:
-            78px;
+        top: 78px;
 
-        left:
-            0;
+        left: 0;
 
-        right:
-            0;
+        right: 0;
 
-        background:
-            white;
+        background: white;
 
-        padding:
-            20px;
+        padding: 20px;
 
-        flex-direction:
-            column;
+        flex-direction: column;
 
-        align-items:
-            flex-start;
+        align-items: flex-start;
 
         box-shadow:
             0 10px 20px
@@ -1695,14 +1504,14 @@ img {
 
     .stat:nth-child(2) {
 
-        border:
-            none;
+        border: none;
 
     }
 
 
     .curriculum-grid,
     .features-grid,
+    .login-grid,
     .testimonial-grid {
 
         grid-template-columns:
@@ -1733,59 +1542,51 @@ img {
 
     .top-bar {
 
-        display:
-            none;
+        display: none;
 
     }
 
 
     .hero {
 
-        height:
-            580px;
+        height: 580px;
 
     }
 
 
     .slide-content {
 
-        padding:
-            15px;
+        padding: 15px;
 
     }
 
 
     .slide-content p {
 
-        font-size:
-            15px;
+        font-size: 15px;
 
     }
 
 
     .slider-arrow {
 
-        width:
-            38px;
+        width: 38px;
 
-        height:
-            38px;
+        height: 38px;
 
     }
 
 
     .prev {
 
-        left:
-            12px;
+        left: 12px;
 
     }
 
 
     .next {
 
-        right:
-            12px;
+        right: 12px;
 
     }
 
@@ -1795,38 +1596,34 @@ img {
         grid-template-columns:
             1fr 1fr;
 
-        margin-top:
-            -35px;
+        margin-top: -35px;
 
     }
 
 
     .stat {
 
-        padding:
-            10px;
+        padding: 10px;
 
-        border:
-            none;
+        border: none;
 
     }
 
 
     .section {
 
-        padding:
-            65px 0;
+        padding: 65px 0;
 
     }
 
 
     .curriculum-grid,
     .features-grid,
+    .login-grid,
     .testimonial-grid,
     .footer-grid {
 
-        grid-template-columns:
-            1fr;
+        grid-template-columns: 1fr;
 
     }
 
@@ -1841,11 +1638,9 @@ img {
 
     .cta-inner {
 
-        flex-direction:
-            column;
+        flex-direction: column;
 
-        align-items:
-            flex-start;
+        align-items: flex-start;
 
     }
 
@@ -1959,6 +1754,12 @@ img {
     </li>
 
     <li>
+        <a href="#login">
+            Login
+        </a>
+    </li>
+
+    <li>
         <a href="#teachers">
             Teachers
         </a>
@@ -1973,24 +1774,26 @@ img {
 </ul>
 
 
+<!-- LOGIN BUTTONS -->
+
 <div class="nav-buttons">
 
     <a
-        href="login.php"
+        href="student/login.php"
         class="btn btn-outline"
     >
 
-        Login
+        👨‍🎓 Student Login
 
     </a>
 
 
     <a
-        href="register.php"
+        href="teacher/login.php"
         class="btn btn-primary"
     >
 
-        Get Started
+        👨‍🏫 Teacher Login
 
     </a>
 
@@ -2013,7 +1816,7 @@ img {
 
 
 <!-- =========================================================
-     HERO SLIDESHOW
+     HERO
 ========================================================= -->
 
 <section
@@ -2024,9 +1827,7 @@ img {
 
 <!-- SLIDE 1 -->
 
-<div
-    class="slide active"
->
+<div class="slide active">
 
     <img
         src="assets/images/slide1.jpg"
@@ -2037,7 +1838,6 @@ img {
             this.parentElement.style.background='linear-gradient(135deg,#003b70,#0877c9)';
         "
     >
-
 
     <div class="slide-overlay"></div>
 
@@ -2073,7 +1873,7 @@ img {
         <div class="hero-buttons">
 
             <a
-                href="register.php"
+                href="student/register.php"
                 class="
                     btn
                     btn-hero
@@ -2092,7 +1892,7 @@ img {
                     btn
                     btn-hero
                     btn-hero-secondary
-                "
+            "
             >
 
                 Explore Curricula
@@ -2119,7 +1919,6 @@ img {
             this.parentElement.style.background='linear-gradient(135deg,#064e3b,#0ea5a5)';
         "
     >
-
 
     <div class="slide-overlay"></div>
 
@@ -2155,7 +1954,7 @@ img {
         <div class="hero-buttons">
 
             <a
-                href="register.php"
+                href="#teachers"
                 class="
                     btn
                     btn-hero
@@ -2187,7 +1986,6 @@ img {
             this.parentElement.style.background='linear-gradient(135deg,#581c87,#9333ea)';
         "
     >
-
 
     <div class="slide-overlay"></div>
 
@@ -2223,7 +2021,7 @@ img {
         <div class="hero-buttons">
 
             <a
-                href="register.php"
+                href="student/register.php"
                 class="
                     btn
                     btn-hero
@@ -2231,7 +2029,7 @@ img {
                 "
             >
 
-                Create Account
+                Create Student Account
 
             </a>
 
@@ -2369,9 +2167,9 @@ img {
 
     <p>
 
-        NISEL ONLINE EDUCATION connects students with
-        qualified teachers for convenient, personalised
-        online learning.
+        NISEL ONLINE EDUCATION connects students
+        with qualified teachers for convenient,
+        personalised online learning.
 
     </p>
 
@@ -2510,8 +2308,9 @@ img {
 
         </p>
 
+
         <a
-            href="register.php"
+            href="student/register.php"
             class="
                 btn
                 btn-hero-primary
@@ -2553,8 +2352,9 @@ img {
 
         </p>
 
+
         <a
-            href="register.php"
+            href="student/register.php"
             class="
                 btn
                 btn-hero-primary
@@ -2591,13 +2391,15 @@ img {
 
         <p>
 
-            Ghana Education Service curriculum support
-            for learners across basic and secondary levels.
+            Ghana Education Service curriculum
+            support for learners across basic
+            and secondary levels.
 
         </p>
 
+
         <a
-            href="register.php"
+            href="student/register.php"
             class="
                 btn
                 btn-hero-primary
@@ -2609,6 +2411,144 @@ img {
         </a>
 
     </div>
+
+</div>
+
+
+</div>
+
+</div>
+
+</section>
+
+
+<!-- =========================================================
+     LOGIN PORTAL
+========================================================= -->
+
+<section
+    class="section login-section"
+    id="login"
+>
+
+<div class="container">
+
+
+<div class="section-heading">
+
+    <div class="eyebrow">
+        NISEL PORTAL
+    </div>
+
+    <h2>
+        Welcome Back
+    </h2>
+
+    <p>
+
+        Select your account type to continue
+        to your NISEL Online Education portal.
+
+    </p>
+
+</div>
+
+
+<div class="login-grid">
+
+
+<!-- STUDENT -->
+
+<div class="login-card">
+
+    <div class="login-icon">
+        👨‍🎓
+    </div>
+
+    <h3>
+        Student Portal
+    </h3>
+
+    <p>
+
+        Login to book lessons, view your schedule,
+        make payments and join your online classes.
+
+    </p>
+
+
+    <a
+        href="student/login.php"
+        class="btn btn-primary"
+    >
+
+        Student Login →
+
+    </a>
+
+</div>
+
+
+<!-- TEACHER -->
+
+<div class="login-card">
+
+    <div class="login-icon">
+        👨‍🏫
+    </div>
+
+    <h3>
+        Teacher Portal
+    </h3>
+
+    <p>
+
+        Login to view your students, manage your
+        schedule and conduct your online lessons.
+
+    </p>
+
+
+    <a
+        href="teacher/login.php"
+        class="btn btn-primary"
+    >
+
+        Teacher Login →
+
+    </a>
+
+</div>
+
+
+<!-- NEW STUDENT -->
+
+<div class="login-card">
+
+    <div class="login-icon">
+        🚀
+    </div>
+
+    <h3>
+        New Student?
+    </h3>
+
+    <p>
+
+        Create your NISEL student account and
+        start booking your subjects.
+
+    </p>
+
+
+    <a
+        href="student/register.php"
+        class="btn btn-primary"
+    >
+
+        Create Account →
+
+    </a>
 
 </div>
 
@@ -2658,56 +2598,45 @@ img {
     📐 Mathematics
 </div>
 
-
 <div class="subject">
     ⚛️ Physics
 </div>
-
 
 <div class="subject">
     🧪 Chemistry
 </div>
 
-
 <div class="subject">
     🧬 Biology
 </div>
-
 
 <div class="subject">
     📚 English
 </div>
 
-
 <div class="subject">
     💻 Computer Science
 </div>
-
 
 <div class="subject">
     🌍 Geography
 </div>
 
-
 <div class="subject">
     💰 Economics
 </div>
-
 
 <div class="subject">
     📊 Accounting
 </div>
 
-
 <div class="subject">
     🏛️ Government
 </div>
 
-
 <div class="subject">
     📖 Literature
 </div>
-
 
 <div class="subject">
     🧠 Psychology
@@ -2751,7 +2680,7 @@ img {
 <div>
 
 <a
-    href="register.php"
+    href="student/register.php"
     class="
         btn
         btn-hero
@@ -2820,8 +2749,8 @@ img {
 
     <p>
 
-        Connect with teachers who specialise in
-        the subjects you need.
+        Connect with teachers who specialise
+        in the subjects you need.
 
     </p>
 
@@ -2840,8 +2769,8 @@ img {
 
     <p>
 
-        Join scheduled lessons through your teacher's
-        online meeting link.
+        Join scheduled lessons through your
+        teacher's online meeting link.
 
     </p>
 
@@ -3106,13 +3035,19 @@ img {
     <ul>
 
         <li>
-            <a href="login.php">
+            <a href="student/login.php">
                 Student Login
             </a>
         </li>
 
         <li>
-            <a href="register.php">
+            <a href="teacher/login.php">
+                Teacher Login
+            </a>
+        </li>
+
+        <li>
+            <a href="student/register.php">
                 Student Registration
             </a>
         </li>
@@ -3315,7 +3250,7 @@ function previousSlide()
 
 
 /* =========================================================
-   BUTTONS
+   CONTROLS
 ========================================================= */
 
 nextButton.addEventListener(
