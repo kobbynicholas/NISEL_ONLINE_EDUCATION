@@ -3,86 +3,177 @@
 require "../teacher_auth.php";
 require "../config/db.php";
 
+/*
+|--------------------------------------------------------------------------
+| NISEL ONLINE EDUCATION
+| TEACHER PROFILE
+| PDO VERSION
+|--------------------------------------------------------------------------
+*/
 
-/* =========================================================
-   TEACHER SESSION
-========================================================= */
-
-$teacher_id =
-    $_SESSION['teacher_id'] ?? '';
-
-$teacher_name =
-    $_SESSION['teacher_name'] ?? 'Teacher';
-
+$teacher_id = $_SESSION['teacher_id'] ?? '';
 
 if (empty($teacher_id)) {
-
     header("Location: login.php");
     exit;
-
 }
 
-
-/* =========================================================
-   MESSAGE
-========================================================= */
-
 $message = "";
-
 $message_type = "";
 
 
-/* =========================================================
-   LOAD TEACHER
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| HELPER
+|--------------------------------------------------------------------------
+*/
 
-try {
-
-    $stmt = $pdo->prepare("
-
-        SELECT *
-
-        FROM teachers
-
-        WHERE teacher_id = ?
-
-        LIMIT 1
-
-    ");
-
-    $stmt->execute([
-        $teacher_id
-    ]);
-
-    $teacher =
-        $stmt->fetch(PDO::FETCH_ASSOC);
-
-
-} catch (PDOException $e) {
-
-    die(
-        "Unable to load profile: "
-        .
-        htmlspecialchars(
-            $e->getMessage()
-        )
+function h($value)
+{
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES,
+        'UTF-8'
     );
-
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| GET TEACHER
+|--------------------------------------------------------------------------
+*/
+
+$stmt = $pdo->prepare("
+    SELECT
+        id,
+        teacher_id,
+        teacher_name,
+        phone,
+        email,
+        qualification,
+        subjects,
+        curriculum,
+        experience,
+        bio,
+        availability,
+        photo,
+        password,
+        status
+    FROM teachers
+    WHERE teacher_id = ?
+    LIMIT 1
+");
+
+$stmt->execute([
+    $teacher_id
+]);
+
+$teacher = $stmt->fetch(PDO::FETCH_ASSOC);
 
 
 if (!$teacher) {
 
-    die(
-        "Teacher profile could not be found."
-    );
+    die("
+        <div style='
+            font-family:Arial;
+            text-align:center;
+            padding:60px;
+        '>
+            <h2 style='color:#003366;'>
+                Teacher Account Not Found
+            </h2>
+
+            <p>
+                Your teacher account could not be found.
+            </p>
+        </div>
+    ");
 
 }
 
 
-/* =========================================================
-   UPDATE PROFILE
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| DEFAULT VALUES
+|--------------------------------------------------------------------------
+*/
+
+$teacher_name  = $teacher['teacher_name'] ?? '';
+$phone         = $teacher['phone'] ?? '';
+$email         = $teacher['email'] ?? '';
+$qualification = $teacher['qualification'] ?? '';
+$subjects      = $teacher['subjects'] ?? '';
+$curriculum    = $teacher['curriculum'] ?? '';
+$experience    = $teacher['experience'] ?? '';
+$bio           = $teacher['bio'] ?? '';
+$availability  = $teacher['availability'] ?? '';
+$current_photo = $teacher['photo'] ?? '';
+
+/*
+|--------------------------------------------------------------------------
+| ZOOM LINK
+|--------------------------------------------------------------------------
+|
+| Your student schedule uses teachers.zoom_link.
+|
+| We check whether the column exists before using it.
+| This prevents the profile from crashing if it has not
+| yet been added to your teachers table.
+|
+*/
+
+$zoom_column_exists = false;
+
+try {
+
+    $columnCheck = $pdo->prepare("
+        SELECT COUNT(*)
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE
+            TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'teachers'
+            AND COLUMN_NAME = 'zoom_link'
+    ");
+
+    $columnCheck->execute();
+
+    $zoom_column_exists =
+        ((int)$columnCheck->fetchColumn() > 0);
+
+} catch (PDOException $e) {
+
+    $zoom_column_exists = false;
+
+}
+
+
+$zoom_link = '';
+
+if ($zoom_column_exists) {
+
+    $zoomStmt = $pdo->prepare("
+        SELECT zoom_link
+        FROM teachers
+        WHERE teacher_id = ?
+        LIMIT 1
+    ");
+
+    $zoomStmt->execute([
+        $teacher_id
+    ]);
+
+    $zoom_link =
+        $zoomStmt->fetchColumn() ?? '';
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE PROFILE
+|--------------------------------------------------------------------------
+*/
 
 if (
     $_SERVER['REQUEST_METHOD'] === 'POST'
@@ -90,49 +181,83 @@ if (
     isset($_POST['update_profile'])
 ) {
 
-
-    $name =
+    $teacher_name =
         trim(
             $_POST['teacher_name'] ?? ''
         );
-
-
-    $email =
-        trim(
-            $_POST['email'] ?? ''
-        );
-
 
     $phone =
         trim(
             $_POST['phone'] ?? ''
         );
 
+    $email =
+        trim(
+            $_POST['email'] ?? ''
+        );
 
     $qualification =
         trim(
             $_POST['qualification'] ?? ''
         );
 
-
-    $specialization =
+    $subjects =
         trim(
-            $_POST['specialization'] ?? ''
+            $_POST['subjects'] ?? ''
+        );
+
+    $curriculum =
+        trim(
+            $_POST['curriculum'] ?? ''
+        );
+
+    $experience =
+        trim(
+            $_POST['experience'] ?? ''
+        );
+
+    $bio =
+        trim(
+            $_POST['bio'] ?? ''
+        );
+
+    $availability =
+        trim(
+            $_POST['availability'] ?? ''
+        );
+
+    $zoom_link =
+        trim(
+            $_POST['zoom_link'] ?? ''
         );
 
 
-    /* =====================================================
-       VALIDATION
-    ===================================================== */
+    /*
+    |--------------------------------------------------------------------------
+    | VALIDATION
+    |--------------------------------------------------------------------------
+    */
 
     if (
-        $name === ''
+        empty($teacher_name)
         ||
-        $email === ''
+        empty($phone)
+        ||
+        empty($email)
+        ||
+        empty($qualification)
+        ||
+        empty($subjects)
+        ||
+        empty($curriculum)
+        ||
+        empty($experience)
+        ||
+        empty($availability)
     ) {
 
         $message =
-            "Teacher name and email are required.";
+            "Please complete all required fields.";
 
         $message_type =
             "error";
@@ -150,110 +275,680 @@ if (
         $message_type =
             "error";
 
+    } elseif (
+        !empty($zoom_link)
+        &&
+        !filter_var(
+            $zoom_link,
+            FILTER_VALIDATE_URL
+        )
+    ) {
+
+        $message =
+            "Please enter a valid Zoom meeting URL.";
+
+        $message_type =
+            "error";
+
     } else {
 
 
-        try {
+        /*
+        |--------------------------------------------------------------------------
+        | CHECK EMAIL
+        |--------------------------------------------------------------------------
+        |
+        | Don't allow another teacher to use this email.
+        |
+        */
 
-            /*
-             * Update the teacher record.
-             *
-             * We only update columns that are normally
-             * available in the teacher table.
-             */
+        $emailCheck = $pdo->prepare("
+            SELECT id
+            FROM teachers
+            WHERE
+                email = ?
+                AND teacher_id != ?
+            LIMIT 1
+        ");
 
-            $update = $pdo->prepare("
-
-                UPDATE teachers
-
-                SET
-                    teacher_name = ?,
-                    email = ?,
-                    phone = ?,
-                    qualification = ?,
-                    subjects = ?
-
-                WHERE teacher_id = ?
-
-            ");
-
-
-            $update->execute([
-
-                $name,
-
-                $email,
-
-                $phone,
-
-                $qualification,
-
-                $subjects,
-
-                $teacher_id
-
-            ]);
+        $emailCheck->execute([
+            $email,
+            $teacher_id
+        ]);
 
 
-            /*
-             * Update the session so the new name
-             * appears immediately throughout the
-             * teacher dashboard.
-             */
-
-            $_SESSION[
-                'teacher_name'
-            ] = $name;
-
-
-            $teacher_name =
-                $name;
-
+        if ($emailCheck->fetch()) {
 
             $message =
-                "Your profile has been updated successfully.";
-
-            $message_type =
-                "success";
-
-
-            /*
-             * Reload teacher information.
-             */
-
-            $stmt = $pdo->prepare("
-
-                SELECT *
-
-                FROM teachers
-
-                WHERE teacher_id = ?
-
-                LIMIT 1
-
-            ");
-
-
-            $stmt->execute([
-                $teacher_id
-            ]);
-
-
-            $teacher =
-                $stmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
-
-
-        } catch (PDOException $e) {
-
-            $message =
-                "Unable to update profile: "
-                .
-                $e->getMessage();
+                "Another teacher account is already using this email.";
 
             $message_type =
                 "error";
+
+        } else {
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | PHOTO HANDLING
+            |--------------------------------------------------------------------------
+            */
+
+            $new_photo_name = $current_photo;
+
+            $uploaded_new_photo = false;
+
+            $new_photo_path = '';
+
+            $old_photo_path = '';
+
+
+            if (
+                isset($_FILES['photo'])
+                &&
+                $_FILES['photo']['error']
+                !==
+                UPLOAD_ERR_NO_FILE
+            ) {
+
+
+                if (
+                    $_FILES['photo']['error']
+                    !==
+                    UPLOAD_ERR_OK
+                ) {
+
+                    $message =
+                        "There was an error uploading the photo.";
+
+                    $message_type =
+                        "error";
+
+                } else {
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ALLOWED TYPES
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $allowed_types = [
+
+                        'image/jpeg',
+                        'image/png',
+                        'image/webp'
+
+                    ];
+
+
+                    $file_type =
+                        mime_content_type(
+                            $_FILES['photo']['tmp_name']
+                        );
+
+
+                    $file_size =
+                        (int)
+                        $_FILES['photo']['size'];
+
+
+                    if (
+                        $file_size
+                        >
+                        5 * 1024 * 1024
+                    ) {
+
+                        $message =
+                            "Teacher photo must not exceed 5MB.";
+
+                        $message_type =
+                            "error";
+
+                    } elseif (
+                        !in_array(
+                            $file_type,
+                            $allowed_types,
+                            true
+                        )
+                    ) {
+
+                        $message =
+                            "Only JPG, PNG and WEBP images are allowed.";
+
+                        $message_type =
+                            "error";
+
+                    } else {
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | PHOTO DIRECTORY
+                        |--------------------------------------------------------------------------
+                        |
+                        | teacher/profile.php is inside /teacher
+                        |
+                        | Therefore:
+                        |
+                        | teacher/uploads/teachers/
+                        |
+                        */
+
+                        $upload_directory =
+                            __DIR__
+                            .
+                            DIRECTORY_SEPARATOR
+                            .
+                            "uploads"
+                            .
+                            DIRECTORY_SEPARATOR
+                            .
+                            "teachers"
+                            .
+                            DIRECTORY_SEPARATOR;
+
+
+                        if (
+                            !is_dir(
+                                $upload_directory
+                            )
+                        ) {
+
+                            if (
+                                !mkdir(
+                                    $upload_directory,
+                                    0755,
+                                    true
+                                )
+                            ) {
+
+                                $message =
+                                    "Unable to create the teacher photo directory.";
+
+                                $message_type =
+                                    "error";
+
+                            }
+
+                        }
+
+
+                        if (
+                            $message_type
+                            !==
+                            "error"
+                        ) {
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | FILE EXTENSION
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $extension =
+                                strtolower(
+                                    pathinfo(
+                                        $_FILES['photo']['name'],
+                                        PATHINFO_EXTENSION
+                                    )
+                                );
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | UNIQUE PHOTO NAME
+                            |--------------------------------------------------------------------------
+                            */
+
+                            $new_photo_name =
+
+                                $teacher_id
+                                .
+                                "_"
+                                .
+                                time()
+                                .
+                                "_"
+                                .
+                                bin2hex(
+                                    random_bytes(4)
+                                )
+                                .
+                                "."
+                                .
+                                $extension;
+
+
+                            $new_photo_path =
+
+                                $upload_directory
+                                .
+                                $new_photo_name;
+
+
+                            /*
+                            |--------------------------------------------------------------------------
+                            | MOVE NEW PHOTO
+                            |--------------------------------------------------------------------------
+                            */
+
+                            if (
+                                move_uploaded_file(
+                                    $_FILES['photo']['tmp_name'],
+                                    $new_photo_path
+                                )
+                            ) {
+
+                                $uploaded_new_photo =
+                                    true;
+
+
+                                /*
+                                |--------------------------------------------------------------------------
+                                | OLD PHOTO PATH
+                                |--------------------------------------------------------------------------
+                                */
+
+                                if (
+                                    !empty(
+                                        $current_photo
+                                    )
+                                ) {
+
+                                    $old_photo_path =
+
+                                        $upload_directory
+                                        .
+                                        basename(
+                                            $current_photo
+                                        );
+
+                                }
+
+                            } else {
+
+                                $message =
+                                    "Unable to save the new teacher photo.";
+
+                                $message_type =
+                                    "error";
+
+                                $new_photo_name =
+                                    $current_photo;
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE DATABASE
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $message_type
+                !==
+                "error"
+            ) {
+
+                try {
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | START TRANSACTION
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $pdo->beginTransaction();
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | UPDATE WITH ZOOM LINK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $zoom_column_exists
+                    ) {
+
+                        $update = $pdo->prepare("
+
+                            UPDATE teachers
+
+                            SET
+
+                                teacher_name = :teacher_name,
+
+                                phone = :phone,
+
+                                email = :email,
+
+                                qualification = :qualification,
+
+                                subjects = :subjects,
+
+                                curriculum = :curriculum,
+
+                                experience = :experience,
+
+                                bio = :bio,
+
+                                availability = :availability,
+
+                                photo = :photo,
+
+                                zoom_link = :zoom_link
+
+                            WHERE
+
+                                teacher_id = :teacher_id
+
+                        ");
+
+
+                        $update->execute([
+
+                            ':teacher_name'
+                                => $teacher_name,
+
+                            ':phone'
+                                => $phone,
+
+                            ':email'
+                                => $email,
+
+                            ':qualification'
+                                => $qualification,
+
+                            ':subjects'
+                                => $subjects,
+
+                            ':curriculum'
+                                => $curriculum,
+
+                            ':experience'
+                                => $experience,
+
+                            ':bio'
+                                => $bio,
+
+                            ':availability'
+                                => $availability,
+
+                            ':photo'
+                                => $new_photo_name,
+
+                            ':zoom_link'
+                                => $zoom_link,
+
+                            ':teacher_id'
+                                => $teacher_id
+
+                        ]);
+
+                    } else {
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | UPDATE WITHOUT ZOOM LINK
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $update = $pdo->prepare("
+
+                            UPDATE teachers
+
+                            SET
+
+                                teacher_name = :teacher_name,
+
+                                phone = :phone,
+
+                                email = :email,
+
+                                qualification = :qualification,
+
+                                subjects = :subjects,
+
+                                curriculum = :curriculum,
+
+                                experience = :experience,
+
+                                bio = :bio,
+
+                                availability = :availability,
+
+                                photo = :photo
+
+                            WHERE
+
+                                teacher_id = :teacher_id
+
+                        ");
+
+
+                        $update->execute([
+
+                            ':teacher_name'
+                                => $teacher_name,
+
+                            ':phone'
+                                => $phone,
+
+                            ':email'
+                                => $email,
+
+                            ':qualification'
+                                => $qualification,
+
+                            ':subjects'
+                                => $subjects,
+
+                            ':curriculum'
+                                => $curriculum,
+
+                            ':experience'
+                                => $experience,
+
+                            ':bio'
+                                => $bio,
+
+                            ':availability'
+                                => $availability,
+
+                            ':photo'
+                                => $new_photo_name,
+
+                            ':teacher_id'
+                                => $teacher_id
+
+                        ]);
+
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | COMMIT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $pdo->commit();
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DELETE OLD PHOTO
+                    |--------------------------------------------------------------------------
+                    |
+                    | Only delete the old photo AFTER the database
+                    | has successfully been updated.
+                    |
+                    */
+
+                    if (
+                        $uploaded_new_photo
+                        &&
+                        !empty(
+                            $old_photo_path
+                        )
+                        &&
+                        file_exists(
+                            $old_photo_path
+                        )
+                    ) {
+
+                        @unlink(
+                            $old_photo_path
+                        );
+
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | UPDATE SESSION
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $_SESSION[
+                        'teacher_name'
+                    ] =
+                        $teacher_name;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | UPDATE LOCAL VALUES
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $current_photo =
+                        $new_photo_name;
+
+
+                    $teacher['teacher_name'] =
+                        $teacher_name;
+
+                    $teacher['phone'] =
+                        $phone;
+
+                    $teacher['email'] =
+                        $email;
+
+                    $teacher['qualification'] =
+                        $qualification;
+
+                    $teacher['subjects'] =
+                        $subjects;
+
+                    $teacher['curriculum'] =
+                        $curriculum;
+
+                    $teacher['experience'] =
+                        $experience;
+
+                    $teacher['bio'] =
+                        $bio;
+
+                    $teacher['availability'] =
+                        $availability;
+
+                    $teacher['photo'] =
+                        $current_photo;
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | SUCCESS
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $message =
+                        "Your profile has been updated successfully.";
+
+                    if (
+                        $uploaded_new_photo
+                    ) {
+
+                        $message .=
+                            " Your profile photo has also been updated.";
+
+                    }
+
+                    $message_type =
+                        "success";
+
+
+                } catch (
+                    PDOException $e
+                ) {
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | ROLLBACK
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $pdo->inTransaction()
+                    ) {
+
+                        $pdo->rollBack();
+
+                    }
+
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | REMOVE NEW PHOTO IF DATABASE UPDATE FAILED
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        $uploaded_new_photo
+                        &&
+                        !empty(
+                            $new_photo_path
+                        )
+                        &&
+                        file_exists(
+                            $new_photo_path
+                        )
+                    ) {
+
+                        @unlink(
+                            $new_photo_path
+                        );
+
+                    }
+
+
+                    $message =
+                        "Unable to update profile: "
+                        .
+                        $e->getMessage();
+
+                    $message_type =
+                        "error";
+
+                }
+
+            }
 
         }
 
@@ -262,34 +957,185 @@ if (
 }
 
 
-/* =========================================================
-   SAFE VALUES
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| PROFILE PHOTO URL
+|--------------------------------------------------------------------------
+*/
 
-$display_name =
-    $teacher['teacher_name']
-    ?? '';
+$photo_url = '';
 
-$display_email =
-    $teacher['email']
-    ?? '';
+if (
+    !empty($current_photo)
+) {
 
-$display_phone =
-    $teacher['phone']
-    ?? '';
+    $photo_url =
+        "uploads/teachers/"
+        .
+        rawurlencode(
+            basename(
+                $current_photo
+            )
+        );
 
-$display_qualification =
-    $teacher['qualification']
-    ?? '';
+}
 
-$display_subjects =
-    $teacher['specialization']
-    ?? '';
 
-$teacher_status =
-    $teacher['status']
-    ?? 'Active';
+/*
+|--------------------------------------------------------------------------
+| CHANGE PASSWORD
+|--------------------------------------------------------------------------
+*/
 
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    isset($_POST['change_password'])
+) {
+
+    $current_password =
+        $_POST['current_password']
+        ?? '';
+
+    $new_password =
+        $_POST['new_password']
+        ?? '';
+
+    $confirm_password =
+        $_POST['confirm_password']
+        ?? '';
+
+
+    if (
+        empty($current_password)
+        ||
+        empty($new_password)
+        ||
+        empty($confirm_password)
+    ) {
+
+        $message =
+            "Please complete all password fields.";
+
+        $message_type =
+            "error";
+
+    } elseif (
+        strlen($new_password) < 8
+    ) {
+
+        $message =
+            "New password must contain at least 8 characters.";
+
+        $message_type =
+            "error";
+
+    } elseif (
+        $new_password
+        !==
+        $confirm_password
+    ) {
+
+        $message =
+            "The new passwords do not match.";
+
+        $message_type =
+            "error";
+
+    } else {
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | GET CURRENT HASH
+        |--------------------------------------------------------------------------
+        */
+
+        $passwordStmt = $pdo->prepare("
+
+            SELECT password
+
+            FROM teachers
+
+            WHERE teacher_id = ?
+
+            LIMIT 1
+
+        ");
+
+
+        $passwordStmt->execute([
+            $teacher_id
+        ]);
+
+
+        $currentHash =
+            $passwordStmt->fetchColumn();
+
+
+        if (
+            !$currentHash
+            ||
+            !password_verify(
+                $current_password,
+                $currentHash
+            )
+        ) {
+
+            $message =
+                "Your current password is incorrect.";
+
+            $message_type =
+                "error";
+
+        } else {
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | HASH NEW PASSWORD
+            |--------------------------------------------------------------------------
+            */
+
+            $newHash =
+                password_hash(
+                    $new_password,
+                    PASSWORD_DEFAULT
+                );
+
+
+            $passwordUpdate =
+                $pdo->prepare("
+
+                    UPDATE teachers
+
+                    SET password = ?
+
+                    WHERE teacher_id = ?
+
+                ");
+
+
+            $passwordUpdate->execute([
+
+                $newHash,
+
+                $teacher_id
+
+            ]);
+
+
+            $message =
+                "Your password has been changed successfully.";
+
+            $message_type =
+                "success";
+
+        }
+
+    }
+
+}
 
 ?>
 
@@ -308,19 +1154,18 @@ $teacher_status =
 >
 
 <title>
-
-My Profile |
-NISEL ONLINE EDUCATION
-
+    My Profile | NISEL ONLINE EDUCATION
 </title>
 
 
 <style>
 
+/* =====================================================
+   GENERAL
+===================================================== */
+
 * {
-
     box-sizing: border-box;
-
 }
 
 
@@ -328,12 +1173,14 @@ body {
 
     margin: 0;
 
-    font-family: Arial, sans-serif;
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
 
     background: #eef3f8;
 
     color: #333;
-
 }
 
 
@@ -359,6 +1206,7 @@ body {
 
     padding: 25px 15px;
 
+    overflow-y: auto;
 }
 
 
@@ -373,7 +1221,6 @@ body {
     line-height: 1.5;
 
     margin-bottom: 35px;
-
 }
 
 
@@ -391,20 +1238,19 @@ body {
 
     border-radius: 7px;
 
+    transition: .2s;
 }
 
 
 .menu a:hover {
 
     background: #0055a5;
-
 }
 
 
 .menu a.active {
 
     background: #0055a5;
-
 }
 
 
@@ -422,10 +1268,50 @@ body {
 
 
 /* =====================================================
+   TOPBAR
+===================================================== */
+
+.topbar {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 10px;
+
+    margin-bottom: 25px;
+
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    box-shadow:
+        0 4px 12px
+        rgba(0,0,0,.06);
+}
+
+
+.topbar h2 {
+
+    margin: 0;
+
+    color: #003366;
+}
+
+
+.teacher-name {
+
+    color: #666;
+}
+
+
+/* =====================================================
    HEADER
 ===================================================== */
 
-.header {
+.page-header {
 
     background: white;
 
@@ -433,48 +1319,47 @@ body {
 
     border-radius: 12px;
 
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 
     box-shadow:
-        0 4px 12px rgba(0,0,0,.06);
-
+        0 4px 12px
+        rgba(0,0,0,.06);
 }
 
 
-.header h1 {
+.page-header h2 {
 
     margin: 0 0 8px;
 
     color: #003366;
-
 }
 
 
-.header p {
+.page-header p {
 
     margin: 0;
 
-    color: #666;
-
+    color: #777;
 }
 
 
 /* =====================================================
-   MESSAGE
+   ALERTS
 ===================================================== */
 
-.message {
+.alert {
 
-    padding: 14px;
+    padding: 15px 18px;
 
-    border-radius: 7px;
+    border-radius: 8px;
 
     margin-bottom: 20px;
 
+    font-weight: 600;
 }
 
 
-.success {
+.alert.success {
 
     background: #d4edda;
 
@@ -483,7 +1368,7 @@ body {
 }
 
 
-.error {
+.alert.error {
 
     background: #f8d7da;
 
@@ -493,54 +1378,89 @@ body {
 
 
 /* =====================================================
-   PROFILE LAYOUT
+   PROFILE GRID
 ===================================================== */
 
-.profile-layout {
+.profile-grid {
 
     display: grid;
 
     grid-template-columns:
-        280px 1fr;
+        280px
+        minmax(0, 1fr);
 
     gap: 25px;
 
+    align-items: start;
 }
 
 
 /* =====================================================
-   PROFILE CARD
+   CARDS
 ===================================================== */
 
-.profile-card {
+.card {
 
     background: white;
 
-    padding: 30px;
-
     border-radius: 12px;
 
-    text-align: center;
+    padding: 25px;
 
     box-shadow:
-        0 4px 12px rgba(0,0,0,.06);
+        0 4px 12px
+        rgba(0,0,0,.06);
 
+    margin-bottom: 25px;
 }
 
 
-.avatar {
+.card h3 {
 
-    width: 100px;
+    color: #003366;
 
-    height: 100px;
+    margin-top: 0;
 
-    margin: 0 auto 20px;
+    margin-bottom: 20px;
+}
+
+
+/* =====================================================
+   PHOTO
+===================================================== */
+
+.photo-card {
+
+    text-align: center;
+}
+
+
+.profile-photo {
+
+    width: 180px;
+
+    height: 180px;
 
     border-radius: 50%;
 
-    background: #003366;
+    object-fit: cover;
 
-    color: white;
+    border:
+        5px solid #e4edf6;
+
+    margin-bottom: 15px;
+}
+
+
+.photo-placeholder {
+
+    width: 180px;
+
+    height: 180px;
+
+    border-radius: 50%;
+
+    background: #e8f0f8;
 
     display: flex;
 
@@ -548,45 +1468,51 @@ body {
 
     justify-content: center;
 
-    font-size: 38px;
-
-    font-weight: bold;
-
-}
-
-
-.profile-card h2 {
-
-    margin: 10px 0;
+    margin: 0 auto 15px;
 
     color: #003366;
 
+    font-size: 70px;
+
+    font-weight: bold;
 }
 
 
-.profile-card p {
-
-    color: #777;
-
-}
-
-
-.status {
-
-    display: inline-block;
-
-    padding: 7px 15px;
-
-    border-radius: 20px;
-
-    background: #d4edda;
-
-    color: #155724;
+.teacher-id {
 
     font-size: 13px;
 
+    color: #777;
+
+    margin-bottom: 20px;
+}
+
+
+.photo-upload {
+
+    text-align: left;
+
+    margin-top: 20px;
+}
+
+
+.photo-upload label {
+
+    display: block;
+
     font-weight: bold;
 
+    color: #003366;
+
+    margin-bottom: 8px;
+}
+
+
+.photo-upload input {
+
+    width: 100%;
+
+    font-size: 13px;
 }
 
 
@@ -594,119 +1520,211 @@ body {
    FORM
 ===================================================== */
 
-.form-card {
-
-    background: white;
-
-    padding: 30px;
-
-    border-radius: 12px;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.06);
-
-}
-
-
-.form-card h2 {
-
-    margin-top: 0;
-
-    color: #003366;
-
-}
-
-
 .form-grid {
 
     display: grid;
 
     grid-template-columns:
-        repeat(2, 1fr);
+        repeat(
+            2,
+            minmax(0,1fr)
+        );
 
     gap: 18px;
+}
 
+
+.form-group {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+}
+
+
+.form-group.full {
+
+    grid-column: 1 / -1;
 }
 
 
 .form-group label {
 
-    display: block;
-
-    margin-bottom: 7px;
-
     font-weight: bold;
 
+    color: #003366;
 }
 
 
-.form-group input {
+input,
+select,
+textarea {
 
     width: 100%;
 
     padding: 12px;
 
-    border: 1px solid #ccc;
+    border:
+        1px solid #ccd5df;
 
-    border-radius: 6px;
+    border-radius: 7px;
 
-    font-size: 14px;
+    font-family: inherit;
 
-}
-
-
-.form-group input:focus {
+    font-size: 15px;
 
     outline: none;
-
-    border-color: #003366;
-
 }
 
 
-.full {
+input:focus,
+select:focus,
+textarea:focus {
 
-    grid-column: 1 / -1;
+    border-color: #0055a5;
 
+    box-shadow:
+        0 0 0 3px
+        rgba(0,85,165,.1);
 }
 
 
-.update-button {
+textarea {
 
-    margin-top: 20px;
+    min-height: 130px;
 
-    padding: 12px 25px;
+    resize: vertical;
+}
 
-    background: #003366;
 
-    color: white;
+/* =====================================================
+   ZOOM
+===================================================== */
+
+.zoom-box {
+
+    background: #f2f7fc;
+
+    border:
+        1px solid #d9e5f0;
+
+    border-radius: 8px;
+
+    padding: 15px;
+
+    margin-top: 5px;
+}
+
+
+.zoom-box strong {
+
+    color: #003366;
+}
+
+
+.zoom-help {
+
+    font-size: 13px;
+
+    color: #777;
+
+    margin-top: 6px;
+
+    line-height: 1.5;
+}
+
+
+/* =====================================================
+   BUTTON
+===================================================== */
+
+.button-row {
+
+    display: flex;
+
+    gap: 12px;
+
+    margin-top: 10px;
+
+    flex-wrap: wrap;
+}
+
+
+.btn {
+
+    display: inline-block;
 
     border: none;
 
-    border-radius: 6px;
+    padding: 13px 22px;
+
+    border-radius: 7px;
 
     cursor: pointer;
 
     font-weight: bold;
 
+    text-decoration: none;
+
+    font-size: 15px;
 }
 
 
-.update-button:hover {
+.btn-primary {
+
+    background: #003366;
+
+    color: white;
+}
+
+
+.btn-primary:hover {
 
     background: #0055a5;
+}
 
+
+.btn-secondary {
+
+    background: #e8edf3;
+
+    color: #003366;
+}
+
+
+.btn-danger {
+
+    background: #8b0000;
+
+    color: white;
 }
 
 
 /* =====================================================
-   READ ONLY
+   PASSWORD
 ===================================================== */
 
-.readonly {
+.password-card {
 
-    background: #f1f3f5;
+    max-width: 900px;
+}
 
+
+.password-note {
+
+    background: #fff8e1;
+
+    color: #6b5600;
+
+    padding: 12px;
+
+    border-radius: 7px;
+
+    margin-bottom: 20px;
+
+    font-size: 13px;
 }
 
 
@@ -714,9 +1732,9 @@ body {
    RESPONSIVE
 ===================================================== */
 
-@media(max-width:850px) {
+@media(max-width: 900px) {
 
-    .profile-layout {
+    .profile-grid {
 
         grid-template-columns: 1fr;
 
@@ -725,7 +1743,7 @@ body {
 }
 
 
-@media(max-width:800px) {
+@media(max-width: 700px) {
 
     .sidebar {
 
@@ -747,6 +1765,17 @@ body {
     }
 
 
+    .topbar {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 10px;
+
+    }
+
+
     .form-grid {
 
         grid-template-columns: 1fr;
@@ -754,7 +1783,7 @@ body {
     }
 
 
-    .full {
+    .form-group.full {
 
         grid-column: auto;
 
@@ -829,9 +1858,7 @@ body {
 
     </div>
 
-
 </div>
-
 
 
 <!-- =====================================================
@@ -841,20 +1868,49 @@ body {
 <div class="main">
 
 
-    <div class="header">
+    <div class="topbar">
 
 
-        <h1>
+        <h2>
 
             👤 My Profile
 
-        </h1>
+        </h2>
+
+
+        <div class="teacher-name">
+
+            Welcome,
+
+            <strong>
+
+                <?= h(
+                    $teacher_name
+                ) ?>
+
+            </strong>
+
+        </div>
+
+
+    </div>
+
+
+    <div class="page-header">
+
+
+        <h2>
+
+            Manage Your Profile
+
+        </h2>
 
 
         <p>
 
-            Manage your NISEL ONLINE EDUCATION
-            teacher information.
+            Update your NISEL ONLINE EDUCATION
+            teacher information, profile photo,
+            teaching information and Zoom classroom link.
 
         </p>
 
@@ -862,29 +1918,19 @@ body {
     </div>
 
 
-
     <?php if (
-        $message !== ''
+        !empty($message)
     ): ?>
 
 
-        <div class="message
-            <?php
-
-            echo htmlspecialchars(
+        <div
+            class="alert
+            <?= h(
                 $message_type
-            );
+            ) ?>"
+        >
 
-            ?>
-        ">
-
-            <?php
-
-            echo htmlspecialchars(
-                $message
-            );
-
-            ?>
+            <?= h($message) ?>
 
         </div>
 
@@ -892,279 +1938,685 @@ body {
     <?php endif; ?>
 
 
+    <!-- =================================================
+         PROFILE
+    ================================================== -->
 
-    <div class="profile-layout">
-
-
-        <!-- =============================================
-             PROFILE SUMMARY
-        ============================================== -->
-
-        <div class="profile-card">
-
-
-            <div class="avatar">
+    <form
+        method="POST"
+        enctype="multipart/form-data"
+    >
 
 
-                <?php
+        <div class="profile-grid">
 
-                echo strtoupper(
-                    substr(
-                        $display_name,
-                        0,
-                        1
-                    )
-                );
 
-                ?>
+            <!-- =================================================
+                 PHOTO
+            ================================================== -->
+
+            <div class="card photo-card">
+
+
+                <h3>
+
+                    Profile Photo
+
+                </h3>
+
+
+                <?php if (
+                    !empty($photo_url)
+                ): ?>
+
+
+                    <img
+
+                        src="<?= h(
+                            $photo_url
+                        ) ?>?v=<?= time() ?>"
+
+                        class="profile-photo"
+
+                        alt="Teacher Profile Photo"
+
+                    >
+
+
+                <?php else: ?>
+
+
+                    <div
+                        class="photo-placeholder"
+                    >
+
+                        👤
+
+                    </div>
+
+
+                <?php endif; ?>
+
+
+                <div class="teacher-id">
+
+                    Teacher ID:
+
+                    <strong>
+
+                        <?= h(
+                            $teacher_id
+                        ) ?>
+
+                    </strong>
+
+                </div>
+
+
+                <div class="photo-upload">
+
+
+                    <label>
+
+                        Change Profile Photo
+
+                    </label>
+
+
+                    <input
+
+                        type="file"
+
+                        name="photo"
+
+                        accept="
+                            image/jpeg,
+                            image/png,
+                            image/webp
+                        "
+
+                    >
+
+
+                    <small>
+
+                        JPG, PNG or WEBP.
+                        Maximum 5MB.
+
+                    </small>
+
+
+                </div>
 
 
             </div>
 
 
-            <h2>
+            <!-- =================================================
+                 INFORMATION
+            ================================================== -->
 
-                <?php
-
-                echo htmlspecialchars(
-                    $display_name
-                );
-
-                ?>
-
-            </h2>
+            <div>
 
 
-            <p>
-
-                Teacher
-
-            </p>
+                <div class="card">
 
 
-            <p>
+                    <h3>
 
-                <?php
+                        👤 Personal Information
 
-                echo htmlspecialchars(
-                    $display_email
-                );
-
-                ?>
-
-            </p>
+                    </h3>
 
 
-            <span class="status">
-
-                <?php
-
-                echo htmlspecialchars(
-                    $teacher_status
-                );
-
-                ?>
-
-            </span>
+                    <div class="form-grid">
 
 
-        </div>
-
-
-
-        <!-- =============================================
-             EDIT PROFILE
-        ============================================== -->
-
-        <div class="form-card">
-
-
-            <h2>
-
-                Personal Information
-
-            </h2>
-
-
-            <form method="POST">
-
-
-                <div class="form-grid">
-
-
-                    <!-- NAME -->
-
-                    <div class="form-group">
-
-
-                        <label>
-
-                            Teacher Name
-
-                        </label>
-
-
-                        <input
-                            type="text"
-                            name="teacher_name"
-                            value="<?php
-
-                                echo htmlspecialchars(
-                                    $display_name
-                                );
-
-                            ?>"
-                            required
+                        <div
+                            class="form-group"
                         >
+
+                            <label>
+
+                                Full Name
+
+                            </label>
+
+
+                            <input
+
+                                type="text"
+
+                                name="teacher_name"
+
+                                value="<?= h(
+                                    $teacher_name
+                                ) ?>"
+
+                                required
+
+                            >
+
+                        </div>
+
+
+                        <div
+                            class="form-group"
+                        >
+
+                            <label>
+
+                                Phone Number
+
+                            </label>
+
+
+                            <input
+
+                                type="text"
+
+                                name="phone"
+
+                                value="<?= h(
+                                    $phone
+                                ) ?>"
+
+                                required
+
+                            >
+
+                        </div>
+
+
+                        <div
+                            class="form-group"
+                        >
+
+                            <label>
+
+                                Email Address
+
+                            </label>
+
+
+                            <input
+
+                                type="email"
+
+                                name="email"
+
+                                value="<?= h(
+                                    $email
+                                ) ?>"
+
+                                required
+
+                            >
+
+                        </div>
+
+
+                        <div
+                            class="form-group"
+                        >
+
+                            <label>
+
+                                Qualification
+
+                            </label>
+
+
+                            <input
+
+                                type="text"
+
+                                name="qualification"
+
+                                value="<?= h(
+                                    $qualification
+                                ) ?>"
+
+                                placeholder="e.g. BSc, MSc, MEd"
+
+                                required
+
+                            >
+
+                        </div>
 
 
                     </div>
 
 
-
-                    <!-- EMAIL -->
-
-                    <div class="form-group">
+                </div>
 
 
-                        <label>
+                <!-- =================================================
+                     PROFESSIONAL
+                ================================================== -->
 
-                            Email Address
-
-                        </label>
+                <div class="card">
 
 
-                        <input
-                            type="email"
-                            name="email"
-                            value="<?php
+                    <h3>
 
-                                echo htmlspecialchars(
-                                    $display_email
-                                );
+                        🎓 Professional Information
 
-                            ?>"
-                            required
+                    </h3>
+
+
+                    <div class="form-grid">
+
+
+                        <div
+                            class="form-group"
                         >
+
+                            <label>
+
+                                Subjects
+
+                            </label>
+
+
+                            <input
+
+                                type="text"
+
+                                name="subjects"
+
+                                value="<?= h(
+                                    $subjects
+                                ) ?>"
+
+                                placeholder="
+                                    Mathematics, Physics
+                                "
+
+                                required
+
+                            >
+
+                        </div>
+
+
+                        <div
+                            class="form-group"
+                        >
+
+                            <label>
+
+                                Curriculum
+
+                            </label>
+
+
+                            <select
+                                name="curriculum"
+                                required
+                            >
+
+
+                                <option value="">
+
+                                    Select Curriculum
+
+                                </option>
+
+
+                                <?php
+
+                                $curriculumOptions = [
+
+                                    "Cambridge IGCSE",
+
+                                    "Cambridge Checkpoint",
+
+                                    "Cambridge AS/A Level",
+
+                                    "GES",
+
+                                    "IB",
+
+                                    "Other"
+
+                                ];
+
+                                ?>
+
+
+                                <?php foreach (
+                                    $curriculumOptions
+                                    as $option
+                                ): ?>
+
+
+                                    <option
+
+                                        value="<?= h(
+                                            $option
+                                        ) ?>"
+
+                                        <?= (
+                                            $curriculum
+                                            ===
+                                            $option
+                                        )
+                                            ? 'selected'
+                                            : ''
+                                        ?>
+
+                                    >
+
+                                        <?= h(
+                                            $option
+                                        ) ?>
+
+                                    </option>
+
+
+                                <?php endforeach; ?>
+
+
+                            </select>
+
+
+                        </div>
+
+
+                        <div
+                            class="form-group"
+                        >
+
+                            <label>
+
+                                Teaching Experience
+
+                            </label>
+
+
+                            <select
+                                name="experience"
+                                required
+                            >
+
+
+                                <option value="">
+
+                                    Select Experience
+
+                                </option>
+
+
+                                <?php
+
+                                $experienceOptions = [
+
+                                    "Less than 1 year",
+
+                                    "1 - 2 years",
+
+                                    "3 - 5 years",
+
+                                    "6 - 10 years",
+
+                                    "More than 10 years"
+
+                                ];
+
+                                ?>
+
+
+                                <?php foreach (
+                                    $experienceOptions
+                                    as $option
+                                ): ?>
+
+
+                                    <option
+
+                                        value="<?= h(
+                                            $option
+                                        ) ?>"
+
+                                        <?= (
+                                            $experience
+                                            ===
+                                            $option
+                                        )
+                                            ? 'selected'
+                                            : ''
+                                        ?>
+
+                                    >
+
+                                        <?= h(
+                                            $option
+                                        ) ?>
+
+                                    </option>
+
+
+                                <?php endforeach; ?>
+
+
+                            </select>
+
+
+                        </div>
+
+
+                        <div
+                            class="form-group"
+                        >
+
+                            <label>
+
+                                Availability
+
+                            </label>
+
+
+                            <select
+                                name="availability"
+                                required
+                            >
+
+
+                                <option value="">
+
+                                    Select Availability
+
+                                </option>
+
+
+                                <?php
+
+                                $availabilityOptions = [
+
+                                    "Weekdays",
+
+                                    "Weekends",
+
+                                    "Weekdays and Weekends",
+
+                                    "Flexible"
+
+                                ];
+
+                                ?>
+
+
+                                <?php foreach (
+                                    $availabilityOptions
+                                    as $option
+                                ): ?>
+
+
+                                    <option
+
+                                        value="<?= h(
+                                            $option
+                                        ) ?>"
+
+                                        <?= (
+                                            $availability
+                                            ===
+                                            $option
+                                        )
+                                            ? 'selected'
+                                            : ''
+                                        ?>
+
+                                    >
+
+                                        <?= h(
+                                            $option
+                                        ) ?>
+
+                                    </option>
+
+
+                                <?php endforeach; ?>
+
+
+                            </select>
+
+
+                        </div>
+
+
+                        <div
+                            class="form-group full"
+                        >
+
+                            <label>
+
+                                Professional Biography
+
+                            </label>
+
+
+                            <textarea
+
+                                name="bio"
+
+                                placeholder="
+                                    Tell students about your
+                                    teaching experience,
+                                    expertise and approach...
+                                "
+
+                            ><?= h(
+                                $bio
+                            ) ?></textarea>
+
+
+                        </div>
 
 
                     </div>
 
 
-
-                    <!-- PHONE -->
-
-                    <div class="form-group">
+                </div>
 
 
-                        <label>
+                <!-- =================================================
+                     ZOOM
+                ================================================== -->
 
-                            Phone Number
-
-                        </label>
+                <div class="card">
 
 
-                        <input
-                            type="text"
-                            name="phone"
-                            value="<?php
+                    <h3>
 
-                                echo htmlspecialchars(
-                                    $display_phone
-                                );
+                        🎥 Zoom Classroom
 
-                            ?>"
+                    </h3>
+
+
+                    <?php if (
+                        !$zoom_column_exists
+                    ): ?>
+
+
+                        <div
+                            class="alert error"
                         >
 
+                            The
+                            <strong>
+                                zoom_link
+                            </strong>
+                            column does not yet exist
+                            in your teachers table.
 
-                    </div>
+                            <br><br>
 
+                            Run this SQL in phpMyAdmin:
 
-<div class="form-group full">
+                            <br><br>
 
-    <label>
-        Zoom Meeting Link
-    </label>
+                            <code>
 
-    <input
-        type="url"
-        name="zoom_link"
-        value="<?php
+                                ALTER TABLE teachers
+                                ADD COLUMN zoom_link
+                                VARCHAR(500) NULL;
 
-            echo htmlspecialchars(
-                $teacher['zoom_link'] ?? ''
-            );
+                            </code>
 
-        ?>"
-        placeholder="https://zoom.us/j/123456789"
-    >
-
-    <small>
-
-        This is the link students will use to
-        join your online lessons.
-
-    </small>
-
-</div>
+                        </div>
 
 
-
-                   
-
-                    <!-- QUALIFICATION -->
-
-                    <div class="form-group">
+                    <?php endif; ?>
 
 
-                        <label>
-
-                            Qualification
-
-                        </label>
+                    <div
+                        class="zoom-box"
+                    >
 
 
-                        <input
-                            type="text"
-                            name="qualification"
-                            value="<?php
+                        <strong>
 
-                                echo htmlspecialchars(
-                                    $display_qualification
-                                );
+                            Student Meeting Link
 
-                            ?>"
-                            placeholder="e.g. BSc Education"
+                        </strong>
+
+
+                        <p
+                            class="zoom-help"
                         >
 
+                            Enter the Zoom meeting link
+                            that students should use when
+                            joining your scheduled lessons.
 
-                    </div>
+                            The link will be available to
+                            students from their schedule.
 
-
-
-                    <!-- SPECIALIZATION -->
-
-                    <div class="form-group full">
-
-
-                        <label>
-
-                            Subject Specialization
-
-                        </label>
+                        </p>
 
 
                         <input
-                            type="text"
-                            name="specialization"
-                            value="<?php
 
-                                echo htmlspecialchars(
-                                    $display_specialization
-                                );
+                            type="url"
 
-                            ?>"
-                            placeholder="e.g. Mathematics, Physics"
+                            name="zoom_link"
+
+                            value="<?= h(
+                                $zoom_link
+                            ) ?>"
+
+                            placeholder="
+                                https://zoom.us/j/123456789
+                            "
+
+                            <?= !$zoom_column_exists
+                                ? 'disabled'
+                                : ''
+                            ?>
+
                         >
 
 
@@ -1174,21 +2626,192 @@ body {
                 </div>
 
 
-                <button
-                    type="submit"
-                    name="update_profile"
-                    class="update-button"
+                <!-- =================================================
+                     SAVE
+                ================================================== -->
+
+                <div class="card">
+
+
+                    <div class="button-row">
+
+
+                        <button
+
+                            type="submit"
+
+                            name="update_profile"
+
+                            class="btn btn-primary"
+
+                        >
+
+                            💾 Save Profile Changes
+
+                        </button>
+
+
+                        <a
+
+                            href="dashboard.php"
+
+                            class="btn btn-secondary"
+
+                        >
+
+                            Cancel
+
+                        </a>
+
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+
+    </form>
+
+
+    <!-- =================================================
+         PASSWORD
+    ================================================== -->
+
+    <div class="card password-card">
+
+
+        <h3>
+
+            🔐 Change Password
+
+        </h3>
+
+
+        <div
+            class="password-note"
+        >
+
+            For security, enter your current password
+            before choosing a new password.
+
+        </div>
+
+
+        <form
+            method="POST"
+        >
+
+
+            <div class="form-grid">
+
+
+                <div
+                    class="form-group"
                 >
 
-                    💾 Save Changes
+                    <label>
+
+                        Current Password
+
+                    </label>
+
+
+                    <input
+
+                        type="password"
+
+                        name="current_password"
+
+                        required
+
+                    >
+
+                </div>
+
+
+                <div
+                    class="form-group"
+                >
+
+                    <label>
+
+                        New Password
+
+                    </label>
+
+
+                    <input
+
+                        type="password"
+
+                        name="new_password"
+
+                        minlength="8"
+
+                        required
+
+                    >
+
+                </div>
+
+
+                <div
+                    class="form-group"
+                >
+
+                    <label>
+
+                        Confirm New Password
+
+                    </label>
+
+
+                    <input
+
+                        type="password"
+
+                        name="confirm_password"
+
+                        minlength="8"
+
+                        required
+
+                    >
+
+                </div>
+
+
+            </div>
+
+
+            <div class="button-row">
+
+
+                <button
+
+                    type="submit"
+
+                    name="change_password"
+
+                    class="btn btn-primary"
+
+                >
+
+                    🔐 Change Password
 
                 </button>
 
 
-            </form>
+            </div>
 
 
-        </div>
+        </form>
 
 
     </div>
