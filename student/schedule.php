@@ -306,102 +306,53 @@ $totalLessons =
 |--------------------------------------------------------------------------
 */
 
-$todayStmt =
-    $pdo->prepare("
+$todayStmt = $pdo->prepare("
 
-        SELECT
+    SELECT
 
-            b.id,
+        b.id,
+        b.booking_reference,
+        b.student_name,
+        b.curriculum,
+        b.class_year,
+        b.subjects,
+        b.lesson_date,
+        b.lesson_time,
+        b.lesson_status,
+        b.payment_status,
 
-            b.booking_reference,
+        b.teacher_name,
 
-            b.student_name,
+        t.teacher_id AS assigned_teacher_id,
+        t.teacher_name AS assigned_teacher_name,
+        t.zoom_link AS teacher_zoom_link
 
-            b.email,
+    FROM bookings b
 
-            b.phone,
+    LEFT JOIN teachers t
+        ON b.teacher_id = t.teacher_id
 
-            b.curriculum,
+    WHERE
+        LOWER(TRIM(b.email))
+        =
+        LOWER(TRIM(?))
 
-            b.class_year,
+        AND DATE(b.lesson_date) = CURDATE()
 
-            b.subjects,
+    ORDER BY
+        b.lesson_time ASC
 
-            b.lesson_date,
-
-            b.lesson_time,
-
-            b.lesson_status,
-
-            b.payment_status,
-
-            b.teacher_id,
-
-            b.teacher_name,
-
-            b.assignment_status,
-
-            t.teacher_id
-                AS assigned_teacher_id,
-
-            t.teacher_name
-                AS assigned_teacher_name,
-
-            t.email
-                AS teacher_email,
-
-            t.phone
-                AS teacher_phone,
-
-            t.zoom_link
-                AS teacher_zoom_link
-
-
-        FROM bookings b
-
-
-        LEFT JOIN teachers t
-
-            ON b.teacher_id = t.teacher_id
-
-
-        WHERE
-
-            LOWER(
-                TRIM(b.email)
-            )
-            =
-            LOWER(
-                TRIM(?)
-            )
-
-            AND b.lesson_date = CURDATE()
-
-
-        ORDER BY
-
-            b.lesson_time ASC
-
-    ");
-
+");
 
 $todayStmt->execute([
-
     $student_email
-
 ]);
 
+$todayLessons = $todayStmt->fetchAll(
+    PDO::FETCH_ASSOC
+);
 
-$todayLessons =
-    $todayStmt->fetchAll(
-        PDO::FETCH_ASSOC
-    );
-
-
-$totalToday =
-    count(
-        $todayLessons
-    );
+$totalToday = count($todayLessons);
 
 
 /*
@@ -410,101 +361,54 @@ $totalToday =
 |--------------------------------------------------------------------------
 */
 
-$upcomingStmt =
-    $pdo->prepare("
+$upcomingStmt = $pdo->prepare("
 
-        SELECT
+    SELECT
 
-            b.id,
+        b.id,
+        b.booking_reference,
+        b.student_name,
+        b.curriculum,
+        b.class_year,
+        b.subjects,
+        b.lesson_date,
+        b.lesson_time,
+        b.lesson_status,
+        b.payment_status,
 
-            b.booking_reference,
+        b.teacher_name,
 
-            b.student_name,
+        t.teacher_id AS assigned_teacher_id,
+        t.teacher_name AS assigned_teacher_name,
+        t.zoom_link AS teacher_zoom_link
 
-            b.email,
+    FROM bookings b
 
-            b.phone,
+    LEFT JOIN teachers t
+        ON b.teacher_id = t.teacher_id
 
-            b.curriculum,
+    WHERE
+        LOWER(TRIM(b.email))
+        =
+        LOWER(TRIM(?))
 
-            b.class_year,
+        AND DATE(b.lesson_date) > CURDATE()
 
-            b.subjects,
+    ORDER BY
+        b.lesson_date ASC,
+        b.lesson_time ASC
 
-            b.lesson_date,
+    LIMIT 8
 
-            b.lesson_time,
-
-            b.lesson_status,
-
-            b.payment_status,
-
-            b.teacher_id,
-
-            b.teacher_name,
-
-            b.assignment_status,
-
-            t.teacher_id
-                AS assigned_teacher_id,
-
-            t.teacher_name
-                AS assigned_teacher_name,
-
-            t.email
-                AS teacher_email,
-
-            t.phone
-                AS teacher_phone,
-
-            t.zoom_link
-                AS teacher_zoom_link
-
-
-        FROM bookings b
-
-
-        LEFT JOIN teachers t
-
-            ON b.teacher_id = t.teacher_id
-
-
-        WHERE
-
-            LOWER(
-                TRIM(b.email)
-            )
-            =
-            LOWER(
-                TRIM(?)
-            )
-
-            AND b.lesson_date > CURDATE()
-
-
-        ORDER BY
-
-            b.lesson_date ASC,
-
-            b.lesson_time ASC
-
-
-        LIMIT 8
-
-    ");
-
+");
 
 $upcomingStmt->execute([
-
     $student_email
-
 ]);
 
-
-$upcomingLessons =
-    $upcomingStmt->fetchAll(
-        PDO::FETCH_ASSOC
-    );
+$upcomingLessons = $upcomingStmt->fetchAll(
+    PDO::FETCH_ASSOC
+);
 
 
 /*
@@ -1088,30 +992,163 @@ body {
    TODAY'S LESSONS
 ===================================================== */
 
-.today {
-
+.section-card {
     background: white;
-
-    padding: 25px;
-
     border-radius: 12px;
-
+    padding: 25px;
     margin-bottom: 25px;
-
-    box-shadow:
-        0 4px 12px rgba(0,0,0,.06);
-
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
 
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
 
-.today h3 {
-
+.section-header h2 {
+    margin: 0 0 5px;
     color: #003366;
-
-    margin-top: 0;
-
 }
 
+.section-header p {
+    margin: 0;
+    color: #777;
+}
+
+.lesson-count {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: #003366;
+    color: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-weight: bold;
+    font-size: 18px;
+}
+
+.today-lessons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.today-lesson-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 20px;
+
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    gap: 20px;
+
+    align-items: center;
+}
+
+.lesson-time {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.time-icon {
+    width: 45px;
+    height: 45px;
+
+    background: #eef5ff;
+
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 20px;
+}
+
+.lesson-time strong {
+    display: block;
+    color: #003366;
+    font-size: 17px;
+}
+
+.lesson-time small {
+    color: #777;
+}
+
+.lesson-information h3 {
+    margin: 0 0 10px;
+    color: #003366;
+}
+
+.lesson-information p {
+    margin: 5px 0;
+    color: #555;
+}
+
+.lesson-status {
+    margin-top: 10px;
+}
+
+.lesson-action {
+    text-align: right;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 45px 20px;
+    color: #777;
+}
+
+.empty-icon {
+    font-size: 45px;
+    margin-bottom: 10px;
+}
+
+.empty-state h3 {
+    color: #003366;
+    margin-bottom: 5px;
+}
+
+.zoom-button {
+    display: inline-block;
+
+    padding: 11px 18px;
+
+    background: #003366;
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 7px;
+
+    font-weight: bold;
+
+    transition: 0.2s;
+}
+
+.zoom-button:hover {
+    background: #0055a5;
+}
+
+.no-zoom {
+    display: inline-block;
+
+    padding: 10px 15px;
+
+    background: #f1f1f1;
+
+    color: #777;
+
+    border-radius: 7px;
+
+    font-size: 13px;
+}
 
 /* =====================================================
    TABLE
@@ -1610,253 +1647,178 @@ tr:hover {
     </div>
 
 
-    <!-- =================================================
-         TODAY'S LESSONS
-    ================================================== -->
+   <!-- =====================================================
+     TODAY'S LESSONS
+===================================================== -->
 
-    <div class="today">
+<div class="section-card">
 
+    <div class="section-header">
 
-        <h3>
+        <div>
+            <h2>📅 Today's Lessons</h2>
 
-            📌 Today's Lessons
+            <p>
+                Your lessons scheduled for today
+            </p>
+        </div>
 
-        </h3>
+        <div class="lesson-count">
 
+            <?= (int)$totalToday ?>
 
-        <?php if ($totalToday > 0): ?>
+        </div>
 
+    </div>
 
-            <div style="overflow-x:auto;">
 
+    <?php if (empty($todayLessons)): ?>
 
-                <table>
+        <div class="empty-state">
 
-
-                    <tr>
-
-
-                        <th>
-                            Time
-                        </th>
-
-
-                        <th>
-                            Subject(s)
-                        </th>
-
-
-                        <th>
-                            Curriculum
-                        </th>
-
-
-                        <th>
-                            Teacher
-                        </th>
-
-
-                        <th>
-                            Status
-                        </th>
-
-
-                        <th>
-                            Zoom
-                        </th>
-
-
-                    </tr>
-
-
-                    <?php foreach (
-                        $todayLessons
-                        as $today
-                    ): ?>
-
-
-                        <tr>
-
-
-                            <td>
-
-                                <strong>
-
-                                    <?= h(
-
-                                        formatTimeValue(
-
-                                            $today[
-                                                'lesson_time'
-                                            ]
-
-                                        )
-
-                                    ) ?>
-
-                                </strong>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= h(
-
-                                    $today[
-                                        'subjects'
-                                    ]
-
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= h(
-
-                                    $today[
-                                        'curriculum'
-                                    ]
-
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-
-                                <div
-                                    class="teacher-info"
-                                >
-
-
-                                    <div
-                                        class="teacher-name"
-                                    >
-
-                                        <?= h(
-
-                                            $today[
-                                                'assigned_teacher_name'
-                                            ]
-                                            ??
-                                            'Not assigned'
-
-                                        ) ?>
-
-                                    </div>
-
-
-                                    <?php if (
-
-                                        !empty(
-
-                                            $today[
-                                                'teacher_phone'
-                                            ]
-
-                                        )
-
-                                    ): ?>
-
-
-                                        <div
-                                            class="teacher-contact"
-                                        >
-
-                                            📞
-
-                                            <?= h(
-
-                                                $today[
-                                                    'teacher_phone'
-                                                ]
-
-                                            ) ?>
-
-                                        </div>
-
-
-                                    <?php endif; ?>
-
-
-                                </div>
-
-
-                            </td>
-
-
-                            <td>
-
-                                <?= lessonStatusBadge(
-
-                                    $today[
-                                        'lesson_status'
-                                    ]
-
-                                ) ?>
-
-                            </td>
-
-
-                            <td>
-
-                                <?= zoomButton(
-
-                                    $today[
-                                        'teacher_zoom_link'
-                                    ]
-                                    ??
-                                    ''
-
-                                ) ?>
-
-                            </td>
-
-
-                        </tr>
-
-
-                    <?php endforeach; ?>
-
-
-                </table>
-
-
+            <div class="empty-icon">
+                📚
             </div>
 
+            <h3>
+                No Lesson Today
+            </h3>
 
-        <?php else: ?>
+            <p>
+                You do not have any lesson scheduled
+                for today.
+            </p>
+
+        </div>
+
+    <?php else: ?>
 
 
-            <div class="no-data">
+        <div class="today-lessons">
 
 
-                <div class="no-data-icon">
+            <?php foreach ($todayLessons as $lesson): ?>
 
-                    📅
+
+                <div class="today-lesson-card">
+
+
+                    <div class="lesson-time">
+
+                        <div class="time-icon">
+                            🕐
+                        </div>
+
+                        <div>
+
+                            <strong>
+
+                                <?= h(
+                                    formatTimeValue(
+                                        $lesson['lesson_time']
+                                    )
+                                ) ?>
+
+                            </strong>
+
+                            <small>
+                                Today
+                            </small>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="lesson-information">
+
+
+                        <h3>
+
+                            <?= h(
+                                $lesson['subjects']
+                            ) ?>
+
+                        </h3>
+
+
+                        <p>
+
+                            <strong>
+                                Curriculum:
+                            </strong>
+
+                            <?= h(
+                                $lesson['curriculum']
+                            ) ?>
+
+                        </p>
+
+
+                        <p>
+
+                            <strong>
+                                Class:
+                            </strong>
+
+                            <?= h(
+                                $lesson['class_year']
+                            ) ?>
+
+                        </p>
+
+
+                        <p>
+
+                            <strong>
+                                Teacher:
+                            </strong>
+
+                            <?= h(
+                                $lesson['assigned_teacher_name']
+                                ??
+                                $lesson['teacher_name']
+                                ??
+                                'Not assigned'
+                            ) ?>
+
+                        </p>
+
+
+                        <div class="lesson-status">
+
+                            <?= lessonStatusBadge(
+                                $lesson['lesson_status']
+                            ) ?>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <div class="lesson-action">
+
+                        <?= zoomButton(
+                            $lesson['teacher_zoom_link']
+                            ?? ''
+                        ) ?>
+
+                    </div>
+
 
                 </div>
 
 
-                <p>
-
-                    You have no lessons
-                    scheduled for today.
-
-                </p>
+            <?php endforeach; ?>
 
 
-            </div>
+        </div>
 
 
-        <?php endif; ?>
+    <?php endif; ?>
 
-
-    </div>
+</div>
 
 
     <!-- =================================================
