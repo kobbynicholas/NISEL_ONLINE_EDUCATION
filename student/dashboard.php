@@ -718,6 +718,60 @@ student portal.
 
 </p>
 
+
+
+<!-- =====================================================
+     BOOK A SUBJECT
+===================================================== -->
+
+<div class="booking-card">
+
+    <div class="booking-icon">
+        📚
+    </div>
+
+    <div class="booking-content">
+
+        <h2>
+            Book a Subject
+        </h2>
+
+        <p>
+            Choose a subject and create your
+            monthly lesson package.
+        </p>
+
+        <div class="booking-info">
+
+            <span>
+                📅 2 lessons per week
+            </span>
+
+            <span>
+                📚 8 lessons per month
+            </span>
+
+            <span>
+                💰 GHS 1,000
+            </span>
+
+        </div>
+
+        <a
+            href="book_lesson.php"
+            class="booking-button"
+        >
+
+            ➕ Book a Subject
+
+        </a>
+
+    </div>
+
+</div>
+
+
+ 
 </div>
 
 
