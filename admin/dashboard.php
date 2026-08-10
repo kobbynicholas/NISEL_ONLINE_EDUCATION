@@ -605,6 +605,10 @@ NISEL ONLINE EDUCATION
 📊 Reports
 </a>
 
+<a href="schedules.php">
+    📅 Schedules
+</a>
+   
 
 <a href="settings.php">
 ⚙ Settings
