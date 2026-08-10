@@ -2973,19 +2973,6 @@ img {
 </div>
 
 
-<div class="teachers-button-wrapper">
-
-    <a
-        href="student/register.php"
-        class="btn btn-primary"
-    >
-
-        👨‍🏫 View All Teachers
-
-    </a>
-
-</div>
-
 
 </div>
 
@@ -3260,15 +3247,15 @@ img {
     <ul>
 
         <li>
-            📞 0599363266
+            📞 +233599363266 | +233540587025
         </li>
 
         <li>
-            📧 info@niselonline.com
+            📧 info@niseleducation.online
         </li>
 
         <li>
-            🇬🇭 Ghana
+            GH Ghana
         </li>
 
     </ul>
