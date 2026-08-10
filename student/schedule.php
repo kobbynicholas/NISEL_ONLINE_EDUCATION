@@ -10,20 +10,18 @@ require "../config/db.php";
 | NISEL ONLINE EDUCATION
 | STUDENT SCHEDULE
 |--------------------------------------------------------------------------
-| PDO VERSION
-|--------------------------------------------------------------------------
 */
 
 
 /*
 |--------------------------------------------------------------------------
-| CHECK STUDENT LOGIN
+| CHECK LOGIN
 |--------------------------------------------------------------------------
 */
 
 if (
-    !isset($_SESSION['student_id']) ||
-    empty($_SESSION['student_id'])
+    !isset($_SESSION['student_id']) &&
+    !isset($_SESSION['student_email'])
 ) {
 
     header("Location: login.php");
@@ -32,112 +30,254 @@ if (
 }
 
 
+/*
+|--------------------------------------------------------------------------
+| GET STUDENT INFORMATION
+|--------------------------------------------------------------------------
+*/
+
 $student_id =
-    $_SESSION['student_id'];
+    $_SESSION['student_id']
+    ?? null;
+
+
+$student_email =
+    $_SESSION['student_email']
+    ??
+    $_SESSION['email']
+    ??
+    '';
+
 
 $student_name =
     $_SESSION['student_name']
-    ?? 'Student';
+    ??
+    $_SESSION['name']
+    ??
+    'Student';
 
 
 /*
 |--------------------------------------------------------------------------
-| MESSAGE VARIABLES
+| IMPORTANT
 |--------------------------------------------------------------------------
+|
+| If the student's email is not stored in the session,
+| retrieve it from the students table using student_id.
+|
 */
 
-$message = "";
+if (
+    empty($student_email)
+    &&
+    !empty($student_id)
+) {
 
-$message_type = "";
+    $studentLookup =
+        $pdo->prepare("
+
+            SELECT email, student_name
+
+            FROM students
+
+            WHERE id = ?
+
+            LIMIT 1
+
+        ");
+
+
+    $studentLookup->execute([
+
+        $student_id
+
+    ]);
+
+
+    $studentRecord =
+        $studentLookup->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+
+    if ($studentRecord) {
+
+        $student_email =
+            $studentRecord['email']
+            ??
+            '';
+
+
+        $student_name =
+            $studentRecord['student_name']
+            ??
+            $student_name;
+
+    }
+
+}
 
 
 /*
 |--------------------------------------------------------------------------
-| GET STUDENT BOOKINGS
+| MAKE SURE WE HAVE AN EMAIL
+|--------------------------------------------------------------------------
+*/
+
+if (
+    empty($student_email)
+) {
+
+    die("
+
+        <div style='
+
+            font-family:Arial;
+
+            text-align:center;
+
+            padding:60px;
+
+        '>
+
+            <h2 style='color:#003366;'>
+
+                Student Information Not Found
+
+            </h2>
+
+            <p>
+
+                Your student email could not be
+                identified from your account.
+
+            </p>
+
+            <a
+                href='dashboard.php'
+                style='
+                    display:inline-block;
+                    margin-top:20px;
+                    padding:12px 20px;
+                    background:#003366;
+                    color:white;
+                    text-decoration:none;
+                    border-radius:6px;
+                '
+            >
+
+                Back to Dashboard
+
+            </a>
+
+        </div>
+
+    ");
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GET ALL STUDENT BOOKINGS
 |--------------------------------------------------------------------------
 |
-| The teacher's Zoom link is retrieved from the teachers table.
+| We use the student's email because your bookings
+| table already stores the student's email.
 |
-| bookings.teacher_id -> teachers.teacher_id
+| The teacher's Zoom link is retrieved from teachers.
 |
 */
 
-$scheduleStmt = $pdo->prepare("
+$scheduleStmt =
+    $pdo->prepare("
 
-    SELECT
+        SELECT
 
-        b.id,
+            b.id,
 
-        b.booking_reference,
+            b.booking_reference,
 
-        b.student_name,
+            b.student_name,
 
-        b.email,
+            b.email,
 
-        b.phone,
+            b.phone,
 
-        b.curriculum,
+            b.curriculum,
 
-        b.class_year,
+            b.class_year,
 
-        b.subjects,
+            b.subjects,
 
-        b.lesson_date,
+            b.lesson_date,
 
-        b.lesson_time,
+            b.lesson_time,
 
-        b.lesson_status,
+            b.lesson_status,
 
-        b.payment_status,
+            b.payment_status,
 
-        t.teacher_id
-            AS assigned_teacher_id,
+            b.teacher_id,
 
-        t.teacher_name
-            AS assigned_teacher_name,
+            b.teacher_name,
 
-        t.email
-            AS teacher_email,
+            b.assignment_status,
 
-        t.phone
-            AS teacher_phone,
+            t.teacher_id
+                AS assigned_teacher_id,
 
-        t.zoom_link
-            AS teacher_zoom_link
+            t.teacher_name
+                AS assigned_teacher_name,
 
+            t.email
+                AS teacher_email,
 
-    FROM bookings b
+            t.phone
+                AS teacher_phone,
 
-
-    LEFT JOIN teachers t
-
-        ON b.teacher_id = t.teacher_id
-
-
-    WHERE b.student_id = ?
+            t.zoom_link
+                AS teacher_zoom_link
 
 
-    ORDER BY
+        FROM bookings b
 
-        CASE
 
-            WHEN b.lesson_date IS NULL
-            THEN 1
+        LEFT JOIN teachers t
 
-            ELSE 0
+            ON b.teacher_id = t.teacher_id
 
-        END,
 
-        b.lesson_date ASC,
+        WHERE LOWER(
+            TRIM(b.email)
+        )
+        =
+        LOWER(
+            TRIM(?)
+        )
 
-        b.lesson_time ASC
 
-");
+        ORDER BY
+
+            CASE
+
+                WHEN b.lesson_date IS NULL
+                THEN 1
+
+                ELSE 0
+
+            END,
+
+            b.lesson_date ASC,
+
+            b.lesson_time ASC
+
+    ");
 
 
 $scheduleStmt->execute([
 
-    $student_id
+    $student_email
 
 ]);
 
@@ -166,75 +306,88 @@ $totalLessons =
 |--------------------------------------------------------------------------
 */
 
-$todayStmt = $pdo->prepare("
+$todayStmt =
+    $pdo->prepare("
 
-    SELECT
+        SELECT
 
-        b.id,
+            b.id,
 
-        b.booking_reference,
+            b.booking_reference,
 
-        b.student_name,
+            b.student_name,
 
-        b.email,
+            b.email,
 
-        b.phone,
+            b.phone,
 
-        b.curriculum,
+            b.curriculum,
 
-        b.class_year,
+            b.class_year,
 
-        b.subjects,
+            b.subjects,
 
-        b.lesson_date,
+            b.lesson_date,
 
-        b.lesson_time,
+            b.lesson_time,
 
-        b.lesson_status,
+            b.lesson_status,
 
-        b.payment_status,
+            b.payment_status,
 
-        t.teacher_id
-            AS assigned_teacher_id,
+            b.teacher_id,
 
-        t.teacher_name
-            AS assigned_teacher_name,
+            b.teacher_name,
 
-        t.email
-            AS teacher_email,
+            b.assignment_status,
 
-        t.phone
-            AS teacher_phone,
+            t.teacher_id
+                AS assigned_teacher_id,
 
-        t.zoom_link
-            AS teacher_zoom_link
+            t.teacher_name
+                AS assigned_teacher_name,
 
+            t.email
+                AS teacher_email,
 
-    FROM bookings b
+            t.phone
+                AS teacher_phone,
 
-
-    LEFT JOIN teachers t
-
-        ON b.teacher_id = t.teacher_id
-
-
-    WHERE
-
-        b.student_id = ?
-
-        AND b.lesson_date = CURDATE()
+            t.zoom_link
+                AS teacher_zoom_link
 
 
-    ORDER BY
+        FROM bookings b
 
-        b.lesson_time ASC
 
-");
+        LEFT JOIN teachers t
+
+            ON b.teacher_id = t.teacher_id
+
+
+        WHERE
+
+            LOWER(
+                TRIM(b.email)
+            )
+            =
+            LOWER(
+                TRIM(?)
+            )
+
+            AND b.lesson_date = CURDATE()
+
+
+        ORDER BY
+
+            b.lesson_time ASC
+
+    ");
 
 
 $todayStmt->execute([
 
-    $student_id
+    $student_email
 
 ]);
 
@@ -257,80 +410,93 @@ $totalToday =
 |--------------------------------------------------------------------------
 */
 
-$upcomingStmt = $pdo->prepare("
+$upcomingStmt =
+    $pdo->prepare("
 
-    SELECT
+        SELECT
 
-        b.id,
+            b.id,
 
-        b.booking_reference,
+            b.booking_reference,
 
-        b.student_name,
+            b.student_name,
 
-        b.email,
+            b.email,
 
-        b.phone,
+            b.phone,
 
-        b.curriculum,
+            b.curriculum,
 
-        b.class_year,
+            b.class_year,
 
-        b.subjects,
+            b.subjects,
 
-        b.lesson_date,
+            b.lesson_date,
 
-        b.lesson_time,
+            b.lesson_time,
 
-        b.lesson_status,
+            b.lesson_status,
 
-        b.payment_status,
+            b.payment_status,
 
-        t.teacher_id
-            AS assigned_teacher_id,
+            b.teacher_id,
 
-        t.teacher_name
-            AS assigned_teacher_name,
+            b.teacher_name,
 
-        t.email
-            AS teacher_email,
+            b.assignment_status,
 
-        t.phone
-            AS teacher_phone,
+            t.teacher_id
+                AS assigned_teacher_id,
 
-        t.zoom_link
-            AS teacher_zoom_link
+            t.teacher_name
+                AS assigned_teacher_name,
 
+            t.email
+                AS teacher_email,
 
-    FROM bookings b
+            t.phone
+                AS teacher_phone,
 
-
-    LEFT JOIN teachers t
-
-        ON b.teacher_id = t.teacher_id
-
-
-    WHERE
-
-        b.student_id = ?
-
-        AND b.lesson_date > CURDATE()
+            t.zoom_link
+                AS teacher_zoom_link
 
 
-    ORDER BY
-
-        b.lesson_date ASC,
-
-        b.lesson_time ASC
+        FROM bookings b
 
 
-    LIMIT 8
+        LEFT JOIN teachers t
 
-");
+            ON b.teacher_id = t.teacher_id
+
+
+        WHERE
+
+            LOWER(
+                TRIM(b.email)
+            )
+            =
+            LOWER(
+                TRIM(?)
+            )
+
+            AND b.lesson_date > CURDATE()
+
+
+        ORDER BY
+
+            b.lesson_date ASC,
+
+            b.lesson_time ASC
+
+
+        LIMIT 8
+
+    ");
 
 
 $upcomingStmt->execute([
 
-    $student_id
+    $student_email
 
 ]);
 
@@ -449,7 +615,7 @@ function formatTimeValue($time)
 
 /*
 |--------------------------------------------------------------------------
-| LESSON STATUS BADGE
+| LESSON STATUS
 |--------------------------------------------------------------------------
 */
 
@@ -461,7 +627,8 @@ function lessonStatusBadge($status)
 
             trim(
                 $status
-                ?? 'scheduled'
+                ??
+                'scheduled'
             )
 
         );
@@ -516,7 +683,7 @@ function lessonStatusBadge($status)
 
 /*
 |--------------------------------------------------------------------------
-| PAYMENT STATUS BADGE
+| PAYMENT STATUS
 |--------------------------------------------------------------------------
 */
 
@@ -528,7 +695,8 @@ function paymentStatusBadge($status)
 
             trim(
                 $status
-                ?? ''
+                ??
+                ''
             )
 
         );
@@ -557,23 +725,6 @@ function paymentStatusBadge($status)
     }
 
 
-    if (
-        empty($status)
-    ) {
-
-        return '
-
-            <span class="badge pending">
-
-                PENDING
-
-            </span>
-
-        ';
-
-    }
-
-
     return '
 
         <span class="badge pending">
@@ -583,6 +734,7 @@ function paymentStatusBadge($status)
             h(
                 strtoupper(
                     $status
+                    ?: 'PENDING'
                 )
             )
             .
@@ -639,7 +791,7 @@ function zoomButton($zoomLink)
 
         <span class="no-zoom">
 
-            Zoom link not available
+            Zoom link not available yet
 
         </span>
 
