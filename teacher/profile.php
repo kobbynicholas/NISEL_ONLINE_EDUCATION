@@ -1080,6 +1080,37 @@ body {
                     </div>
 
 
+<div class="form-group full">
+
+    <label>
+        Zoom Meeting Link
+    </label>
+
+    <input
+        type="url"
+        name="zoom_link"
+        value="<?php
+
+            echo htmlspecialchars(
+                $teacher['zoom_link'] ?? ''
+            );
+
+        ?>"
+        placeholder="https://zoom.us/j/123456789"
+    >
+
+    <small>
+
+        This is the link students will use to
+        join your online lessons.
+
+    </small>
+
+</div>
+
+
+
+                   
 
                     <!-- QUALIFICATION -->
 
