@@ -1,46 +1,46 @@
 <?php
 
-require "../student_auth.php";
+session_start();
+
 require "../config/db.php";
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+
+/*
+|--------------------------------------------------------------------------
+| CHECK STUDENT LOGIN
+|--------------------------------------------------------------------------
+*/
+
+if (
+    !isset($_SESSION['student_id']) ||
+    empty($_SESSION['student_id'])
+) {
+
+    header("Location: login.php");
+    exit;
+
 }
+
+
+$student_id =
+    $_SESSION['student_id'];
+
+$student_name =
+    $_SESSION['student_name']
+    ?? 'Student';
+
 
 /*
 |--------------------------------------------------------------------------
 | NISEL ONLINE EDUCATION
 | STUDENT SCHEDULE
 |--------------------------------------------------------------------------
-| PDO VERSION
-|--------------------------------------------------------------------------
 */
 
-
-/*
-|--------------------------------------------------------------------------
-| LOGGED-IN STUDENT
-|--------------------------------------------------------------------------
-*/
-
-$student_id = $_SESSION['student_id'] ?? null;
-$student_name = $_SESSION['student_name'] ?? 'Student';
-
-if (!$student_id) {
-    header("Location: login.php");
-    exit;
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| MESSAGES
-|--------------------------------------------------------------------------
-*/
 
 $message = "";
-$message_type = "";
 
+$message_type = "";
 
 /*
 |--------------------------------------------------------------------------
