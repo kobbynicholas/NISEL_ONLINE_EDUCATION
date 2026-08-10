@@ -1230,6 +1230,48 @@ echo "No photo uploaded.";
 </div>
 
 
+
+
+<div class="detail-item">
+
+    <strong>
+        Zoom Meeting Link
+    </strong>
+
+    <p>
+
+        <?php if (!empty($application['zoom_link'])): ?>
+
+            <a
+                href="<?php
+                    echo htmlspecialchars(
+                        $application['zoom_link']
+                    );
+                ?>"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+
+                🎥 Open Zoom Link
+
+            </a>
+
+        <?php else: ?>
+
+            <span>
+                No Zoom link provided
+            </span>
+
+        <?php endif; ?>
+
+    </p>
+
+</div>
+
+
+
+
+   
 <!-- =====================================================
      ACTION BUTTONS
 ===================================================== -->
