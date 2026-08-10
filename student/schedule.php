@@ -53,7 +53,7 @@ $message_type = "";
 |
 */
 
-$scheduleStmt = $conn->prepare("
+$scheduleStmt = $pdo->prepare("
     SELECT
         b.id,
         b.booking_reference,
@@ -79,16 +79,9 @@ $scheduleStmt = $conn->prepare("
     LEFT JOIN teachers t
         ON b.teacher_id = t.teacher_id
 
-    WHERE
-        b.student_id = ?
+    WHERE b.student_id = ?
 
     ORDER BY
-
-        CASE
-            WHEN b.lesson_date IS NULL THEN 1
-            ELSE 0
-        END,
-
         b.lesson_date ASC,
         b.lesson_time ASC
 ");
@@ -97,8 +90,10 @@ $scheduleStmt->execute([
     $student_id
 ]);
 
-$schedules = $scheduleStmt->fetchAll(PDO::FETCH_ASSOC);
-
+$schedules =
+    $scheduleStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
 /*
 |--------------------------------------------------------------------------
