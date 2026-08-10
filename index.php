@@ -2702,7 +2702,7 @@ img {
 
 
 <!-- =========================================================
-     TEACHERS
+     FEATURED TEACHERS
 ========================================================= -->
 
 <section
@@ -2716,87 +2716,276 @@ img {
 <div class="section-heading">
 
     <div class="eyebrow">
-        Our Teachers
+        Meet Our Teachers
     </div>
 
     <h2>
-        Learn With Confidence
+        Learn From Experienced Teachers
     </h2>
 
     <p>
 
-        Our platform connects students with dedicated
-        teachers who are ready to support their learning.
+        Connect with dedicated teachers who are ready
+        to guide you through your academic journey.
 
     </p>
 
 </div>
 
 
-<div class="features-grid">
+<div class="teacher-grid">
 
 
-<div class="feature">
+<!-- TEACHER 1 -->
 
-    <div class="feature-icon">
-        🎓
+<div class="teacher-card">
+
+    <div class="teacher-photo">
+
+        <img
+            src="assets/images/teachers/teacher1.jpg"
+            alt="NISEL Teacher"
+            onerror="
+                this.style.display='none';
+                this.parentElement.innerHTML='👨‍🏫';
+            "
+        >
+
     </div>
 
-    <h3>
-        Subject Specialists
-    </h3>
 
-    <p>
+    <div class="teacher-info">
 
-        Connect with teachers who specialise
-        in the subjects you need.
+        <h3>
+            Mr. Nicholas
+        </h3>
 
-    </p>
+        <p class="teacher-role">
+            Mathematics & Physics
+        </p>
 
-</div>
+        <span class="teacher-tag">
+            Cambridge
+        </span>
+
+        <span class="teacher-tag">
+            IGCSE
+        </span>
+
+        <p class="teacher-description">
+
+            Experienced online educator helping students
+            develop strong understanding and confidence
+            in Mathematics and Physics.
+
+        </p>
 
 
-<div class="feature">
+        <a
+            href="student/register.php"
+            class="teacher-button"
+        >
 
-    <div class="feature-icon">
-        🎥
+            Book a Lesson →
+
+        </a>
+
     </div>
 
-    <h3>
-        Live Online Lessons
-    </h3>
-
-    <p>
-
-        Join scheduled lessons through your
-        teacher's online meeting link.
-
-    </p>
-
 </div>
 
 
-<div class="feature">
+<!-- TEACHER 2 -->
 
-    <div class="feature-icon">
-        📈
+<div class="teacher-card">
+
+    <div class="teacher-photo">
+
+        <img
+            src="assets/images/teachers/teacher2.jpg"
+            alt="NISEL Teacher"
+            onerror="
+                this.style.display='none';
+                this.parentElement.innerHTML='👩‍🏫';
+            "
+        >
+
     </div>
 
-    <h3>
-        Track Your Progress
-    </h3>
 
-    <p>
+    <div class="teacher-info">
 
-        Keep track of your lessons and academic
-        progress through your student dashboard.
+        <h3>
+            Teacher Mavis
+        </h3>
 
-    </p>
+        <p class="teacher-role">
+            Chemistry & Biology
+        </p>
+
+        <span class="teacher-tag">
+            Cambridge
+        </span>
+
+        <span class="teacher-tag">
+            GES
+        </span>
+
+        <p class="teacher-description">
+
+            Supporting students with clear explanations,
+            practical understanding and examination
+            preparation.
+
+        </p>
+
+
+        <a
+            href="student/register.php"
+            class="teacher-button"
+        >
+
+            Book a Lesson →
+
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- TEACHER 3 -->
+
+<div class="teacher-card">
+
+    <div class="teacher-photo">
+
+        <img
+            src="assets/images/teachers/teacher3.jpg"
+            alt="NISEL Teacher"
+            onerror="
+                this.style.display='none';
+                this.parentElement.innerHTML='👨‍🏫';
+            "
+        >
+
+    </div>
+
+
+    <div class="teacher-info">
+
+        <h3>
+            Teacher 3
+        </h3>
+
+        <p class="teacher-role">
+            English & Literature
+        </p>
+
+        <span class="teacher-tag">
+            Cambridge
+        </span>
+
+        <span class="teacher-tag">
+            IB
+        </span>
+
+        <p class="teacher-description">
+
+            Helping learners improve their communication,
+            comprehension, writing and examination skills.
+
+        </p>
+
+
+        <a
+            href="student/register.php"
+            class="teacher-button"
+        >
+
+            Book a Lesson →
+
+        </a>
+
+    </div>
+
+</div>
+
+
+<!-- TEACHER 4 -->
+
+<div class="teacher-card">
+
+    <div class="teacher-photo">
+
+        <img
+            src="assets/images/teachers/teacher4.jpg"
+            alt="NISEL Teacher"
+            onerror="
+                this.style.display='none';
+                this.parentElement.innerHTML='👩‍🏫';
+            "
+        >
+
+    </div>
+
+
+    <div class="teacher-info">
+
+        <h3>
+            Teacher 4
+        </h3>
+
+        <p class="teacher-role">
+            Economics & Accounting
+        </p>
+
+        <span class="teacher-tag">
+            Cambridge
+        </span>
+
+        <span class="teacher-tag">
+            GES
+        </span>
+
+        <p class="teacher-description">
+
+            Guiding students through concepts, problem
+            solving and examination-focused preparation.
+
+        </p>
+
+
+        <a
+            href="student/register.php"
+            class="teacher-button"
+        >
+
+            Book a Lesson →
+
+        </a>
+
+    </div>
 
 </div>
 
 
 </div>
+
+
+<div class="teachers-button-wrapper">
+
+    <a
+        href="student/register.php"
+        class="btn btn-primary"
+    >
+
+        👨‍🏫 View All Teachers
+
+    </a>
+
+</div>
+
 
 </div>
 
