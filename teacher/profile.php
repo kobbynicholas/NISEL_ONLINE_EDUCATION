@@ -171,7 +171,7 @@ if (
                     email = ?,
                     phone = ?,
                     qualification = ?,
-                    specialization = ?
+                    subjects = ?
 
                 WHERE teacher_id = ?
 
@@ -188,7 +188,7 @@ if (
 
                 $qualification,
 
-                $specialization,
+                $subjects,
 
                 $teacher_id
 
@@ -282,7 +282,7 @@ $display_qualification =
     $teacher['qualification']
     ?? '';
 
-$display_specialization =
+$display_subjects =
     $teacher['specialization']
     ?? '';
 
