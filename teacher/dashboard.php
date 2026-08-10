@@ -1,86 +1,358 @@
 <?php
 
-require_once "../teacher_auth.php";
-require_once "../config/db.php";
+require "../teacher_auth.php";
+require "../config/db.php";
 
 
-/*
-|--------------------------------------------------------------------------
-| GET LOGGED-IN TEACHER
-|--------------------------------------------------------------------------
-*/
+/* =========================================================
+   TEACHER INFORMATION
+========================================================= */
 
-$teacher_id = $_SESSION['teacher_id'];
-$teacher_name = $_SESSION['teacher_name'];
+$teacher_id = $_SESSION['teacher_id'] ?? '';
 
-
-/*
-|--------------------------------------------------------------------------
-| COUNT ASSIGNED STUDENTS
-|--------------------------------------------------------------------------
-*/
-
-$stmt = $pdo->prepare("
-    SELECT COUNT(*) AS total
-    FROM bookings
-    WHERE teacher_id = :teacher_id
-    AND payment_status = 'Paid'
-");
-
-$stmt->execute([
-    ':teacher_id' => $teacher_id
-]);
-
-$total_students = $stmt->fetchColumn() ?? 0;
+$teacher_name =
+    $_SESSION['teacher_name'] ?? 'Teacher';
 
 
-/*
-|--------------------------------------------------------------------------
-| COUNT BOOKINGS
-|--------------------------------------------------------------------------
-*/
+if (empty($teacher_id)) {
 
-$stmt = $pdo->prepare("
-    SELECT COUNT(*) AS total
-    FROM bookings
-    WHERE teacher_id = :teacher_id
-");
+    header("Location: login.php");
+    exit;
 
-$stmt->execute([
-    ':teacher_id' => $teacher_id
-]);
-
-$total_bookings = $stmt->fetchColumn() ?? 0;
+}
 
 
-/*
-|--------------------------------------------------------------------------
-| GET ASSIGNED STUDENTS
-|--------------------------------------------------------------------------
-*/
+/* =========================================================
+   READ SCHEDULE JSON
+========================================================= */
 
-$stmt = $pdo->prepare("
-    SELECT
-        id,
-        student_name,
-        email,
-        curriculum,
-        class_year,
-        subjects,
-        payment_status,
-        booking_reference
-    FROM bookings
-    WHERE teacher_id = :teacher_id
-    ORDER BY id DESC
-");
+$data_directory =
+    dirname(__DIR__) . "/data";
 
-$stmt->execute([
-    ':teacher_id' => $teacher_id
-]);
+$schedule_file =
+    $data_directory . "/schedules.json";
 
-$students = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+if (!is_dir($data_directory)) {
+
+    mkdir(
+        $data_directory,
+        0777,
+        true
+    );
+
+}
+
+
+if (!file_exists($schedule_file)) {
+
+    file_put_contents(
+        $schedule_file,
+        json_encode([], JSON_PRETTY_PRINT)
+    );
+
+}
+
+
+$schedules = [];
+
+$json =
+    file_get_contents($schedule_file);
+
+
+if (
+    $json !== false &&
+    trim($json) !== ""
+) {
+
+    $decoded =
+        json_decode($json, true);
+
+    if (is_array($decoded)) {
+
+        $schedules = $decoded;
+
+    }
+
+}
+
+
+/* =========================================================
+   GET TEACHER'S ASSIGNED STUDENTS
+========================================================= */
+
+try {
+
+    $stmt = $pdo->prepare("
+
+        SELECT *
+
+        FROM bookings
+
+        WHERE teacher_id = ?
+
+        ORDER BY id DESC
+
+    ");
+
+    $stmt->execute([
+        $teacher_id
+    ]);
+
+    $students =
+        $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+
+} catch (PDOException $e) {
+
+    die(
+        "Unable to load dashboard: "
+        . htmlspecialchars(
+            $e->getMessage()
+        )
+    );
+
+}
+
+
+/* =========================================================
+   FILTER TEACHER SCHEDULE
+========================================================= */
+
+$teacher_schedules = [];
+
+
+foreach (
+    $schedules
+    as $lesson
+) {
+
+    if (
+        isset(
+            $lesson['teacher_id']
+        )
+        &&
+        (string)$lesson['teacher_id']
+        === (string)$teacher_id
+    ) {
+
+        $teacher_schedules[] =
+            $lesson;
+
+    }
+
+}
+
+
+/* =========================================================
+   CURRENT DATE
+========================================================= */
+
+$today =
+    date("Y-m-d");
+
+
+$current_time =
+    date("H:i");
+
+
+/* =========================================================
+   STATISTICS
+========================================================= */
+
+$total_students =
+    count($students);
+
+$total_lessons =
+    count($teacher_schedules);
+
+$completed_lessons = 0;
+
+$scheduled_lessons = 0;
+
+$cancelled_lessons = 0;
+
+$today_lessons = 0;
+
+$upcoming_lessons = 0;
+
+
+foreach (
+    $teacher_schedules
+    as $lesson
+) {
+
+    $status =
+        $lesson['lesson_status']
+        ?? 'Scheduled';
+
+
+    if (
+        $status === "Completed"
+    ) {
+
+        $completed_lessons++;
+
+    } elseif (
+        $status === "Cancelled"
+    ) {
+
+        $cancelled_lessons++;
+
+    } else {
+
+        $scheduled_lessons++;
+
+    }
+
+
+    /* =============================================
+       TODAY
+    ============================================= */
+
+    if (
+        ($lesson['lesson_date'] ?? '')
+        === $today
+        &&
+        $status !== "Cancelled"
+    ) {
+
+        $today_lessons++;
+
+    }
+
+
+    /* =============================================
+       UPCOMING
+    ============================================= */
+
+    $lesson_datetime =
+        ($lesson['lesson_date'] ?? '')
+        . ' '
+        .
+        ($lesson['lesson_time'] ?? '00:00');
+
+
+    if (
+        $status === "Scheduled"
+        &&
+        $lesson_datetime >=
+        date("Y-m-d H:i")
+    ) {
+
+        $upcoming_lessons++;
+
+    }
+
+}
+
+
+/* =========================================================
+   SORT SCHEDULE
+========================================================= */
+
+usort(
+    $teacher_schedules,
+    function (
+        $a,
+        $b
+    ) {
+
+        $date_a =
+            ($a['lesson_date'] ?? '')
+            . ' '
+            .
+            ($a['lesson_time'] ?? '');
+
+        $date_b =
+            ($b['lesson_date'] ?? '')
+            . ' '
+            .
+            ($b['lesson_time'] ?? '');
+
+        return strcmp(
+            $date_a,
+            $date_b
+        );
+
+    }
+);
+
+
+/* =========================================================
+   GET TODAY'S LESSONS
+========================================================= */
+
+$today_schedule = [];
+
+
+foreach (
+    $teacher_schedules
+    as $lesson
+) {
+
+    if (
+        ($lesson['lesson_date'] ?? '')
+        === $today
+        &&
+        ($lesson['lesson_status'] ?? '')
+        !== "Cancelled"
+    ) {
+
+        $today_schedule[] =
+            $lesson;
+
+    }
+
+}
+
+
+/* =========================================================
+   GET NEXT 5 LESSONS
+========================================================= */
+
+$upcoming_schedule = [];
+
+foreach (
+    $teacher_schedules
+    as $lesson
+) {
+
+    $status =
+        $lesson['lesson_status']
+        ?? 'Scheduled';
+
+    $datetime =
+        ($lesson['lesson_date'] ?? '')
+        . ' '
+        .
+        ($lesson['lesson_time'] ?? '00:00');
+
+
+    if (
+        $status === "Scheduled"
+        &&
+        $datetime >=
+        date("Y-m-d H:i")
+    ) {
+
+        $upcoming_schedule[] =
+            $lesson;
+
+    }
+
+}
+
+
+$upcoming_schedule =
+    array_slice(
+        $upcoming_schedule,
+        0,
+        5
+    );
 
 ?>
+
 
 <!DOCTYPE html>
 
@@ -96,262 +368,396 @@ $students = $stmt->fetchAll(PDO::FETCH_ASSOC);
 >
 
 <title>
-Teacher Dashboard | NISEL ONLINE EDUCATION
+Teacher Dashboard |
+NISEL ONLINE EDUCATION
 </title>
 
 
 <style>
 
-*{
-    box-sizing:border-box;
-}
-
-body{
-
-    margin:0;
-
-    font-family:Arial,sans-serif;
-
-    background:#eef3f8;
-
+* {
+    box-sizing: border-box;
 }
 
 
-/* SIDEBAR */
+body {
 
-.sidebar{
+    margin: 0;
 
-    position:fixed;
+    font-family: Arial, sans-serif;
 
-    left:0;
+    background: #eef3f8;
 
-    top:0;
-
-    width:240px;
-
-    height:100vh;
-
-    background:#003366;
-
-    color:white;
-
-    padding:25px 15px;
-
-}
-
-.logo{
-
-    text-align:center;
-
-    font-size:19px;
-
-    font-weight:bold;
-
-    margin-bottom:35px;
-
-}
-
-.menu a{
-
-    display:block;
-
-    color:white;
-
-    text-decoration:none;
-
-    padding:13px;
-
-    margin-bottom:7px;
-
-    border-radius:7px;
-
-}
-
-.menu a:hover{
-
-    background:#0055a5;
+    color: #333;
 
 }
 
 
-/* MAIN */
+/* =====================================================
+   SIDEBAR
+===================================================== */
 
-.main{
+.sidebar {
 
-    margin-left:240px;
+    position: fixed;
 
-    padding:30px;
+    left: 0;
 
-}
+    top: 0;
 
-.topbar{
+    width: 240px;
 
-    background:white;
+    height: 100vh;
 
-    padding:20px;
+    background: #003366;
 
-    border-radius:10px;
+    color: white;
 
-    margin-bottom:25px;
-
-    display:flex;
-
-    justify-content:space-between;
-
-    align-items:center;
-
-}
-
-.topbar h2{
-
-    margin:0;
-
-    color:#003366;
-
-}
-
-.teacher{
-
-    color:#555;
+    padding: 25px 15px;
 
 }
 
 
-/* CARDS */
+.logo {
 
-.cards{
+    text-align: center;
 
-    display:grid;
+    font-size: 19px;
 
-    grid-template-columns:
-    repeat(auto-fit,minmax(200px,1fr));
+    font-weight: bold;
 
-    gap:20px;
+    line-height: 1.5;
 
-    margin-bottom:30px;
+    margin-bottom: 35px;
 
 }
 
-.card{
 
-    background:white;
+.menu a {
 
-    padding:25px;
+    display: block;
 
-    border-radius:12px;
+    color: white;
+
+    text-decoration: none;
+
+    padding: 13px;
+
+    margin-bottom: 7px;
+
+    border-radius: 7px;
+
+}
+
+
+.menu a:hover {
+
+    background: #0055a5;
+
+}
+
+
+.menu a.active {
+
+    background: #0055a5;
+
+}
+
+
+/* =====================================================
+   MAIN
+===================================================== */
+
+.main {
+
+    margin-left: 240px;
+
+    padding: 30px;
+
+}
+
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.header {
+
+    background: white;
+
+    padding: 25px;
+
+    border-radius: 12px;
+
+    margin-bottom: 25px;
 
     box-shadow:
-    0 4px 12px rgba(0,0,0,.08);
-
-}
-
-.card h3{
-
-    margin:0;
-
-    color:#666;
-
-    font-size:16px;
-
-}
-
-.number{
-
-    margin-top:12px;
-
-    font-size:32px;
-
-    font-weight:bold;
-
-    color:#003366;
+        0 4px 12px rgba(0,0,0,.06);
 
 }
 
 
-/* TABLE */
+.header h1 {
 
-.table-box{
+    margin: 0 0 8px;
 
-    background:white;
-
-    padding:25px;
-
-    border-radius:12px;
-
-    overflow-x:auto;
-
-}
-
-.table-box h3{
-
-    color:#003366;
-
-}
-
-table{
-
-    width:100%;
-
-    border-collapse:collapse;
-
-}
-
-th{
-
-    background:#003366;
-
-    color:white;
-
-    padding:12px;
-
-    text-align:left;
-
-}
-
-td{
-
-    padding:11px;
-
-    border-bottom:1px solid #ddd;
-
-}
-
-.badge{
-
-    padding:5px 9px;
-
-    border-radius:15px;
-
-    font-size:12px;
-
-}
-
-.paid{
-
-    background:#d4edda;
-
-    color:#155724;
+    color: #003366;
 
 }
 
 
-/* MOBILE */
+.header p {
 
-@media(max-width:800px){
+    margin: 0;
 
-    .sidebar{
+    color: #666;
 
-        position:relative;
+}
 
-        width:100%;
 
-        height:auto;
+/* =====================================================
+   STATISTICS
+===================================================== */
+
+.stats {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+
+    gap: 20px;
+
+    margin-bottom: 25px;
+
+}
+
+
+.card {
+
+    background: white;
+
+    padding: 22px;
+
+    border-radius: 12px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
+
+}
+
+
+.card h3 {
+
+    margin: 0;
+
+    font-size: 30px;
+
+    color: #003366;
+
+}
+
+
+.card p {
+
+    margin: 8px 0 0;
+
+    color: #777;
+
+}
+
+
+/* =====================================================
+   SECTION
+===================================================== */
+
+.section {
+
+    background: white;
+
+    padding: 25px;
+
+    border-radius: 12px;
+
+    margin-bottom: 25px;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.06);
+
+}
+
+
+.section h2 {
+
+    margin-top: 0;
+
+    color: #003366;
+
+}
+
+
+/* =====================================================
+   TABLE
+===================================================== */
+
+.table-wrapper {
+
+    overflow-x: auto;
+
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+    min-width: 800px;
+
+}
+
+
+th {
+
+    background: #003366;
+
+    color: white;
+
+    padding: 12px;
+
+    text-align: left;
+
+}
+
+
+td {
+
+    padding: 12px;
+
+    border-bottom: 1px solid #ddd;
+
+}
+
+
+tr:hover {
+
+    background: #f7faff;
+
+}
+
+
+/* =====================================================
+   BADGES
+===================================================== */
+
+.badge {
+
+    display: inline-block;
+
+    padding: 6px 11px;
+
+    border-radius: 20px;
+
+    font-size: 12px;
+
+    font-weight: bold;
+
+}
+
+
+.scheduled {
+
+    background: #cfe2ff;
+
+    color: #084298;
+
+}
+
+
+.completed {
+
+    background: #d4edda;
+
+    color: #155724;
+
+}
+
+
+.cancelled {
+
+    background: #f8d7da;
+
+    color: #721c24;
+
+}
+
+
+/* =====================================================
+   BUTTON
+===================================================== */
+
+.button {
+
+    display: inline-block;
+
+    padding: 9px 15px;
+
+    background: #003366;
+
+    color: white;
+
+    text-decoration: none;
+
+    border-radius: 5px;
+
+}
+
+
+.button:hover {
+
+    background: #0055a5;
+
+}
+
+
+/* =====================================================
+   EMPTY
+===================================================== */
+
+.empty {
+
+    text-align: center;
+
+    padding: 35px;
+
+    color: #777;
+
+}
+
+
+/* =====================================================
+   MOBILE
+===================================================== */
+
+@media(max-width:800px) {
+
+    .sidebar {
+
+        position: relative;
+
+        width: 100%;
+
+        height: auto;
 
     }
 
-    .main{
 
-        margin-left:0;
+    .main {
+
+        margin-left: 0;
+
+        padding: 15px;
 
     }
 
@@ -365,302 +771,846 @@ td{
 <body>
 
 
+<!-- =====================================================
+     SIDEBAR
+===================================================== -->
+
 <div class="sidebar">
 
-    <div class="logo">
 
-        NISEL<br>
+<div class="logo">
 
-        ONLINE EDUCATION
-
-    </div>
-
-
-    <div class="menu">
-
-        <a href="dashboard.php">
-            🏠 Dashboard
-        </a>
-
-        <a href="students.php">
-            👨‍🎓 My Students
-        </a>
-
-        <a href="schedule.php">
-            📅 My Schedule
-        </a>
-
-        <a href="profile.php">
-            👤 My Profile
-        </a>
-
-        <a href="logout.php">
-            🚪 Logout
-        </a>
-
-    </div>
+NISEL<br>
+ONLINE EDUCATION
 
 </div>
 
 
+<div class="menu">
+
+
+<a
+    href="dashboard.php"
+    class="active"
+>
+🏠 Dashboard
+</a>
+
+
+<a href="students.php">
+👨‍🎓 My Students
+</a>
+
+
+<a href="schedule.php">
+📅 My Schedule
+</a>
+
+
+<a href="profile.php">
+👤 My Profile
+</a>
+
+
+<a href="logout.php">
+🚪 Logout
+</a>
+
+
+</div>
+
+
+</div>
+
+
+<!-- =====================================================
+     MAIN
+===================================================== -->
+
 <div class="main">
 
 
-    <div class="topbar">
+<!-- HEADER -->
 
-        <h2>
-            Teacher Dashboard
-        </h2>
+<div class="header">
 
+<h1>
 
-        <div class="teacher">
+Welcome,
+<?php
+echo htmlspecialchars(
+    $teacher_name
+);
+?>
 
-            Welcome,
+</h1>
 
-            <strong>
+<p>
 
-                <?php
-                echo htmlspecialchars($teacher_name);
-                ?>
+Teacher Dashboard —
+NISEL ONLINE EDUCATION
 
-            </strong>
+</p>
 
-        </div>
+</div>
 
-    </div>
 
+<!-- =====================================================
+     STATISTICS
+===================================================== -->
 
-    <div class="cards">
+<div class="stats">
 
 
-        <div class="card">
+<div class="card">
 
-            <h3>
-                Assigned Students
-            </h3>
+<h3>
 
-            <div class="number">
+<?php
+echo $total_students;
+?>
 
-                <?php
-                echo htmlspecialchars($total_students);
-                ?>
+</h3>
 
-            </div>
+<p>
+Assigned Students
+</p>
 
-        </div>
+</div>
 
 
-        <div class="card">
+<div class="card">
 
-            <h3>
-                Total Bookings
-            </h3>
+<h3>
 
-            <div class="number">
+<?php
+echo $total_lessons;
+?>
 
-                <?php
-                echo htmlspecialchars($total_bookings);
-                ?>
+</h3>
 
-            </div>
+<p>
+Total Lessons
+</p>
 
-        </div>
+</div>
 
 
-        <div class="card">
+<div class="card">
 
-            <h3>
-                Teaching Status
-            </h3>
+<h3>
 
-            <div
-                class="number"
-                style="font-size:20px;"
-            >
+<?php
+echo $today_lessons;
+?>
 
-                Active
+</h3>
 
-            </div>
+<p>
+Today's Lessons
+</p>
 
-        </div>
+</div>
 
 
-    </div>
+<div class="card">
 
+<h3>
 
-    <div class="table-box">
+<?php
+echo $completed_lessons;
+?>
 
-        <h3>
-            My Assigned Students
-        </h3>
+</h3>
 
+<p>
+Completed Lessons
+</p>
 
-        <table>
+</div>
 
-            <tr>
 
-                <th>
-                    Student
-                </th>
+<div class="card">
 
-                <th>
-                    Curriculum
-                </th>
+<h3>
 
-                <th>
-                    Class / Grade
-                </th>
+<?php
+echo $upcoming_lessons;
+?>
 
-                <th>
-                    Subjects
-                </th>
+</h3>
 
-                <th>
-                    Payment
-                </th>
+<p>
+Upcoming Lessons
+</p>
 
-                <th>
-                    Booking Reference
-                </th>
+</div>
 
-            </tr>
 
+</div>
 
-            <?php if (count($students) > 0): ?>
 
+<!-- =====================================================
+     TODAY
+===================================================== -->
 
-                <?php foreach ($students as $student): ?>
+<div class="section">
 
-                    <tr>
 
+<h2>
 
-                        <td>
+📅 Today's Lessons
 
-                            <?php
+</h2>
 
-                            echo htmlspecialchars(
-                                $student['student_name'] ?? ''
-                            );
 
-                            ?>
+<?php if (
+    count($today_schedule) > 0
+): ?>
 
-                        </td>
 
+<div class="table-wrapper">
 
-                        <td>
 
-                            <?php
+<table>
 
-                            echo htmlspecialchars(
-                                $student['curriculum'] ?? ''
-                            );
 
-                            ?>
+<tr>
 
-                        </td>
+<th>
+Time
+</th>
 
+<th>
+Student
+</th>
 
-                        <td>
+<th>
+Subject
+</th>
 
-                            <?php
+<th>
+Curriculum
+</th>
 
-                            echo htmlspecialchars(
-                                $student['class_year'] ?? ''
-                            );
+<th>
+Lesson
+</th>
 
-                            ?>
+<th>
+Status
+</th>
 
-                        </td>
+</tr>
 
 
-                        <td>
+<?php foreach (
+    $today_schedule
+    as $lesson
+): ?>
 
-                            <?php
 
-                            echo htmlspecialchars(
-                                $student['subjects'] ?? ''
-                            );
+<tr>
 
-                            ?>
 
-                        </td>
+<td>
 
+<strong>
 
-                        <td>
+<?php
 
-                            <?php
+echo date(
+    "h:i A",
+    strtotime(
+        $lesson[
+            'lesson_time'
+        ]
+    )
+);
 
-                            $payment_status =
-                                $student['payment_status'] ?? '';
+?>
 
-                            ?>
+</strong>
 
+</td>
 
-                            <span
-                                class="badge
-                                <?php
-                                echo
-                                strtolower($payment_status) === 'paid'
-                                ? 'paid'
-                                : '';
-                                ?>"
-                            >
 
-                                <?php
+<td>
 
-                                echo htmlspecialchars(
-                                    $payment_status
-                                );
+<?php
 
-                                ?>
+echo htmlspecialchars(
+    $lesson[
+        'student_name'
+    ]
+);
 
-                            </span>
+?>
 
-                        </td>
+</td>
 
 
-                        <td>
+<td>
 
-                            <?php
+<?php
 
-                            echo htmlspecialchars(
-                                $student['booking_reference'] ?? ''
-                            );
+echo htmlspecialchars(
+    $lesson[
+        'subjects'
+    ]
+);
 
-                            ?>
+?>
 
-                        </td>
+</td>
 
 
-                    </tr>
+<td>
 
+<?php
 
-                <?php endforeach; ?>
+echo htmlspecialchars(
+    $lesson[
+        'curriculum'
+    ]
+);
 
+?>
 
-            <?php else: ?>
+</td>
 
 
-                <tr>
+<td>
 
-                    <td
-                        colspan="6"
-                        style="text-align:center;padding:30px;"
-                    >
+Lesson
 
-                        No students have been assigned to you yet.
+<?php
 
-                    </td>
+echo (int)
+    $lesson[
+        'lesson_number'
+    ];
 
-                </tr>
+?>
 
+of 8
 
-            <?php endif; ?>
+</td>
 
 
-        </table>
+<td>
 
-    </div>
+
+<?php
+
+$status =
+    $lesson[
+        'lesson_status'
+    ]
+    ?? 'Scheduled';
+
+
+if (
+    $status ===
+    'Completed'
+) {
+
+    echo '
+    <span class="badge completed">
+        Completed
+    </span>';
+
+} elseif (
+    $status ===
+    'Cancelled'
+) {
+
+    echo '
+    <span class="badge cancelled">
+        Cancelled
+    </span>';
+
+} else {
+
+    echo '
+    <span class="badge scheduled">
+        Scheduled
+    </span>';
+
+}
+
+?>
+
+
+</td>
+
+
+</tr>
+
+
+<?php endforeach; ?>
+
+
+</table>
+
+
+</div>
+
+
+<?php else: ?>
+
+
+<div class="empty">
+
+📅
+
+<p>
+You have no lessons scheduled for today.
+</p>
+
+</div>
+
+
+<?php endif; ?>
+
+
+</div>
+
+
+<!-- =====================================================
+     UPCOMING
+===================================================== -->
+
+<div class="section">
+
+
+<h2>
+
+⏰ Upcoming Lessons
+
+</h2>
+
+
+<?php if (
+    count($upcoming_schedule) > 0
+): ?>
+
+
+<div class="table-wrapper">
+
+
+<table>
+
+
+<tr>
+
+<th>
+Date
+</th>
+
+<th>
+Time
+</th>
+
+<th>
+Student
+</th>
+
+<th>
+Subject
+</th>
+
+<th>
+Lesson
+</th>
+
+<th>
+Status
+</th>
+
+</tr>
+
+
+<?php foreach (
+    $upcoming_schedule
+    as $lesson
+): ?>
+
+
+<tr>
+
+
+<td>
+
+<?php
+
+echo date(
+    "d M Y",
+    strtotime(
+        $lesson[
+            'lesson_date'
+        ]
+    )
+);
+
+?>
+
+<br>
+
+<small>
+
+<?php
+
+echo date(
+    "l",
+    strtotime(
+        $lesson[
+            'lesson_date'
+        ]
+    )
+);
+
+?>
+
+</small>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo date(
+    "h:i A",
+    strtotime(
+        $lesson[
+            'lesson_time'
+        ]
+    )
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $lesson[
+        'student_name'
+    ]
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $lesson[
+        'subjects'
+    ]
+);
+
+?>
+
+</td>
+
+
+<td>
+
+Lesson
+
+<?php
+
+echo (int)
+    $lesson[
+        'lesson_number'
+    ];
+
+?>
+
+of 8
+
+</td>
+
+
+<td>
+
+<span class="badge scheduled">
+
+Scheduled
+
+</span>
+
+</td>
+
+
+</tr>
+
+
+<?php endforeach; ?>
+
+
+</table>
+
+
+</div>
+
+
+<?php else: ?>
+
+
+<div class="empty">
+
+No upcoming lessons.
+
+</div>
+
+
+<?php endif; ?>
+
+
+</div>
+
+
+<!-- =====================================================
+     STUDENTS
+===================================================== -->
+
+<div class="section">
+
+
+<h2>
+
+👨‍🎓 My Students
+
+</h2>
+
+
+<?php if (
+    count($students) > 0
+): ?>
+
+
+<div class="table-wrapper">
+
+
+<table>
+
+
+<tr>
+
+<th>
+Student
+</th>
+
+<th>
+Curriculum
+</th>
+
+<th>
+Class
+</th>
+
+<th>
+Subject(s)
+</th>
+
+<th>
+Payment
+</th>
+
+<th>
+Action
+</th>
+
+</tr>
+
+
+<?php foreach (
+    $students
+    as $student
+): ?>
+
+
+<tr>
+
+
+<td>
+
+<strong>
+
+<?php
+
+echo htmlspecialchars(
+    $student[
+        'student_name'
+    ]
+);
+
+?>
+
+</strong>
+
+<br>
+
+<small>
+
+<?php
+
+echo htmlspecialchars(
+    $student[
+        'email'
+    ] ?? ''
+);
+
+?>
+
+</small>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $student[
+        'curriculum'
+    ] ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $student[
+        'class_year'
+    ] ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+echo htmlspecialchars(
+    $student[
+        'subjects'
+    ] ?? ''
+);
+
+?>
+
+</td>
+
+
+<td>
+
+<?php
+
+$payment =
+    strtolower(
+        trim(
+            $student[
+                'payment_status'
+            ] ?? ''
+        )
+    );
+
+
+if (
+    $payment === 'paid'
+    ||
+    $payment === 'success'
+) {
+
+    echo '
+    <span class="badge completed">
+        PAID
+    </span>';
+
+} else {
+
+    echo '
+    <span class="badge cancelled">
+        PENDING
+    </span>';
+
+}
+
+?>
+
+</td>
+
+
+<td>
+
+<a
+    href="student_details.php?id=<?php
+        echo (int)
+            $student['id'];
+    ?>"
+    class="button"
+>
+
+View
+
+</a>
+
+</td>
+
+
+</tr>
+
+
+<?php endforeach; ?>
+
+
+</table>
+
+
+</div>
+
+
+<?php else: ?>
+
+
+<div class="empty">
+
+👨‍🎓
+
+<p>
+No students have been assigned to you yet.
+</p>
+
+</div>
+
+
+<?php endif; ?>
+
+
+</div>
 
 
 </div>
