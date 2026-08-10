@@ -566,60 +566,7 @@ echo htmlspecialchars(
 <?php endif; ?>
 
 
-<form method="POST">
 
-
-<div class="form-group">
-
-<label>
-Email Address
-</label>
-
-<input
-    type="email"
-    name="email"
-    autocomplete="email"
-    required
->
-
-</div>
-
-
-<div class="form-group">
-
-<label>
-Password
-</label>
-
-<input
-    type="password"
-    name="password"
-    autocomplete="current-password"
-    required
->
-
-</div>
-
-
-<button type="submit">
-
-Login to Student Portal
-
-</button>
-
-
-</form>
-
-
-<div class="register">
-
-Don't have a student account?
-
-<a href="register.php">
-Register
-</a>
-
-</div>
 
 
 <div class="home">
