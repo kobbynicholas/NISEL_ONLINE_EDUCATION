@@ -1841,6 +1841,44 @@ tr:hover {
 
 
 
+<!--=============================================
+zoom link
+===============================================-->
+
+<?php if (!empty($lesson['zoom_link'])): ?>
+
+    <a
+        href="<?php
+            echo htmlspecialchars(
+                $lesson['zoom_link']
+            );
+        ?>"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="join-button"
+    >
+
+        🎥 Join Zoom Class
+
+    </a>
+
+<?php else: ?>
+
+    <span class="no-link">
+
+        Zoom link not available yet
+
+    </span>
+
+<?php endif; ?>
+
+
+
+
+
+   
+
+
     <!-- =================================================
          COMPLETE MONTHLY SCHEDULE
     ================================================= -->
