@@ -2642,7 +2642,6 @@ img {
     🧠 Psychology
 </div>
 
-
 </div>
 
 </div>
