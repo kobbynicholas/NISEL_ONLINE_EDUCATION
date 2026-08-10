@@ -566,18 +566,6 @@ echo htmlspecialchars(
 <?php endif; ?>
 
 
-
-
-
-<div class="home">
-
-<a href="../index.html">
-← Return to NISEL ONLINE EDUCATION
-</a>
-
-</div>
-
-
 </div>
 
 
