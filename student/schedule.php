@@ -333,6 +333,7 @@ $todayStmt = $pdo->prepare("
         ON b.teacher_id = t.teacher_id
 
     WHERE
+
         LOWER(TRIM(b.email))
         =
         LOWER(TRIM(?))
@@ -348,12 +349,13 @@ $todayStmt->execute([
     $student_email
 ]);
 
-$todayLessons = $todayStmt->fetchAll(
-    PDO::FETCH_ASSOC
-);
+$todayLessons =
+    $todayStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
-$totalToday = count($todayLessons);
-
+$totalToday =
+    count($todayLessons);
 
 /*
 |--------------------------------------------------------------------------
@@ -1647,176 +1649,219 @@ tr:hover {
     </div>
 
 
-   <!-- =====================================================
+   <!-- =================================================
      TODAY'S LESSONS
-===================================================== -->
+================================================= -->
 
-<div class="section-card">
+<div class="today">
 
-    <div class="section-header">
-
-        <div>
-            <h2>📅 Today's Lessons</h2>
-
-            <p>
-                Your lessons scheduled for today
-            </p>
-        </div>
-
-        <div class="lesson-count">
-
-            <?= (int)$totalToday ?>
-
-        </div>
-
-    </div>
+    <h3>
+        📌 Today's Lessons
+    </h3>
 
 
-    <?php if (empty($todayLessons)): ?>
+    <?php if (!empty($todayLessons)): ?>
 
-        <div class="empty-state">
+        <div style="overflow-x:auto;">
 
-            <div class="empty-icon">
-                📚
-            </div>
+            <table>
 
-            <h3>
-                No Lesson Today
-            </h3>
+                <tr>
 
-            <p>
-                You do not have any lesson scheduled
-                for today.
-            </p>
+                    <th>
+                        Time
+                    </th>
 
-        </div>
+                    <th>
+                        Subject
+                    </th>
 
-    <?php else: ?>
+                    <th>
+                        Curriculum
+                    </th>
+
+                    <th>
+                        Class
+                    </th>
+
+                    <th>
+                        Teacher
+                    </th>
+
+                    <th>
+                        Status
+                    </th>
+
+                    <th>
+                        Zoom
+                    </th>
+
+                </tr>
 
 
-        <div class="today-lessons">
+                <?php foreach (
+                    $todayLessons
+                    as $today
+                ): ?>
 
+                    <tr>
 
-            <?php foreach ($todayLessons as $lesson): ?>
+                        <!-- TIME -->
 
-
-                <div class="today-lesson-card">
-
-
-                    <div class="lesson-time">
-
-                        <div class="time-icon">
-                            🕐
-                        </div>
-
-                        <div>
+                        <td>
 
                             <strong>
 
                                 <?= h(
                                     formatTimeValue(
-                                        $lesson['lesson_time']
+                                        $today['lesson_time']
                                     )
                                 ) ?>
 
                             </strong>
 
-                            <small>
-                                Today
-                            </small>
-
-                        </div>
-
-                    </div>
+                        </td>
 
 
-                    <div class="lesson-information">
+                        <!-- SUBJECT -->
 
-
-                        <h3>
+                        <td>
 
                             <?= h(
-                                $lesson['subjects']
+                                $today['subjects']
                             ) ?>
 
-                        </h3>
+                        </td>
 
 
-                        <p>
+                        <!-- CURRICULUM -->
 
-                            <strong>
-                                Curriculum:
-                            </strong>
+                        <td>
 
                             <?= h(
-                                $lesson['curriculum']
+                                $today['curriculum']
                             ) ?>
 
-                        </p>
+                        </td>
 
 
-                        <p>
+                        <!-- CLASS -->
 
-                            <strong>
-                                Class:
-                            </strong>
+                        <td>
 
                             <?= h(
-                                $lesson['class_year']
+                                $today['class_year']
                             ) ?>
 
-                        </p>
+                        </td>
 
 
-                        <p>
+                        <!-- TEACHER -->
 
-                            <strong>
-                                Teacher:
-                            </strong>
+<td>
 
-                            <?= h(
-                                $lesson['assigned_teacher_name']
-                                ??
-                                $lesson['teacher_name']
-                                ??
-                                'Not assigned'
-                            ) ?>
+    <strong class="teacher-name">
 
-                        </p>
+        <?= h(
+
+            $row[
+                'assigned_teacher_name'
+            ]
+
+            ??
+
+            $row[
+                'teacher_name'
+            ]
+
+            ??
+
+            'Not assigned'
+
+        ) ?>
+
+    </strong>
+
+</td>
+                        </td>
 
 
-                        <div class="lesson-status">
+                        <!-- STATUS -->
+
+                        <td>
 
                             <?= lessonStatusBadge(
-                                $lesson['lesson_status']
+
+                                $today[
+                                    'lesson_status'
+                                ]
+
                             ) ?>
 
-                        </div>
+                        </td>
 
 
-                    </div>
+                        <!-- ZOOM -->
+
+                        <td>
+
+                            <?= zoomButton(
+
+                                $today[
+                                    'teacher_zoom_link'
+                                ]
+
+                                ??
+
+                                ''
+
+                            ) ?>
+
+                        </td>
 
 
-                    <div class="lesson-action">
-
-                        <?= zoomButton(
-                            $lesson['teacher_zoom_link']
-                            ?? ''
-                        ) ?>
-
-                    </div>
+                    </tr>
 
 
-                </div>
+                <?php endforeach; ?>
 
 
-            <?php endforeach; ?>
+            </table>
 
+        </div>
+
+
+    <?php else: ?>
+
+
+        <div class="no-data">
+
+            <div class="no-data-icon">
+
+                📅
+
+            </div>
+
+
+            <h3>
+
+                No Lessons Today
+
+            </h3>
+
+
+            <p>
+
+                You do not have any lesson
+                scheduled for today.
+
+            </p>
 
         </div>
 
 
     <?php endif; ?>
+
 
 </div>
 
