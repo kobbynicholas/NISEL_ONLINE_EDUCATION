@@ -1880,7 +1880,7 @@ tbody tr:hover td {
 
 
 
-    <a href="booking.php">
+    <a href="bookings.php">
 
         <span class="menu-icon">
             📚
@@ -2483,7 +2483,7 @@ tbody tr:hover td {
 
 
         <a
-            href="booking.php"
+            href="assign_teachers.php"
             class="quick-action"
         >
 
@@ -2555,7 +2555,7 @@ tbody tr:hover td {
 
 
                 <a
-                    href="booking.php"
+                    href="bookings.php"
                     class="view-all"
                 >
 
