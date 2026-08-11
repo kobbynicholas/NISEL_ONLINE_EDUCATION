@@ -27,8 +27,8 @@ if (
     !empty($_SESSION['admin_id'])
 ) {
 
-    header("Location: dashboard.php");
-    exit;
+    header("Location: /online/admin/dashboard.php");
+exit;
 
 }
 
