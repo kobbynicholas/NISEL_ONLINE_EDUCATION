@@ -1,8 +1,28 @@
 <?php
 
+<?php
+
 session_start();
 
-require __DIR__ . "/config/db.php";
+require "../config/db.php";
+require "../config/pricing.php";
+
+
+if (
+    !isset($_SESSION['student_id'])
+) {
+
+    header(
+        "Location: login.php"
+    );
+
+    exit;
+
+}
+
+
+$student_id =
+    (int) $_SESSION['student_id'];
 
 
 /* =========================================================
