@@ -3,17 +3,28 @@
 session_start();
 
 require "../config/db.php";
-require "../config/pricing.php";
 
+
+/*
+|--------------------------------------------------------------------------
+| NISEL ONLINE EDUCATION
+| STUDENT PAYMENTS
+|--------------------------------------------------------------------------
+*/
+
+
+/*
+|--------------------------------------------------------------------------
+| CHECK LOGIN
+|--------------------------------------------------------------------------
+*/
 
 if (
-    !isset($_SESSION['student_id'])
+    !isset($_SESSION['student_id']) ||
+    empty($_SESSION['student_id'])
 ) {
 
-    header(
-        "Location: login.php"
-    );
-
+    header("Location: login.php");
     exit;
 
 }
@@ -23,66 +34,562 @@ $student_id =
     (int) $_SESSION['student_id'];
 
 
-/* =========================================================
-   PAYSTACK SECRET KEY
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| PAYSTACK SECRET KEY
+|--------------------------------------------------------------------------
+|
+| IMPORTANT:
+| Keep your existing Paystack TEST secret key here.
+| Do NOT put the secret key in JavaScript or HTML.
+|
+|--------------------------------------------------------------------------
+*/
+
+$secretKey = "YOUR_PAYSTACK_SECRET_KEY";
+
 
 /*
- * PUT YOUR CURRENT PAYSTACK SECRET KEY HERE.
- *
- * TEST MODE:
- * sk_test_...
- *
- * LIVE MODE:
- * sk_live_...
- *
- * DO NOT put pk_test_... here.
- */
+|--------------------------------------------------------------------------
+| CURRICULUM / PROGRAM PRICES
+|--------------------------------------------------------------------------
+*/
 
-$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
+$prices = [
 
+    'Cambridge' => 1000,
 
-/* =========================================================
-   GET PAYSTACK REFERENCE
-========================================================= */
+    'IB' => 1200,
 
-$reference =
-    trim(
-        $_GET['reference']
-        ??
-        $_GET['trxref']
-        ??
-        ''
-    );
+    'GES' => 800,
+
+    'SAT' => 850
+
+];
 
 
-if ($reference === '') {
+/*
+|--------------------------------------------------------------------------
+| GET BOOKING ID
+|--------------------------------------------------------------------------
+*/
+
+$booking_id =
+    isset($_GET['booking_id'])
+    ? (int) $_GET['booking_id']
+    : 0;
+
+
+/*
+|--------------------------------------------------------------------------
+| ALSO CHECK SESSION
+|--------------------------------------------------------------------------
+*/
+
+if (
+    $booking_id <= 0 &&
+    isset(
+        $_SESSION['pending_booking_id']
+    )
+) {
+
+    $booking_id =
+        (int)
+        $_SESSION['pending_booking_id'];
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| BOOKING ID REQUIRED
+|--------------------------------------------------------------------------
+*/
+
+if ($booking_id <= 0) {
 
     die("
-        <h2>Payment Verification Failed</h2>
-        <p>Paystack reference was not received.</p>
+
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+            text-align:center;
+        '>
+
+            <h2>
+                Payment Error
+            </h2>
+
+            <p>
+                No booking was selected for payment.
+            </p>
+
+            <a href='book_lesson.php'>
+                Return to Book a Lesson
+            </a>
+
+        </div>
+
     ");
 
 }
 
 
-/* =========================================================
-   VERIFY WITH PAYSTACK
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| GET BOOKING
+|--------------------------------------------------------------------------
+*/
 
-$url =
-    "https://api.paystack.co/transaction/verify/"
+try {
+
+    $stmt =
+        $pdo->prepare("
+
+            SELECT
+
+                id,
+
+                booking_reference,
+
+                student_id,
+
+                student_name,
+
+                dob,
+
+                phone,
+
+                email,
+
+                curriculum,
+
+                class_year,
+
+                subjects,
+
+                amount,
+
+                payment_status,
+
+                paystack_reference
+
+            FROM bookings
+
+            WHERE id = ?
+
+            AND student_id = ?
+
+            LIMIT 1
+
+        ");
+
+
+    $stmt->execute([
+
+        $booking_id,
+
+        $student_id
+
+    ]);
+
+
+    $booking =
+        $stmt->fetch(
+            PDO::FETCH_ASSOC
+        );
+
+
+} catch (PDOException $e) {
+
+    die("
+
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+        '>
+
+            <h2>
+                Payment Error
+            </h2>
+
+            <p>
+                Unable to load your booking.
+            </p>
+
+            <pre>"
+            .
+            htmlspecialchars(
+                $e->getMessage()
+            )
+            .
+            "</pre>
+
+        </div>
+
+    ");
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| BOOKING NOT FOUND
+|--------------------------------------------------------------------------
+*/
+
+if (!$booking) {
+
+    die("
+
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+            text-align:center;
+        '>
+
+            <h2>
+                Booking Not Found
+            </h2>
+
+            <p>
+                We could not find this booking.
+            </p>
+
+            <a href='book_lesson.php'>
+                Book a Lesson
+            </a>
+
+        </div>
+
+    ");
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ALREADY PAID
+|--------------------------------------------------------------------------
+*/
+
+if (
+    strtolower(
+        trim(
+            $booking['payment_status']
+            ?? ''
+        )
+    )
+    ===
+    'paid'
+) {
+
+    header(
+        "Location: success.php?booking="
+        .
+        urlencode(
+            $booking['booking_reference']
+        )
+    );
+
+    exit;
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GET PROGRAM / CURRICULUM
+|--------------------------------------------------------------------------
+*/
+
+$curriculum =
+    trim(
+        $booking['curriculum']
+        ?? ''
+    );
+
+
+/*
+|--------------------------------------------------------------------------
+| FIND CORRECT PRICE
+|--------------------------------------------------------------------------
+*/
+
+$amount = 0;
+
+
+/*
+|--------------------------------------------------------------------------
+| CASE-INSENSITIVE PRICE LOOKUP
+|--------------------------------------------------------------------------
+*/
+
+foreach (
+    $prices
+    as $program =>
+    $programPrice
+) {
+
+    if (
+        strtolower($program)
+        ===
+        strtolower($curriculum)
+    ) {
+
+        $amount =
+            (float)
+            $programPrice;
+
+        break;
+
+    }
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| INVALID PROGRAM
+|--------------------------------------------------------------------------
+*/
+
+if ($amount <= 0) {
+
+    die("
+
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+            text-align:center;
+        '>
+
+            <h2>
+                Payment Error
+            </h2>
+
+            <p>
+                We could not determine the price
+                for this booking.
+            </p>
+
+            <p>
+
+                Selected program:
+                <strong>"
+                .
+                htmlspecialchars(
+                    $curriculum
+                )
+                .
+                "</strong>
+
+            </p>
+
+            <a href='book_lesson.php'>
+                Return to Booking
+            </a>
+
+        </div>
+
+    ");
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FORCE CORRECT AMOUNT INTO BOOKING
+|--------------------------------------------------------------------------
+|
+| We don't trust an amount sent by the browser.
+|
+|--------------------------------------------------------------------------
+*/
+
+try {
+
+    $updateAmount =
+        $pdo->prepare("
+
+            UPDATE bookings
+
+            SET amount = ?
+
+            WHERE id = ?
+
+            AND student_id = ?
+
+        ");
+
+
+    $updateAmount->execute([
+
+        $amount,
+
+        $booking_id,
+
+        $student_id
+
+    ]);
+
+
+} catch (PDOException $e) {
+
+    die("
+
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+        '>
+
+            <h2>
+                Payment Error
+            </h2>
+
+            <p>
+                Unable to prepare your booking
+                for payment.
+            </p>
+
+        </div>
+
+    ");
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GENERATE UNIQUE PAYSTACK REFERENCE
+|--------------------------------------------------------------------------
+|
+| Paystack references may contain alphanumeric characters
+| and certain punctuation. We use a simple safe format.
+|
+|--------------------------------------------------------------------------
+*/
+
+$paystackReference =
+    'NISEL-'
     .
-    urlencode($reference);
+    date('YmdHis')
+    .
+    '-'
+    .
+    strtoupper(
+        bin2hex(
+            random_bytes(4)
+        )
+    );
 
 
-$ch = curl_init();
+/*
+|--------------------------------------------------------------------------
+| AMOUNT IN PESEWAS
+|--------------------------------------------------------------------------
+|
+| Paystack requires the amount in the currency subunit.
+|
+| GHS 1,000 = 100000
+| GHS 1,200 = 120000
+| GHS   800 = 80000
+| GHS   850 = 85000
+|
+|--------------------------------------------------------------------------
+*/
+
+$paystackAmount =
+    (int)
+    round(
+        $amount * 100
+    );
+
+
+/*
+|--------------------------------------------------------------------------
+| CALLBACK URL
+|--------------------------------------------------------------------------
+|
+| Paystack redirects the student here after checkout.
+|
+|--------------------------------------------------------------------------
+*/
+
+$callbackUrl =
+    "http://localhost/online/verify_payment.php";
+
+
+/*
+|--------------------------------------------------------------------------
+| INITIALIZE PAYSTACK TRANSACTION
+|--------------------------------------------------------------------------
+*/
+
+$payload = [
+
+    'email' =>
+        $booking['email'],
+
+    'amount' =>
+        $paystackAmount,
+
+    'currency' =>
+        'GHS',
+
+    'reference' =>
+        $paystackReference,
+
+    'callback_url' =>
+        $callbackUrl,
+
+    'metadata' => [
+
+        'booking_id' =>
+            (string)
+            $booking['id'],
+
+        'booking_reference' =>
+            $booking['booking_reference'],
+
+        'student_id' =>
+            (string)
+            $booking['student_id'],
+
+        'student_name' =>
+            $booking['student_name'],
+
+        'curriculum' =>
+            $curriculum,
+
+        'subject' =>
+            $booking['subjects']
+
+    ]
+
+];
+
+
+$ch =
+    curl_init(
+        "https://api.paystack.co/transaction/initialize"
+    );
 
 
 curl_setopt(
     $ch,
-    CURLOPT_URL,
-    $url
+    CURLOPT_POST,
+    true
 );
 
 
@@ -95,14 +602,23 @@ curl_setopt(
 
 curl_setopt(
     $ch,
+    CURLOPT_TIMEOUT,
+    30
+);
+
+
+curl_setopt(
+    $ch,
     CURLOPT_HTTPHEADER,
     [
 
-        "Authorization: Bearer " . $secretKey,
+        "Authorization: Bearer "
+        .
+        $secretKey,
 
-        "Cache-Control: no-cache",
+        "Content-Type: application/json",
 
-        "Content-Type: application/json"
+        "Cache-Control: no-cache"
 
     ]
 );
@@ -110,14 +626,18 @@ curl_setopt(
 
 curl_setopt(
     $ch,
-    CURLOPT_TIMEOUT,
-    30
+    CURLOPT_POSTFIELDS,
+    json_encode(
+        $payload
+    )
 );
 
 
-/* =========================================================
-   EXECUTE CURL
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| SEND REQUEST
+|--------------------------------------------------------------------------
+*/
 
 $response =
     curl_exec($ch);
@@ -137,39 +657,60 @@ $httpCode =
 curl_close($ch);
 
 
-/* =========================================================
-   CURL ERROR
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| CURL ERROR
+|--------------------------------------------------------------------------
+*/
 
-if ($response === false || $curlError !== '') {
+if (
+    $response === false
+    ||
+    $curlError !== ''
+) {
 
     die("
 
-        <h2>Payment Verification Failed</h2>
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+        '>
 
-        <p>
-            Unable to contact Paystack.
-        </p>
+            <h2>
+                Payment Initialization Failed
+            </h2>
 
-        <p>
-            CURL Error:
-            "
-            .
-            htmlspecialchars(
-                $curlError
-            )
-            .
-            "
-        </p>
+            <p>
+                Unable to connect to Paystack.
+            </p>
+
+            <p>
+
+                Error:
+                "
+                .
+                htmlspecialchars(
+                    $curlError
+                )
+                .
+                "
+
+            </p>
+
+        </div>
 
     ");
 
 }
 
 
-/* =========================================================
-   DECODE PAYSTACK RESPONSE
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| DECODE PAYSTACK RESPONSE
+|--------------------------------------------------------------------------
+*/
 
 $result =
     json_decode(
@@ -178,9 +719,11 @@ $result =
     );
 
 
-/* =========================================================
-   DEBUG PAYSTACK RESPONSE
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| INVALID RESPONSE
+|--------------------------------------------------------------------------
+*/
 
 if (
     !is_array($result)
@@ -188,562 +731,249 @@ if (
 
     die("
 
-        <h2>Payment Verification Failed</h2>
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+        '>
 
-        <p>
-            Paystack returned an invalid response.
-        </p>
+            <h2>
+                Payment Initialization Failed
+            </h2>
 
-        <pre>"
-        .
-        htmlspecialchars(
-            $response
-        )
-        .
-        "</pre>
+            <p>
+                Paystack returned an invalid response.
+            </p>
+
+        </div>
 
     ");
 
 }
 
 
-/* =========================================================
-   PAYSTACK ERROR
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| PAYSTACK INITIALIZATION FAILED
+|--------------------------------------------------------------------------
+*/
 
 if (
-    !isset(
+    empty(
         $result['status']
     )
-    ||
-    $result['status'] !== true
 ) {
 
     $paystackMessage =
         $result['message']
         ??
-        'Unknown Paystack error.';
+        'Unable to initialize payment.';
 
 
     die("
 
-        <h2>Payment Verification Failed</h2>
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+        '>
 
-        <p>
-            Paystack could not verify this payment.
-        </p>
+            <h2>
+                Payment Initialization Failed
+            </h2>
 
-        <p>
-
-            <strong>
-                Paystack response:
-            </strong>
-
-            "
+            <p>"
             .
             htmlspecialchars(
                 $paystackMessage
             )
             .
-            "
+            "</p>
 
-        </p>
-
-        <p>
-
-            HTTP Status:
-            "
-            .
-            htmlspecialchars(
-                (string)$httpCode
-            )
-            .
-            "
-
-        </p>
-
-        <p>
-
-            Reference:
-            "
-            .
-            htmlspecialchars(
-                $reference
-            )
-            .
-            "
-
-        </p>
-
-    ");
-
-}
-
-
-/* =========================================================
-   TRANSACTION DATA
-========================================================= */
-
-$data =
-    $result['data']
-    ??
-    [];
-
-
-$transactionStatus =
-    $data['status']
-    ??
-    '';
-
-
-$paystackReference =
-    $data['reference']
-    ??
-    $reference;
-
-
-$amountPaid =
-    (
-        (float)(
-            $data['amount']
-            ??
-            0
-        )
-        / 100
-    );
-
-
-$paymentChannel =
-    $data['channel']
-    ??
-    'Unknown';
-
-
-/* =========================================================
-   CHECK PAYMENT STATUS
-========================================================= */
-
-if (
-    $transactionStatus !== 'success'
-) {
-
-    die("
-
-        <h2>Payment Verification Failed</h2>
-
-        <p>
-
-            Payment status from Paystack:
-
-            <strong>
+            <p>
+                HTTP Status:
                 "
                 .
                 htmlspecialchars(
-                    $transactionStatus
+                    (string)
+                    $httpCode
                 )
                 .
                 "
-            </strong>
+            </p>
 
-        </p>
+        </div>
 
     ");
 
 }
-
-
-/* =========================================================
-   CHECK AMOUNT
-========================================================= */
-
-if (
-    $amountPaid < 1000
-) {
-
-    die("
-
-        <h2>Payment Verification Failed</h2>
-
-        <p>
-
-            The payment amount received was:
-
-            <strong>
-                GHS "
-                .
-                number_format(
-                    $amountPaid,
-                    2
-                )
-                .
-                "
-            </strong>
-
-        </p>
-
-        <p>
-
-            Expected:
-
-            <strong>
-                GHS 1,000.00
-            </strong>
-
-        </p>
-
-    ");
-
-}
-
-
-/* =========================================================
-   GET BOOKING REFERENCE
-========================================================= */
-
-$bookingReference =
-    $reference;
 
 
 /*
- * Check metadata as well.
- */
+|--------------------------------------------------------------------------
+| GET AUTHORIZATION URL
+|--------------------------------------------------------------------------
+*/
+
+$authorizationUrl =
+    $result['data']
+    ['authorization_url']
+    ??
+    '';
+
+
+$paystackAccessCode =
+    $result['data']
+    ['access_code']
+    ??
+    '';
+
+
+$actualPaystackReference =
+    $result['data']
+    ['reference']
+    ??
+    $paystackReference;
+
+
+/*
+|--------------------------------------------------------------------------
+| AUTHORIZATION URL REQUIRED
+|--------------------------------------------------------------------------
+*/
 
 if (
-    isset(
-        $data['metadata']
-    )
-    &&
-    is_array(
-        $data['metadata']
-    )
+    $authorizationUrl === ''
 ) {
 
-    if (
-        !empty(
-            $data['metadata']
-            ['booking_reference']
-        )
-    ) {
-
-        $bookingReference =
-            $data['metadata']
-            ['booking_reference'];
-
-    }
-
-}
-
-
-/* =========================================================
-   FIND BOOKING
-========================================================= */
-
-try {
-
-    $stmt =
-        $pdo->prepare("
-
-            SELECT *
-
-            FROM bookings
-
-            WHERE booking_reference = ?
-
-            LIMIT 1
-
-        ");
-
-
-    $stmt->execute([
-        $bookingReference
-    ]);
-
-
-    $booking =
-        $stmt->fetch(
-            PDO::FETCH_ASSOC
-        );
-
-
-} catch (PDOException $e) {
-
     die("
 
-        <h2>Payment Verification Failed</h2>
+        <div style='
+            font-family:Arial;
+            max-width:700px;
+            margin:60px auto;
+            padding:30px;
+        '>
 
-        <p>
+            <h2>
+                Payment Initialization Failed
+            </h2>
 
-            Database error while finding
-            the booking.
+            <p>
+                Paystack did not return a checkout URL.
+            </p>
 
-        </p>
-
-        <p>"
-        .
-        htmlspecialchars(
-            $e->getMessage()
-        )
-        .
-        "</p>
+        </div>
 
     ");
 
 }
 
 
-/* =========================================================
-   BOOKING NOT FOUND
-========================================================= */
-
-if (!$booking) {
-
-    die("
-
-        <h2>Payment Verification Failed</h2>
-
-        <p>
-
-            Payment was verified by Paystack,
-            but the booking could not be found.
-
-        </p>
-
-        <p>
-
-            Booking Reference:
-
-            <strong>
-                "
-                .
-                htmlspecialchars(
-                    $bookingReference
-                )
-                .
-                "
-            </strong>
-
-        </p>
-
-    ");
-
-}
-
-
-/* =========================================================
-   BOOKING INFORMATION
-========================================================= */
-
-$bookingId =
-    $booking['id'];
-
-
-$studentName =
-    $booking['student_name']
-    ??
-    '';
-
-
-$email =
-    $booking['email']
-    ??
-    '';
-
-
-$subject =
-    $booking['subjects']
-    ??
-    '';
-
-
-$curriculum =
-    $booking['curriculum']
-    ??
-    '';
-
-
-$classYear =
-    $booking['class_year']
-    ??
-    '';
-
-
-/* =========================================================
-   UPDATE BOOKING
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| SAVE PAYSTACK REFERENCE
+|--------------------------------------------------------------------------
+*/
 
 try {
 
-    $stmt =
+    $saveReference =
         $pdo->prepare("
 
             UPDATE bookings
 
-            SET
-
-                payment_status = 'Paid',
-
-                paystack_reference = ?,
-
-                amount = ?
+            SET paystack_reference = ?
 
             WHERE id = ?
 
-        ");
-
-
-    $stmt->execute([
-
-        $paystackReference,
-
-        $amountPaid,
-
-        $bookingId
-
-    ]);
-
-
-} catch (PDOException $e) {
-
-    die("
-
-        <h2>Payment Verification Failed</h2>
-
-        <p>
-
-            Payment was verified, but the booking
-            could not be updated.
-
-        </p>
-
-        <p>"
-        .
-        htmlspecialchars(
-            $e->getMessage()
-        )
-        .
-        "</p>
-
-    ");
-
-}
-
-
-/* =========================================================
-   SAVE PAYMENT RECORD
-========================================================= */
-
-try {
-
-    $stmt =
-        $pdo->prepare("
-
-            SELECT id
-
-            FROM payments
-
-            WHERE transaction_reference = ?
-
-            LIMIT 1
+            AND student_id = ?
 
         ");
 
 
-    $stmt->execute([
-        $paystackReference
+    $saveReference->execute([
+
+        $actualPaystackReference,
+
+        $booking_id,
+
+        $student_id
+
     ]);
-
-
-    $existingPayment =
-        $stmt->fetch(
-            PDO::FETCH_ASSOC
-        );
-
-
-    if (!$existingPayment) {
-
-        $insert =
-            $pdo->prepare("
-
-                INSERT INTO payments (
-
-                    booking_reference,
-
-                    student_name,
-
-                    email,
-
-                    amount,
-
-                    payment_method,
-
-                    transaction_reference,
-
-                    status
-
-                )
-
-                VALUES (
-
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    ?,
-                    'Paid'
-
-                )
-
-            ");
-
-
-        $insert->execute([
-
-            $bookingReference,
-
-            $studentName,
-
-            $email,
-
-            $amountPaid,
-
-            $paymentChannel,
-
-            $paystackReference
-
-        ]);
-
-    }
 
 
 } catch (PDOException $e) {
 
     /*
-     * Don't mark the whole payment as failed
-     * if the booking itself was already updated.
-     */
+    |--------------------------------------------------------------------------
+    | Don't stop the payment page if this fails.
+    |--------------------------------------------------------------------------
+    |
+    | The reference is also passed to Paystack and will
+    | be returned to verify_payment.php.
+    |
+    */
 
 }
 
 
-/* =========================================================
-   REDIRECT TO SUCCESS
-========================================================= */
+/*
+|--------------------------------------------------------------------------
+| SAVE SESSION INFORMATION
+|--------------------------------------------------------------------------
+*/
 
-header(
+$_SESSION[
+    'pending_booking_id'
+] =
+    $booking_id;
 
-    "Location: success.php?booking="
-    .
-    urlencode(
-        $bookingReference
-    )
 
-);
+$_SESSION[
+    'pending_booking_reference'
+] =
+    $booking['booking_reference'];
 
-exit;
+
+$_SESSION[
+    'paystack_reference'
+] =
+    $actualPaystackReference;
+
+
+/*
+|--------------------------------------------------------------------------
+| DISPLAY DATA
+|--------------------------------------------------------------------------
+*/
+
+$bookingReference =
+    $booking['booking_reference'];
+
+
+$studentName =
+    $booking['student_name']
+    ?? '';
+
+
+$email =
+    $booking['email']
+    ?? '';
+
+
+$subject =
+    $booking['subjects']
+    ?? '';
+
+
+$classYear =
+    $booking['class_year']
+    ?? '';
 
 ?>
-
 
 <!DOCTYPE html>
 
@@ -753,27 +983,21 @@ exit;
 
 <meta charset="UTF-8">
 
-
 <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
 >
 
-
 <title>
-
-Payment |
-NISEL ONLINE EDUCATION
-
+    Payment |
+    NISEL ONLINE EDUCATION
 </title>
 
 
 <style>
 
 * {
-
     box-sizing: border-box;
-
 }
 
 
@@ -781,11 +1005,15 @@ body {
 
     margin: 0;
 
-    font-family: Arial, sans-serif;
+    font-family:
+        Arial,
+        sans-serif;
 
-    background: #eef3f8;
+    background:
+        #eef3f8;
 
-    color: #333;
+    color:
+        #333;
 
 }
 
@@ -810,7 +1038,8 @@ body {
     border-radius: 14px;
 
     box-shadow:
-        0 5px 20px rgba(0,0,0,.10);
+        0 5px 20px
+        rgba(0,0,0,.10);
 
 }
 
@@ -856,7 +1085,8 @@ h1 {
 
 .details {
 
-    border: 1px solid #ddd;
+    border:
+        1px solid #ddd;
 
     border-radius: 10px;
 
@@ -871,13 +1101,15 @@ h1 {
 
     display: flex;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
     gap: 20px;
 
     padding: 14px 18px;
 
-    border-bottom: 1px solid #eee;
+    border-bottom:
+        1px solid #eee;
 
 }
 
@@ -907,7 +1139,8 @@ h1 {
 
 .package {
 
-    background: #f4f8fc;
+    background:
+        #f4f8fc;
 
     padding: 20px;
 
@@ -975,7 +1208,8 @@ h1 {
 
     padding: 16px;
 
-    background: #003366;
+    background:
+        #003366;
 
     color: white;
 
@@ -998,7 +1232,8 @@ h1 {
 
 .pay-button:hover {
 
-    background: #0055a5;
+    background:
+        #0055a5;
 
 }
 
@@ -1024,9 +1259,11 @@ h1 {
 
     padding: 14px;
 
-    background: #fff8e1;
+    background:
+        #fff8e1;
 
-    border-left: 4px solid #f0ad4e;
+    border-left:
+        4px solid #f0ad4e;
 
     color: #66512c;
 
@@ -1080,348 +1317,260 @@ h1 {
 
 <div class="container">
 
+    <div class="card">
 
-<div class="card">
 
+        <div class="logo">
 
-<div class="logo">
+            NISEL<br>
 
-NISEL<br>
+            ONLINE EDUCATION
 
-ONLINE EDUCATION
+        </div>
 
-</div>
 
+        <h1>
 
-<h1>
+            💳 Payment
 
-💳 Payment
+        </h1>
 
-</h1>
 
+        <p class="subtitle">
 
-<p class="subtitle">
+            Complete your payment for your
+            subject lesson package.
 
-Complete your payment for your subject
-lesson package.
+        </p>
 
-</p>
 
 
-<!-- =====================================================
-     BOOKING DETAILS
-===================================================== -->
+        <div class="details">
 
-<div class="details">
 
+            <div class="row">
 
-<div class="row">
+                <span class="label">
+                    Booking Reference
+                </span>
 
-<span class="label">
+                <span class="value">
 
-Booking Reference
+                    <?= htmlspecialchars(
+                        $bookingReference
+                    ) ?>
 
-</span>
+                </span>
 
+            </div>
 
-<span class="value">
 
-<?php
 
-echo htmlspecialchars(
-    $bookingReference
-);
+            <div class="row">
 
-?>
+                <span class="label">
+                    Student
+                </span>
 
-</span>
+                <span class="value">
 
-</div>
+                    <?= htmlspecialchars(
+                        $studentName
+                    ) ?>
 
+                </span>
 
+            </div>
 
-<div class="row">
 
-<span class="label">
 
-Student
+            <div class="row">
 
-</span>
+                <span class="label">
+                    Email
+                </span>
 
+                <span class="value">
 
-<span class="value">
+                    <?= htmlspecialchars(
+                        $email
+                    ) ?>
 
-<?php
+                </span>
 
-echo htmlspecialchars(
-    $studentName
-);
+            </div>
 
-?>
 
-</span>
 
-</div>
+            <div class="row">
 
+                <span class="label">
+                    Curriculum
+                </span>
 
+                <span class="value">
 
-<div class="row">
+                    <?= htmlspecialchars(
+                        $curriculum
+                    ) ?>
 
-<span class="label">
+                </span>
 
-Email
+            </div>
 
-</span>
 
 
-<span class="value">
+            <div class="row">
 
-<?php
+                <span class="label">
+                    Class / Year
+                </span>
 
-echo htmlspecialchars(
-    $email
-);
+                <span class="value">
 
-?>
+                    <?= htmlspecialchars(
+                        $classYear
+                    ) ?>
 
-</span>
+                </span>
 
-</div>
+            </div>
 
 
 
-<div class="row">
+            <div class="row">
 
-<span class="label">
+                <span class="label">
+                    Subject
+                </span>
 
-Curriculum
+                <span class="value">
 
-</span>
+                    <strong>
 
+                        <?= htmlspecialchars(
+                            $subject
+                        ) ?>
 
-<span class="value">
+                    </strong>
 
-<?php
+                </span>
 
-echo htmlspecialchars(
-    $curriculum
-);
+            </div>
 
-?>
 
-</span>
+        </div>
 
-</div>
 
 
+        <div class="package">
 
-<div class="row">
+            <h3>
 
-<span class="label">
+                📚 Your Lesson Package
 
-Class / Year
+            </h3>
 
-</span>
 
+            <ul>
 
-<span class="value">
+                <li>
+                    <strong>
+                        2 lessons per week
+                    </strong>
+                </li>
 
-<?php
+                <li>
+                    <strong>
+                        8 lessons per month
+                    </strong>
+                </li>
 
-echo htmlspecialchars(
-    $classYear
-);
+                <li>
+                    One subject per booking
+                </li>
 
-?>
+                <li>
+                    Teacher assigned by NISEL administration
+                </li>
 
-</span>
+            </ul>
 
-</div>
+        </div>
 
 
 
-<div class="row">
+        <div class="amount">
 
-<span class="label">
+            <small>
+                Monthly Subject Package
+            </small>
 
-Subject
 
-</span>
+            <strong>
 
+                GHS
 
-<span class="value">
+                <?= number_format(
+                    $amount,
+                    2
+                ) ?>
 
-<strong>
+            </strong>
 
-<?php
+        </div>
 
-echo htmlspecialchars(
-    $subject
-);
 
-?>
 
-</strong>
+        <a
+            href="<?= htmlspecialchars(
+                $authorizationUrl
+            ) ?>"
+            class="pay-button"
+        >
 
-</span>
+            💳 Pay GHS
 
-</div>
+            <?= number_format(
+                $amount,
+                2
+            ) ?>
 
+        </a>
 
-</div>
 
 
+        <div class="notice">
 
-<!-- =====================================================
-     PACKAGE
-===================================================== -->
+            <strong>
+                Important:
+            </strong>
 
-<div class="package">
+            You are paying for the selected
+            subject only.
 
+            This booking provides 8 lessons
+            per month, with 2 lessons scheduled
+            each week.
 
-<h3>
+            If you want another subject,
+            create a separate booking.
 
-📚 Your Lesson Package
+        </div>
 
-</h3>
 
 
-<ul>
+        <a
+            href="book_lesson.php"
+            class="back"
+        >
 
-<li>
+            ← Back to Book a Subject
 
-<strong>
-2 lessons per week
-</strong>
+        </a>
 
-</li>
 
-
-<li>
-
-<strong>
-8 lessons per month
-</strong>
-
-</li>
-
-
-<li>
-
-One subject per booking
-
-</li>
-
-
-<li>
-
-Teacher assigned by NISEL administration
-
-</li>
-
-
-</ul>
-
-
-</div>
-
-
-
-<!-- =====================================================
-     AMOUNT
-===================================================== -->
-
-<div class="amount">
-
-
-<small>
-
-Monthly Subject Package
-
-</small>
-
-
-<strong>
-
-GHS
-
-<?php
-
-echo number_format(
-    $amount,
-    2
-);
-
-?>
-
-</strong>
-
-
-</div>
-
-
-
-<!-- =====================================================
-     PAYMENT BUTTON
-===================================================== -->
-
-<a
-    href="<?php
-
-        echo htmlspecialchars(
-            $authorizationUrl
-        );
-
-    ?>"
-    class="pay-button"
->
-
-    💳 Pay GHS
-
-    <?php
-
-    echo number_format(
-        $amount,
-        2
-    );
-
-    ?>
-
-</a>
-
-
-
-<div class="notice">
-
-<strong>
-
-Important:
-
-</strong>
-
-You are paying for the selected subject only.
-This booking provides 8 lessons per month,
-with 2 lessons scheduled each week.
-
-If you want another subject, create a
-separate booking for that subject.
-
-</div>
-
-
-
-<a
-    href="student/book_lesson.php"
-    class="back"
->
-
-    ← Back to Book a Subject
-
-</a>
-
-
-</div>
-
+    </div>
 
 </div>
 
