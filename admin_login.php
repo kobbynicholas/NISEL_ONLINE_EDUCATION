@@ -176,27 +176,32 @@ if (
                 |--------------------------------------------------------------------------
                 */
 
-                 header(
-                     "Location: /online/admin/dashboard.php");
+                 if (
+    password_verify(
+        $password,
+        $admin['password']
+    )
+) {
 
-                exit;
+    session_regenerate_id(true);
 
-            }
+    $_SESSION['admin_id'] =
+        $admin['id'];
 
+    $_SESSION['admin_name'] =
+        $admin['username'] ?? 'Administrator';
 
-        } catch (
-            PDOException $e
-        ) {
+    $_SESSION['admin_email'] =
+        $admin['email'];
 
-            $error =
-                "Database error: "
-                .
-                $e->getMessage();
+    $_SESSION['admin_logged_in'] =
+        true;
 
-        }
+    header(
+        "Location: /online/admin/dashboard.php"
+    );
 
-    }
-
+    exit;
 }
 
 ?>
