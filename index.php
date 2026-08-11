@@ -1760,7 +1760,7 @@ img {
     </li>
 
     <li>
-        <a href=#teachers">
+        <a href="#teachers">
             Teachers
         </a>
     </li>
