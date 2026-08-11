@@ -5,7 +5,7 @@ session_start();
 /*
 |--------------------------------------------------------------------------
 | NISEL ONLINE EDUCATION
-| ADMIN BOOKING MANAGEMENT
+| ADMIN PAYMENT MANAGEMENT
 | PDO VERSION
 |--------------------------------------------------------------------------
 */
@@ -13,7 +13,7 @@ session_start();
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN LOGIN CHECK
+| ADMIN LOGIN
 |--------------------------------------------------------------------------
 */
 
@@ -69,385 +69,6 @@ function h($value)
 
 /*
 |--------------------------------------------------------------------------
-| MESSAGE
-|--------------------------------------------------------------------------
-*/
-
-$message = "";
-
-$messageType = "";
-
-
-/*
-|--------------------------------------------------------------------------
-| ASSIGN / UPDATE BOOKING
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['assign_booking'])
-) {
-
-
-    $bookingId =
-        isset($_POST['booking_id'])
-            ? (int)$_POST['booking_id']
-            : 0;
-
-
-    $teacherId =
-        trim(
-            $_POST['teacher_id']
-            ?? ''
-        );
-
-
-    $lessonDate =
-        trim(
-            $_POST['lesson_date']
-            ?? ''
-        );
-
-
-    $lessonTime =
-        trim(
-            $_POST['lesson_time']
-            ?? ''
-        );
-
-
-    if ($bookingId <= 0) {
-
-        $message =
-            "Invalid booking selected.";
-
-        $messageType =
-            "error";
-
-    }
-
-    elseif ($teacherId === '') {
-
-        $message =
-            "Please select a teacher.";
-
-        $messageType =
-            "error";
-
-    }
-
-    elseif ($lessonDate === '') {
-
-        $message =
-            "Please select a lesson date.";
-
-        $messageType =
-            "error";
-
-    }
-
-    elseif ($lessonTime === '') {
-
-        $message =
-            "Please select a lesson time.";
-
-        $messageType =
-            "error";
-
-    }
-
-    else {
-
-        try {
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | GET TEACHER
-            |--------------------------------------------------------------------------
-            */
-
-            $teacherStmt =
-                $pdo->prepare("
-                    SELECT
-                        teacher_id,
-                        teacher_name,
-                        subjects,
-                        curriculum,
-                        status
-                    FROM teachers
-                    WHERE teacher_id = ?
-                    LIMIT 1
-                ");
-
-
-            $teacherStmt->execute([
-                $teacherId
-            ]);
-
-
-            $teacher =
-                $teacherStmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
-
-
-            if (!$teacher) {
-
-                throw new Exception(
-                    "Selected teacher could not be found."
-                );
-
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | GET BOOKING
-            |--------------------------------------------------------------------------
-            */
-
-            $bookingStmt =
-                $pdo->prepare("
-                    SELECT
-                        id,
-                        student_id,
-                        student_name,
-                        email,
-                        curriculum,
-                        class_year,
-                        subjects,
-                        payment_status
-                    FROM bookings
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-
-
-            $bookingStmt->execute([
-                $bookingId
-            ]);
-
-
-            $booking =
-                $bookingStmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
-
-
-            if (!$booking) {
-
-                throw new Exception(
-                    "Booking could not be found."
-                );
-
-            }
-
-
-            /*
-            |--------------------------------------------------------------------------
-            | UPDATE BOOKING
-            |--------------------------------------------------------------------------
-            */
-
-            $update =
-                $pdo->prepare("
-                    UPDATE bookings
-                    SET
-                        teacher_id = :teacher_id,
-                        teacher_name = :teacher_name,
-                        lesson_date = :lesson_date,
-                        lesson_time = :lesson_time,
-                        assignment_status = 'Assigned',
-                        lesson_status = 'Scheduled'
-                    WHERE id = :id
-                    LIMIT 1
-                ");
-
-
-            $update->execute([
-
-                ':teacher_id'
-                    => $teacher['teacher_id'],
-
-                ':teacher_name'
-                    => $teacher['teacher_name'],
-
-                ':lesson_date'
-                    => $lessonDate,
-
-                ':lesson_time'
-                    => $lessonTime,
-
-                ':id'
-                    => $bookingId
-
-            ]);
-
-
-            $message =
-                "Booking successfully assigned to " .
-                $teacher['teacher_name'] .
-                ".";
-
-
-            $messageType =
-                "success";
-
-
-        }
-
-        catch (
-            Exception $e
-        ) {
-
-            $message =
-                $e->getMessage();
-
-            $messageType =
-                "error";
-
-        }
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| REMOVE TEACHER ASSIGNMENT
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['remove_assignment'])
-) {
-
-
-    $bookingId =
-        isset($_POST['booking_id'])
-            ? (int)$_POST['booking_id']
-            : 0;
-
-
-    if ($bookingId > 0) {
-
-        try {
-
-            $stmt =
-                $pdo->prepare("
-                    UPDATE bookings
-                    SET
-                        teacher_id = NULL,
-                        teacher_name = NULL,
-                        lesson_date = NULL,
-                        lesson_time = NULL,
-                        assignment_status = 'Unassigned',
-                        lesson_status = 'Scheduled'
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-
-
-            $stmt->execute([
-                $bookingId
-            ]);
-
-
-            $message =
-                "Teacher assignment removed successfully.";
-
-            $messageType =
-                "success";
-
-
-        }
-
-        catch (
-            PDOException $e
-        ) {
-
-            $message =
-                "Unable to remove assignment.";
-
-            $messageType =
-                "error";
-
-        }
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| MARK LESSON COMPLETED
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['complete_lesson'])
-) {
-
-
-    $bookingId =
-        isset($_POST['booking_id'])
-            ? (int)$_POST['booking_id']
-            : 0;
-
-
-    if ($bookingId > 0) {
-
-        try {
-
-            $stmt =
-                $pdo->prepare("
-                    UPDATE bookings
-                    SET
-                        lesson_status = 'Completed'
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-
-
-            $stmt->execute([
-                $bookingId
-            ]);
-
-
-            $message =
-                "Lesson marked as completed.";
-
-            $messageType =
-                "success";
-
-
-        }
-
-        catch (
-            PDOException $e
-        ) {
-
-            $message =
-                "Unable to update lesson status.";
-
-            $messageType =
-                "error";
-
-        }
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
 | FILTERS
 |--------------------------------------------------------------------------
 */
@@ -459,37 +80,37 @@ $search =
     );
 
 
-$curriculumFilter =
+$statusFilter =
     trim(
-        $_GET['curriculum']
+        $_GET['status']
         ?? ''
     );
 
 
-$paymentFilter =
+$methodFilter =
     trim(
-        $_GET['payment']
+        $_GET['method']
         ?? ''
     );
 
 
-$assignmentFilter =
+$dateFrom =
     trim(
-        $_GET['assignment']
+        $_GET['date_from']
         ?? ''
     );
 
 
-$lessonFilter =
+$dateTo =
     trim(
-        $_GET['lesson_status']
+        $_GET['date_to']
         ?? ''
     );
 
 
 /*
 |--------------------------------------------------------------------------
-| BUILD QUERY
+| BUILD WHERE CLAUSE
 |--------------------------------------------------------------------------
 */
 
@@ -508,14 +129,13 @@ if ($search !== '') {
 
     $where[] = "
         (
-            b.student_name LIKE ?
-            OR b.email LIKE ?
-            OR b.phone LIKE ?
-            OR b.booking_reference LIKE ?
-            OR b.subjects LIKE ?
+            p.student_name LIKE ?
+            OR p.email LIKE ?
+            OR p.booking_reference LIKE ?
+            OR p.transaction_reference LIKE ?
+            OR p.payment_method LIKE ?
         )
     ";
-
 
     $searchValue =
         '%' .
@@ -523,111 +143,55 @@ if ($search !== '') {
         '%';
 
 
-    $params[] =
-        $searchValue;
-
-    $params[] =
-        $searchValue;
-
-    $params[] =
-        $searchValue;
-
-    $params[] =
-        $searchValue;
-
-    $params[] =
-        $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
+    $params[] = $searchValue;
 
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| CURRICULUM FILTER
+| STATUS
 |--------------------------------------------------------------------------
 */
 
-if (
-    $curriculumFilter !== ''
-) {
-
-    $where[] =
-        "b.curriculum = ?";
-
-    $params[] =
-        $curriculumFilter;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| PAYMENT FILTER
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $paymentFilter !== ''
-) {
+if ($statusFilter !== '') {
 
     if (
-        $paymentFilter === 'paid'
+        strtolower(
+            $statusFilter
+        ) === 'paid'
     ) {
 
         $where[] = "
-            (
-                LOWER(b.payment_status) = 'paid'
-                OR
-                LOWER(b.payment_status) = 'success'
-            )
+            LOWER(p.status) = 'paid'
         ";
 
     }
 
     elseif (
-        $paymentFilter === 'pending'
+        strtolower(
+            $statusFilter
+        ) === 'pending'
     ) {
 
         $where[] = "
-            LOWER(b.payment_status) = 'pending'
-        ";
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| ASSIGNMENT FILTER
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $assignmentFilter !== ''
-) {
-
-    if (
-        $assignmentFilter === 'assigned'
-    ) {
-
-        $where[] = "
-            b.teacher_id IS NOT NULL
-            AND b.teacher_id <> ''
+            LOWER(p.status) = 'pending'
         ";
 
     }
 
     elseif (
-        $assignmentFilter === 'unassigned'
+        strtolower(
+            $statusFilter
+        ) === 'failed'
     ) {
 
         $where[] = "
-            (
-                b.teacher_id IS NULL
-                OR
-                b.teacher_id = ''
-            )
+            LOWER(p.status) = 'failed'
         ";
 
     }
@@ -637,19 +201,82 @@ if (
 
 /*
 |--------------------------------------------------------------------------
-| LESSON STATUS FILTER
+| PAYMENT METHOD
 |--------------------------------------------------------------------------
 */
 
+if ($methodFilter !== '') {
+
+    $where[] =
+        "p.payment_method = ?";
+
+    $params[] =
+        $methodFilter;
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| DATE FROM
+|--------------------------------------------------------------------------
+|
+| This assumes the payments table has a created_at column.
+| If your table does not have created_at, the code below
+| automatically uses id ordering instead.
+|
+|--------------------------------------------------------------------------
+*/
+
+$dateColumnExists = false;
+
+
+try {
+
+    $columnCheck =
+        $pdo->query("
+            SHOW COLUMNS
+            FROM payments
+            LIKE 'created_at'
+        ");
+
+    $dateColumnExists =
+        (bool)$columnCheck->fetch();
+
+}
+
+catch (PDOException $e) {
+
+    $dateColumnExists =
+        false;
+
+}
+
+
 if (
-    $lessonFilter !== ''
+    $dateColumnExists &&
+    $dateFrom !== ''
 ) {
 
     $where[] =
-        "LOWER(b.lesson_status) = LOWER(?)";
+        "DATE(p.created_at) >= ?";
 
     $params[] =
-        $lessonFilter;
+        $dateFrom;
+
+}
+
+
+if (
+    $dateColumnExists &&
+    $dateTo !== ''
+) {
+
+    $where[] =
+        "DATE(p.created_at) <= ?";
+
+    $params[] =
+        $dateTo;
 
 }
 
@@ -660,12 +287,10 @@ if (
 |--------------------------------------------------------------------------
 */
 
-$whereSQL = "";
+$whereSQL = '';
 
 
-if (
-    !empty($where)
-) {
+if (!empty($where)) {
 
     $whereSQL =
         " WHERE " .
@@ -679,70 +304,58 @@ if (
 
 /*
 |--------------------------------------------------------------------------
-| GET BOOKINGS
+| PAYMENT ORDER
+|--------------------------------------------------------------------------
+*/
+
+$orderSQL =
+    $dateColumnExists
+        ? "p.created_at DESC, p.id DESC"
+        : "p.id DESC";
+
+
+/*
+|--------------------------------------------------------------------------
+| GET PAYMENTS
 |--------------------------------------------------------------------------
 */
 
 try {
 
-
     $sql = "
+
         SELECT
 
-            b.id,
+            p.id,
 
-            b.booking_reference,
+            p.booking_reference,
 
-            b.student_id,
+            p.student_name,
 
-            b.student_name,
+            p.email,
 
-            b.email,
+            p.amount,
 
-            b.phone,
+            p.payment_method,
 
-            b.dob,
+            p.transaction_reference,
 
-            b.curriculum,
+            p.status
 
-            b.class_year,
+            " .
+            (
+                $dateColumnExists
+                    ? ", p.created_at"
+                    : ""
+            ) . "
 
-            b.subjects,
-
-            b.amount,
-
-            b.payment_status,
-
-            b.paystack_reference,
-
-            b.teacher_id,
-
-            b.teacher_name,
-
-            b.assignment_status,
-
-            b.lesson_date,
-
-            b.lesson_time,
-
-            b.lesson_status
-
-        FROM bookings b
+        FROM payments p
 
         $whereSQL
 
         ORDER BY
-            CASE
-                WHEN b.lesson_date IS NULL
-                THEN 1
-                ELSE 0
-            END,
+            $orderSQL
 
-            b.lesson_date ASC,
-
-            b.lesson_time ASC,
-
-            b.id DESC
     ";
 
 
@@ -757,20 +370,17 @@ try {
     );
 
 
-    $bookings =
+    $payments =
         $stmt->fetchAll(
             PDO::FETCH_ASSOC
         );
 
-
 }
 
-catch (
-    PDOException $e
-) {
+catch (PDOException $e) {
 
     die(
-        "Unable to load bookings: " .
+        "Unable to load payments: " .
         h(
             $e->getMessage()
         )
@@ -781,188 +391,117 @@ catch (
 
 /*
 |--------------------------------------------------------------------------
-| GET TEACHERS
-|--------------------------------------------------------------------------
-*/
-
-try {
-
-    $teacherListStmt =
-        $pdo->query("
-            SELECT
-                teacher_id,
-                teacher_name,
-                subjects,
-                curriculum,
-                availability,
-                zoom_link,
-                status
-            FROM teachers
-            WHERE
-                status IS NULL
-                OR
-                status = 'Active'
-                OR
-                status = 'active'
-            ORDER BY teacher_name ASC
-        ");
-
-
-    $teachers =
-        $teacherListStmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
-
-
-}
-
-catch (
-    PDOException $e
-) {
-
-    $teachers = [];
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
 | STATISTICS
 |--------------------------------------------------------------------------
 */
 
-$totalBookings =
-    count($bookings);
+$totalTransactions =
+    count($payments);
 
 
-$paidBookings =
+$totalPaid =
     0;
 
 
-$pendingBookings =
+$totalPending =
     0;
 
 
-$assignedBookings =
+$totalFailed =
     0;
 
 
-$unassignedBookings =
+$totalRevenue =
     0;
 
 
-$completedLessons =
-    0;
-
-
-$scheduledLessons =
+$paidAmount =
     0;
 
 
 foreach (
-    $bookings as $b
+    $payments as $payment
 ) {
 
-
-    $payment =
+    $status =
         strtolower(
             trim(
-                $b['payment_status']
+                $payment['status']
                 ?? ''
             )
         );
 
 
-    if (
-        $payment === 'paid' ||
-        $payment === 'success'
-    ) {
-
-        $paidBookings++;
-
-    }
-
-
-    if (
-        $payment === 'pending'
-    ) {
-
-        $pendingBookings++;
-
-    }
-
-
-    if (
-        !empty(
-            $b['teacher_id']
-        )
-    ) {
-
-        $assignedBookings++;
-
-    }
-
-    else {
-
-        $unassignedBookings++;
-
-    }
-
-
-    $lesson =
-        strtolower(
-            trim(
-                $b['lesson_status']
-                ?? ''
-            )
+    $amount =
+        (float)(
+            $payment['amount']
+            ?? 0
         );
 
 
     if (
-        $lesson === 'completed'
+        $status === 'paid' ||
+        $status === 'success'
     ) {
 
-        $completedLessons++;
+        $totalPaid++;
+
+        $paidAmount +=
+            $amount;
+
+    }
+
+    elseif (
+        $status === 'pending'
+    ) {
+
+        $totalPending++;
+
+    }
+
+    elseif (
+        $status === 'failed'
+    ) {
+
+        $totalFailed++;
 
     }
 
 
-    if (
-        $lesson === 'scheduled'
-    ) {
-
-        $scheduledLessons++;
-
-    }
+    $totalRevenue +=
+        $amount;
 
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| UNIQUE CURRICULA
+| PAYMENT METHODS
 |--------------------------------------------------------------------------
 */
 
-$curricula = [];
+$methods = [];
 
 
 foreach (
-    $bookings as $b
+    $payments as $payment
 ) {
 
-    $value =
+    $method =
         trim(
-            $b['curriculum']
-            ?? ''
+            $payment[
+                'payment_method'
+            ]
+            ??
+            ''
         );
 
 
     if (
-        $value !== ''
+        $method !== ''
     ) {
 
-        $curricula[$value] =
+        $methods[$method] =
             true;
 
     }
@@ -970,16 +509,27 @@ foreach (
 }
 
 
-$curricula =
+$methods =
     array_keys(
-        $curricula
+        $methods
     );
 
 
 sort(
-    $curricula
+    $methods
 );
 
+
+/*
+|--------------------------------------------------------------------------
+| GET TOTAL REVENUE FROM DATABASE
+|--------------------------------------------------------------------------
+|
+| If filters are being used, statistics above represent
+| the filtered results.
+|
+|--------------------------------------------------------------------------
+*/
 
 ?>
 
@@ -999,7 +549,7 @@ sort(
 
 <title>
 
-    Booking Management |
+    Payments |
     NISEL ONLINE EDUCATION
 
 </title>
@@ -1012,7 +562,9 @@ sort(
 ===================================================== */
 
 * {
+
     box-sizing: border-box;
+
 }
 
 
@@ -1309,7 +861,7 @@ body {
 
     grid-template-columns:
         repeat(
-            6,
+            5,
             1fr
         );
 
@@ -1376,7 +928,7 @@ body {
 
     margin-top: 13px;
 
-    font-size: 24px;
+    font-size: 23px;
 
     font-weight: 800;
 
@@ -1397,7 +949,7 @@ body {
 
 
 /* =====================================================
-   FILTER CARD
+   FILTER
 ===================================================== */
 
 .filter-card {
@@ -1426,9 +978,9 @@ body {
 
     display: flex;
 
-    align-items: center;
-
     justify-content: space-between;
+
+    align-items: center;
 
     margin-bottom: 16px;
 
@@ -1439,9 +991,9 @@ body {
 
     margin: 0;
 
-    font-size: 17px;
-
     color: #003366;
+
+    font-size: 17px;
 
 }
 
@@ -1544,14 +1096,10 @@ select:focus {
 
     display: inline-flex;
 
-    align-items: center;
-
-    justify-content: center;
+    margin-top: 12px;
 
     padding:
-        10px 15px;
-
-    margin-top: 12px;
+        9px 14px;
 
     border-radius: 8px;
 
@@ -1569,63 +1117,14 @@ select:focus {
 
 
 /* =====================================================
-   ALERT
+   PAYMENT TABLE
 ===================================================== */
 
-.alert {
-
-    padding: 14px 17px;
-
-    border-radius: 10px;
-
-    margin-bottom: 20px;
-
-    font-size: 13px;
-
-    font-weight: 600;
-
-}
-
-
-.alert.success {
-
-    background: #ecfdf3;
-
-    color: #027a48;
-
-    border:
-        1px solid
-        #abefc6;
-
-}
-
-
-.alert.error {
-
-    background: #fef3f2;
-
-    color: #b42318;
-
-    border:
-        1px solid
-        #fecdca;
-
-}
-
-
-/* =====================================================
-   BOOKING CARD
-===================================================== */
-
-.booking-card {
+.table-card {
 
     background: white;
 
     border-radius: 16px;
-
-    padding: 20px;
-
-    margin-bottom: 18px;
 
     box-shadow:
         0 4px 18px
@@ -1636,20 +1135,20 @@ select:focus {
             .05
         );
 
+    overflow: hidden;
+
 }
 
 
-.booking-top {
+.table-header {
 
     display: flex;
 
-    align-items: flex-start;
-
     justify-content: space-between;
 
-    gap: 15px;
+    align-items: center;
 
-    padding-bottom: 15px;
+    padding: 20px;
 
     border-bottom:
         1px solid
@@ -1658,22 +1157,114 @@ select:focus {
 }
 
 
+.table-header h2 {
+
+    margin: 0;
+
+    color: #003366;
+
+    font-size: 17px;
+
+}
+
+
+.result-count {
+
+    color: #667085;
+
+    font-size: 11px;
+
+}
+
+
+.table-wrapper {
+
+    overflow-x: auto;
+
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse:
+        collapse;
+
+    min-width: 1050px;
+
+}
+
+
+th {
+
+    background: #f8fafc;
+
+    color: #667085;
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: .5px;
+
+    padding:
+        14px 15px;
+
+    text-align: left;
+
+    white-space: nowrap;
+
+}
+
+
+td {
+
+    padding:
+        15px;
+
+    border-top:
+        1px solid
+        #f0f2f5;
+
+    font-size: 11px;
+
+    color: #344054;
+
+    vertical-align: middle;
+
+}
+
+
+tr:hover td {
+
+    background: #fafcff;
+
+}
+
+
+/* =====================================================
+   STUDENT
+===================================================== */
+
 .student {
 
     display: flex;
 
     align-items: center;
 
-    gap: 13px;
+    gap: 10px;
 
 }
 
 
-.student-avatar {
+.avatar {
 
-    width: 48px;
+    width: 36px;
 
-    height: 48px;
+    height: 36px;
+
+    flex-shrink: 0;
 
     border-radius: 50%;
 
@@ -1689,107 +1280,76 @@ select:focus {
 
     font-weight: 800;
 
+    font-size: 11px;
+
 }
 
 
 .student-name {
 
-    margin: 0;
-
-    font-size: 15px;
+    font-weight: 700;
 
     color: #172b4d;
 
 }
 
 
-.student-meta {
+.student-email {
 
-    margin-top: 5px;
+    margin-top: 3px;
 
     color: #98a2b3;
 
-    font-size: 10px;
+    font-size: 9px;
 
 }
 
+
+/* =====================================================
+   REFERENCE
+===================================================== */
 
 .reference {
 
-    color: #667085;
+    font-family:
+        monospace;
 
     font-size: 10px;
-
-    text-align: right;
-
-}
-
-
-.reference strong {
 
     color: #003366;
 
 }
 
 
-/* =====================================================
-   BOOKING GRID
-===================================================== */
+.transaction {
 
-.booking-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(
-            5,
-            1fr
-        );
-
-    gap: 12px;
-
-    margin-top: 17px;
-
-}
-
-
-.info {
-
-    background: #f8fafc;
-
-    border-radius: 9px;
-
-    padding: 12px;
-
-    min-height: 67px;
-
-}
-
-
-.info-label {
-
-    color: #98a2b3;
+    font-family:
+        monospace;
 
     font-size: 9px;
 
-    text-transform: uppercase;
+    color: #667085;
 
-    letter-spacing: .5px;
+    max-width: 180px;
 
-    margin-bottom: 7px;
+    word-break: break-all;
 
 }
 
 
-.info-value {
+/* =====================================================
+   AMOUNT
+===================================================== */
 
-    color: #344054;
+.amount {
 
-    font-size: 12px;
+    font-size: 13px;
 
-    font-weight: 600;
+    font-weight: 800;
 
-    word-break: break-word;
+    color: #003366;
+
+    white-space: nowrap;
 
 }
 
@@ -1800,15 +1360,22 @@ select:focus {
 
 .badge {
 
-    display: inline-block;
+    display: inline-flex;
 
-    padding: 5px 9px;
+    align-items: center;
+
+    gap: 4px;
+
+    padding:
+        5px 9px;
 
     border-radius: 20px;
 
     font-size: 9px;
 
     font-weight: 800;
+
+    white-space: nowrap;
 
 }
 
@@ -1831,16 +1398,16 @@ select:focus {
 }
 
 
-.badge.assigned {
+.badge.failed {
 
-    background: #eef4ff;
+    background: #fef3f2;
 
-    color: #175cd3;
+    color: #b42318;
 
 }
 
 
-.badge.unassigned {
+.badge.other {
 
     background: #f2f4f7;
 
@@ -1849,221 +1416,21 @@ select:focus {
 }
 
 
-.badge.completed {
-
-    background: #e7f7ed;
-
-    color: #16803d;
-
-}
-
-
-.badge.scheduled {
-
-    background: #eef4ff;
-
-    color: #175cd3;
-
-}
-
-
-.badge.cancelled {
-
-    background: #fef3f2;
-
-    color: #b42318;
-
-}
-
-
 /* =====================================================
-   ASSIGNMENT SECTION
+   PAYMENT METHOD
 ===================================================== */
 
-.assignment {
+.method {
 
-    margin-top: 18px;
-
-    padding-top: 18px;
-
-    border-top:
-        1px solid
-        #eaecf0;
-
-}
-
-
-.assignment-title {
-
-    display: flex;
+    display: inline-flex;
 
     align-items: center;
 
-    gap: 8px;
+    gap: 6px;
 
-    margin-bottom: 13px;
+    color: #344054;
 
-}
-
-
-.assignment-title h3 {
-
-    margin: 0;
-
-    font-size: 14px;
-
-    color: #003366;
-
-}
-
-
-.assignment-form {
-
-    display: grid;
-
-    grid-template-columns:
-        2fr
-        1fr
-        1fr
-        auto;
-
-    gap: 10px;
-
-    align-items: end;
-
-}
-
-
-.form-field label {
-
-    display: block;
-
-    margin-bottom: 6px;
-
-    color: #667085;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-}
-
-
-.assign-btn {
-
-    height: 42px;
-
-    padding:
-        0 18px;
-
-    border: none;
-
-    border-radius: 9px;
-
-    background: #003366;
-
-    color: white;
-
-    font-weight: 700;
-
-    cursor: pointer;
-
-}
-
-
-.assign-btn:hover {
-
-    background: #0055a5;
-
-}
-
-
-.teacher-current {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    gap: 10px;
-
-    margin-bottom: 12px;
-
-    padding: 11px 13px;
-
-    background: #f8fafc;
-
-    border-radius: 9px;
-
-}
-
-
-.teacher-current span {
-
-    font-size: 11px;
-
-    color: #667085;
-
-}
-
-
-.teacher-current strong {
-
-    color: #003366;
-
-}
-
-
-/* =====================================================
-   ACTIONS
-===================================================== */
-
-.actions {
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 8px;
-
-    margin-top: 15px;
-
-}
-
-
-.action-btn {
-
-    border: none;
-
-    cursor: pointer;
-
-    padding:
-        8px 11px;
-
-    border-radius: 8px;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-}
-
-
-.complete-btn {
-
-    background: #ecfdf3;
-
-    color: #027a48;
-
-}
-
-
-.remove-btn {
-
-    background: #fef3f2;
-
-    color: #b42318;
+    font-weight: 600;
 
 }
 
@@ -2074,22 +1441,9 @@ select:focus {
 
 .empty {
 
-    background: white;
-
-    border-radius: 16px;
-
-    padding: 60px 20px;
-
     text-align: center;
 
-    box-shadow:
-        0 4px 18px
-        rgba(
-            0,
-            0,
-            0,
-            .05
-        );
+    padding: 70px 20px;
 
 }
 
@@ -2129,7 +1483,7 @@ select:focus {
 
     text-align: center;
 
-    padding: 15px;
+    padding: 20px;
 
     color: #98a2b3;
 
@@ -2162,28 +1516,6 @@ select:focus {
                 3,
                 1fr
             );
-
-    }
-
-
-    .booking-grid {
-
-        grid-template-columns:
-            repeat(
-                3,
-                1fr
-            );
-
-    }
-
-
-    .assignment-form {
-
-        grid-template-columns:
-            1fr
-            1fr
-            1fr
-            auto;
 
     }
 
@@ -2269,51 +1601,12 @@ select:focus {
 
     }
 
-
-    .booking-grid {
-
-        grid-template-columns:
-            1fr
-            1fr;
-
-    }
-
-
-    .assignment-form {
-
-        grid-template-columns: 1fr;
-
-    }
-
-
-    .booking-top {
-
-        flex-direction:
-            column;
-
-    }
-
-
-    .reference {
-
-        text-align: left;
-
-    }
-
 }
 
 
 @media(max-width:450px) {
 
     .stats {
-
-        grid-template-columns:
-            1fr;
-
-    }
-
-
-    .booking-grid {
 
         grid-template-columns: 1fr;
 
@@ -2412,10 +1705,7 @@ select:focus {
         </a>
 
 
-        <a
-            href="booking.php"
-            class="active"
-        >
+        <a href="booking.php">
 
             <span class="nav-icon">
                 📚
@@ -2428,7 +1718,10 @@ select:focus {
         </a>
 
 
-        <a href="payments.php">
+        <a
+            href="payments.php"
+            class="active"
+        >
 
             <span class="nav-icon">
                 💳
@@ -2477,15 +1770,15 @@ select:focus {
 
             <h1>
 
-                📚 Booking Management
+                💳 Payment Management
 
             </h1>
 
 
             <p>
 
-                Manage student bookings,
-                assign teachers and schedule lessons.
+                Monitor student payments,
+                transactions and payment status.
 
             </p>
 
@@ -2541,33 +1834,6 @@ select:focus {
 
 
 
-    <!-- ALERT -->
-
-    <?php if (
-        $message !== ''
-    ): ?>
-
-
-        <div
-            class="
-                alert
-                <?= h(
-                    $messageType
-                ) ?>
-            "
-        >
-
-            <?= h(
-                $message
-            ) ?>
-
-        </div>
-
-
-    <?php endif; ?>
-
-
-
     <!-- =================================================
          STATISTICS
     ================================================== -->
@@ -2580,21 +1846,31 @@ select:focus {
             <div class="stat-top">
 
                 <strong>
-                    Bookings
+                    Revenue
                 </strong>
 
                 <div class="stat-icon">
-                    📚
+                    💰
                 </div>
 
             </div>
 
+
             <div class="stat-number">
-                <?= $totalBookings ?>
+
+                GHS
+                <?= number_format(
+                    $paidAmount,
+                    2
+                ) ?>
+
             </div>
 
+
             <div class="stat-label">
-                Total bookings
+
+                Successful payments
+
             </div>
 
         </div>
@@ -2610,17 +1886,23 @@ select:focus {
                 </strong>
 
                 <div class="stat-icon">
-                    💳
+                    ✓
                 </div>
 
             </div>
 
+
             <div class="stat-number">
-                <?= $paidBookings ?>
+
+                <?= $totalPaid ?>
+
             </div>
 
+
             <div class="stat-label">
-                Paid bookings
+
+                Successful transactions
+
             </div>
 
         </div>
@@ -2641,12 +1923,18 @@ select:focus {
 
             </div>
 
+
             <div class="stat-number">
-                <?= $pendingBookings ?>
+
+                <?= $totalPending ?>
+
             </div>
 
+
             <div class="stat-label">
+
                 Awaiting payment
+
             </div>
 
         </div>
@@ -2658,33 +1946,7 @@ select:focus {
             <div class="stat-top">
 
                 <strong>
-                    Assigned
-                </strong>
-
-                <div class="stat-icon">
-                    👨‍🏫
-                </div>
-
-            </div>
-
-            <div class="stat-number">
-                <?= $assignedBookings ?>
-            </div>
-
-            <div class="stat-label">
-                Teacher assigned
-            </div>
-
-        </div>
-
-
-
-        <div class="stat">
-
-            <div class="stat-top">
-
-                <strong>
-                    Unassigned
+                    Failed
                 </strong>
 
                 <div class="stat-icon">
@@ -2693,12 +1955,18 @@ select:focus {
 
             </div>
 
+
             <div class="stat-number">
-                <?= $unassignedBookings ?>
+
+                <?= $totalFailed ?>
+
             </div>
 
+
             <div class="stat-label">
-                Need teacher
+
+                Failed transactions
+
             </div>
 
         </div>
@@ -2710,21 +1978,27 @@ select:focus {
             <div class="stat-top">
 
                 <strong>
-                    Completed
+                    Transactions
                 </strong>
 
                 <div class="stat-icon">
-                    ✅
+                    📊
                 </div>
 
             </div>
 
+
             <div class="stat-number">
-                <?= $completedLessons ?>
+
+                <?= $totalTransactions ?>
+
             </div>
 
+
             <div class="stat-label">
-                Completed lessons
+
+                Records displayed
+
             </div>
 
         </div>
@@ -2746,14 +2020,14 @@ select:focus {
 
             <h2>
 
-                🔎 Find Bookings
+                🔎 Search Payments
 
             </h2>
 
 
             <span>
 
-                Combine filters to narrow the results
+                Find a transaction quickly
 
             </span>
 
@@ -2777,67 +2051,27 @@ select:focus {
                     value="<?= h(
                         $search
                     ) ?>"
-                    placeholder="Search student, email, phone, reference or subject..."
+                    placeholder="Student, booking reference, transaction reference..."
                 >
-
-
-                <select
-                    name="curriculum"
-                >
-
-                    <option value="">
-
-                        All Curricula
-
-                    </option>
-
-
-                    <?php foreach (
-                        $curricula
-                        as $curriculum
-                    ): ?>
-
-                        <option
-                            value="<?= h(
-                                $curriculum
-                            ) ?>"
-                            <?= (
-                                $curriculumFilter
-                                ===
-                                $curriculum
-                            )
-                                ? 'selected'
-                                : ''
-                            ?>
-                        >
-
-                            <?= h(
-                                $curriculum
-                            ) ?>
-
-                        </option>
-
-                    <?php endforeach; ?>
-
-
-                </select>
 
 
 
                 <select
-                    name="payment"
+                    name="status"
                 >
 
                     <option value="">
 
-                        All Payments
+                        All Statuses
 
                     </option>
 
 
                     <option
                         value="paid"
-                        <?= $paymentFilter === 'paid'
+                        <?= strtolower(
+                            $statusFilter
+                        ) === 'paid'
                             ? 'selected'
                             : ''
                         ?>
@@ -2850,7 +2084,9 @@ select:focus {
 
                     <option
                         value="pending"
-                        <?= $paymentFilter === 'pending'
+                        <?= strtolower(
+                            $statusFilter
+                        ) === 'pending'
                             ? 'selected'
                             : ''
                         ?>
@@ -2861,43 +2097,17 @@ select:focus {
                     </option>
 
 
-                </select>
-
-
-
-                <select
-                    name="assignment"
-                >
-
-                    <option value="">
-
-                        All Assignments
-
-                    </option>
-
-
                     <option
-                        value="assigned"
-                        <?= $assignmentFilter === 'assigned'
+                        value="failed"
+                        <?= strtolower(
+                            $statusFilter
+                        ) === 'failed'
                             ? 'selected'
                             : ''
                         ?>
                     >
 
-                        Teacher Assigned
-
-                    </option>
-
-
-                    <option
-                        value="unassigned"
-                        <?= $assignmentFilter === 'unassigned'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Unassigned
+                        Failed
 
                     </option>
 
@@ -2907,62 +2117,67 @@ select:focus {
 
 
                 <select
-                    name="lesson_status"
+                    name="method"
                 >
 
                     <option value="">
 
-                        All Lesson Status
+                        All Methods
 
                     </option>
 
 
-                    <option
-                        value="Scheduled"
-                        <?= strtolower(
-                            $lessonFilter
-                        ) === 'scheduled'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
+                    <?php foreach (
+                        $methods
+                        as $method
+                    ): ?>
 
-                        Scheduled
+                        <option
+                            value="<?= h(
+                                $method
+                            ) ?>"
+                            <?= (
+                                $methodFilter
+                                ===
+                                $method
+                            )
+                                ? 'selected'
+                                : ''
+                            ?>
+                        >
 
-                    </option>
+                            <?= h(
+                                ucfirst(
+                                    $method
+                                )
+                            ) ?>
 
+                        </option>
 
-                    <option
-                        value="Completed"
-                        <?= strtolower(
-                            $lessonFilter
-                        ) === 'completed'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Completed
-
-                    </option>
-
-
-                    <option
-                        value="Cancelled"
-                        <?= strtolower(
-                            $lessonFilter
-                        ) === 'cancelled'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Cancelled
-
-                    </option>
+                    <?php endforeach; ?>
 
 
                 </select>
+
+
+
+                <input
+                    type="date"
+                    name="date_from"
+                    value="<?= h(
+                        $dateFrom
+                    ) ?>"
+                >
+
+
+
+                <input
+                    type="date"
+                    name="date_to"
+                    value="<?= h(
+                        $dateTo
+                    ) ?>"
+                >
 
 
 
@@ -2982,21 +2197,22 @@ select:focus {
         </form>
 
 
+
         <?php if (
             $search !== ''
             ||
-            $curriculumFilter !== ''
+            $statusFilter !== ''
             ||
-            $paymentFilter !== ''
+            $methodFilter !== ''
             ||
-            $assignmentFilter !== ''
+            $dateFrom !== ''
             ||
-            $lessonFilter !== ''
+            $dateTo !== ''
         ): ?>
 
 
             <a
-                href="booking.php"
+                href="payments.php"
                 class="clear-btn"
             >
 
@@ -3013,1104 +2229,640 @@ select:focus {
 
 
     <!-- =================================================
-         BOOKINGS
+         PAYMENT TABLE
     ================================================== -->
 
-    <?php if (
-        empty($bookings)
-    ): ?>
+    <section class="table-card">
 
 
-        <div class="empty">
+        <div class="table-header">
 
 
-            <div class="empty-icon">
+            <h2>
 
-                📚
+                💳 Payment Transactions
+
+            </h2>
+
+
+            <div
+                class="result-count"
+            >
+
+                <?= $totalTransactions ?>
+
+                transaction(s)
 
             </div>
-
-
-            <h3>
-
-                No bookings found
-
-            </h3>
-
-
-            <p>
-
-                There are no bookings matching
-                your current filters.
-
-            </p>
 
 
         </div>
 
 
-    <?php else: ?>
 
-
-        <?php foreach (
-            $bookings
-            as $booking
+        <?php if (
+            empty($payments)
         ): ?>
 
 
-            <?php
+            <div class="empty">
 
 
-            $studentName =
-                trim(
-                    $booking[
-                        'student_name'
-                    ]
-                    ??
-                    'Student'
-                );
+                <div class="empty-icon">
 
-
-            $words =
-                preg_split(
-                    '/\s+/',
-                    $studentName
-                );
-
-
-            $initials = '';
-
-
-            foreach (
-                $words as $word
-            ) {
-
-                if (
-                    $word === ''
-                ) {
-                    continue;
-                }
-
-
-                $initials .=
-                    strtoupper(
-                        substr(
-                            $word,
-                            0,
-                            1
-                        )
-                    );
-
-
-                if (
-                    strlen(
-                        $initials
-                    ) >= 2
-                ) {
-                    break;
-                }
-
-            }
-
-
-            if (
-                $initials === ''
-            ) {
-                $initials = 'ST';
-            }
-
-
-            $payment =
-                strtolower(
-                    trim(
-                        $booking[
-                            'payment_status'
-                        ]
-                        ??
-                        ''
-                    )
-                );
-
-
-            $paymentClass =
-                (
-                    $payment === 'paid'
-                    ||
-                    $payment === 'success'
-                )
-                    ? 'paid'
-                    : 'pending';
-
-
-            $isAssigned =
-                !empty(
-                    $booking[
-                        'teacher_id'
-                    ]
-                );
-
-
-            $lesson =
-                strtolower(
-                    trim(
-                        $booking[
-                            'lesson_status'
-                        ]
-                        ??
-                        ''
-                    )
-                );
-
-
-            if (
-                $lesson === 'completed'
-            ) {
-
-                $lessonClass =
-                    'completed';
-
-            }
-
-            elseif (
-                $lesson === 'cancelled'
-            ) {
-
-                $lessonClass =
-                    'cancelled';
-
-            }
-
-            else {
-
-                $lessonClass =
-                    'scheduled';
-
-            }
-
-
-            ?>
-
-
-            <section class="booking-card">
-
-
-                <!-- BOOKING HEADER -->
-
-                <div class="booking-top">
-
-
-                    <div class="student">
-
-
-                        <div class="student-avatar">
-
-                            <?= h(
-                                $initials
-                            ) ?>
-
-                        </div>
-
-
-                        <div>
-
-
-                            <h3
-                                class="student-name"
-                            >
-
-                                <?= h(
-                                    $studentName
-                                ) ?>
-
-                            </h3>
-
-
-                            <div
-                                class="student-meta"
-                            >
-
-                                Student ID:
-                                <?= h(
-                                    $booking[
-                                        'student_id'
-                                    ]
-                                    ??
-                                    'N/A'
-                                ) ?>
-
-                                &nbsp; • &nbsp;
-
-                                📧
-                                <?= h(
-                                    $booking[
-                                        'email'
-                                    ]
-                                ) ?>
-
-                            </div>
-
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div
-                        class="reference"
-                    >
-
-                        Booking Reference
-
-                        <br>
-
-                        <strong>
-
-                            <?= h(
-                                $booking[
-                                    'booking_reference'
-                                ]
-                                ??
-                                'N/A'
-                            ) ?>
-
-                        </strong>
-
-                    </div>
-
+                    💳
 
                 </div>
 
 
+                <h3>
 
-                <!-- BOOKING INFORMATION -->
+                    No payment records found
 
-                <div class="booking-grid">
-
-
-                    <div class="info">
+                </h3>
 
 
-                        <div class="info-label">
+                <p>
 
-                            Curriculum
+                    There are no payment transactions
+                    matching your search.
 
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $booking[
-                                    'curriculum'
-                                ]
-                                ??
-                                'Not provided'
-                            ) ?>
-
-                        </div>
+                </p>
 
 
-                    </div>
+            </div>
 
 
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Class / Year
-
-                        </div>
+        <?php else: ?>
 
 
-                        <div class="info-value">
-
-                            <?= h(
-                                $booking[
-                                    'class_year'
-                                ]
-                                ??
-                                'Not provided'
-                            ) ?>
-
-                        </div>
+            <div
+                class="table-wrapper"
+            >
 
 
-                    </div>
+                <table>
 
 
+                    <thead>
 
-                    <div class="info">
+                    <tr>
 
+                        <th>
+                            Student
+                        </th>
 
-                        <div class="info-label">
+                        <th>
+                            Booking Reference
+                        </th>
 
-                            Subject
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $booking[
-                                    'subjects'
-                                ]
-                                ??
-                                'Not provided'
-                            ) ?>
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
+                        <th>
                             Amount
+                        </th>
 
-                        </div>
+                        <th>
+                            Payment Method
+                        </th>
+
+                        <th>
+                            Transaction Reference
+                        </th>
+
+                        <th>
+                            Status
+                        </th>
+
+                        <?php if (
+                            $dateColumnExists
+                        ): ?>
+
+                            <th>
+                                Date
+                            </th>
+
+                        <?php endif; ?>
+
+                    </tr>
+
+                    </thead>
 
 
-                        <div class="info-value">
+                    <tbody>
 
-                            GHS
-                            <?= number_format(
-                                (float)(
-                                    $booking[
-                                        'amount'
+
+                    <?php foreach (
+                        $payments
+                        as $payment
+                    ): ?>
+
+
+                        <?php
+
+
+                        $studentName =
+                            trim(
+                                $payment[
+                                    'student_name'
+                                ]
+                                ??
+                                'Student'
+                            );
+
+
+                        $words =
+                            preg_split(
+                                '/\s+/',
+                                $studentName
+                            );
+
+
+                        $initials = '';
+
+
+                        foreach (
+                            $words
+                            as $word
+                        ) {
+
+                            if (
+                                $word === ''
+                            ) {
+                                continue;
+                            }
+
+
+                            $initials .=
+                                strtoupper(
+                                    substr(
+                                        $word,
+                                        0,
+                                        1
+                                    )
+                                );
+
+
+                            if (
+                                strlen(
+                                    $initials
+                                ) >= 2
+                            ) {
+                                break;
+                            }
+
+                        }
+
+
+                        if (
+                            $initials === ''
+                        ) {
+
+                            $initials =
+                                'ST';
+
+                        }
+
+
+                        $status =
+                            strtolower(
+                                trim(
+                                    $payment[
+                                        'status'
                                     ]
                                     ??
-                                    0
-                                ),
-                                2
-                            ) ?>
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Payment
-
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <span
-                                class="
-                                    badge
-                                    <?= $paymentClass ?>
-                                "
-                            >
-
-                                <?= (
-                                    $payment ===
-                                    'paid'
-                                    ||
-                                    $payment ===
-                                    'success'
+                                    ''
                                 )
-                                    ? '✓ PAID'
-                                    : '⏳ PENDING'
-                                ?>
-
-                            </span>
+                            );
 
 
-                        </div>
+                        if (
+                            $status ===
+                            'paid'
+                            ||
+                            $status ===
+                            'success'
+                        ) {
+
+                            $statusClass =
+                                'paid';
+
+                            $statusText =
+                                '✓ PAID';
+
+                        }
+
+                        elseif (
+                            $status ===
+                            'pending'
+                        ) {
+
+                            $statusClass =
+                                'pending';
+
+                            $statusText =
+                                '⏳ PENDING';
+
+                        }
+
+                        elseif (
+                            $status ===
+                            'failed'
+                        ) {
+
+                            $statusClass =
+                                'failed';
+
+                            $statusText =
+                                '✕ FAILED';
+
+                        }
+
+                        else {
+
+                            $statusClass =
+                                'other';
+
+                            $statusText =
+                                strtoupper(
+                                    $status
+                                    ?: 'UNKNOWN'
+                                );
+
+                        }
 
 
-                    </div>
+                        ?>
+
+
+                        <tr>
+
+
+                            <!-- STUDENT -->
+
+                            <td>
+
+
+                                <div
+                                    class="student"
+                                >
+
+
+                                    <div
+                                        class="avatar"
+                                    >
+
+                                        <?= h(
+                                            $initials
+                                        ) ?>
+
+                                    </div>
+
+
+                                    <div>
+
+
+                                        <div
+                                            class="
+                                                student-name
+                                            "
+                                        >
+
+                                            <?= h(
+                                                $studentName
+                                            ) ?>
+
+                                        </div>
+
+
+                                        <div
+                                            class="
+                                                student-email
+                                            "
+                                        >
+
+                                            <?= h(
+                                                $payment[
+                                                    'email'
+                                                ]
+                                            ) ?>
+
+                                        </div>
+
+
+                                    </div>
+
+
+                                </div>
+
+
+                            </td>
 
 
 
-                    <div class="info">
+                            <!-- BOOKING REFERENCE -->
 
-
-                        <div class="info-label">
-
-                            Teacher
-
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <?php if (
-                                $isAssigned
-                            ): ?>
+                            <td>
 
 
                                 <span
-                                    class="
-                                        badge
-                                        assigned
-                                    "
+                                    class="reference"
                                 >
 
-                                    👨‍🏫
                                     <?= h(
-                                        $booking[
-                                            'teacher_name'
+                                        $payment[
+                                            'booking_reference'
                                         ]
                                     ) ?>
 
                                 </span>
 
 
-                            <?php else: ?>
+                            </td>
+
+
+
+                            <!-- AMOUNT -->
+
+                            <td>
 
 
                                 <span
-                                    class="
-                                        badge
-                                        unassigned
-                                    "
+                                    class="amount"
                                 >
 
-                                    Not Assigned
-
-                                </span>
-
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Lesson Date
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?php if (
-                                !empty(
-                                    $booking[
-                                        'lesson_date'
-                                    ]
-                                )
-                            ): ?>
-
-
-                                📅
-                                <?= h(
-                                    date(
-                                        'd M Y',
-                                        strtotime(
-                                            $booking[
-                                                'lesson_date'
+                                    GHS
+                                    <?= number_format(
+                                        (float)(
+                                            $payment[
+                                                'amount'
                                             ]
-                                        )
-                                    )
-                                ) ?>
-
-
-                            <?php else: ?>
-
-
-                                Not scheduled
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Lesson Time
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?php if (
-                                !empty(
-                                    $booking[
-                                        'lesson_time'
-                                    ]
-                                )
-                            ): ?>
-
-
-                                🕐
-                                <?= h(
-                                    date(
-                                        'h:i A',
-                                        strtotime(
-                                            $booking[
-                                                'lesson_time'
-                                            ]
-                                        )
-                                    )
-                                ) ?>
-
-
-                            <?php else: ?>
-
-
-                                Not set
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Assignment
-
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <?php if (
-                                $isAssigned
-                            ): ?>
-
-
-                                <span
-                                    class="
-                                        badge
-                                        assigned
-                                    "
-                                >
-
-                                    Assigned
+                                            ??
+                                            0
+                                        ),
+                                        2
+                                    ) ?>
 
                                 </span>
 
 
-                            <?php else: ?>
+                            </td>
+
+
+
+                            <!-- METHOD -->
+
+                            <td>
 
 
                                 <span
-                                    class="
-                                        badge
-                                        unassigned
-                                    "
+                                    class="method"
                                 >
 
-                                    Unassigned
+
+                                    <?php
+
+                                    $method =
+                                        strtolower(
+                                            trim(
+                                                $payment[
+                                                    'payment_method'
+                                                ]
+                                                ??
+                                                ''
+                                            )
+                                        );
+
+
+                                    if (
+                                        strpos(
+                                            $method,
+                                            'momo'
+                                        ) !== false
+                                    ) {
+
+                                        echo '📱';
+
+                                    }
+
+                                    elseif (
+                                        strpos(
+                                            $method,
+                                            'visa'
+                                        ) !== false
+                                        ||
+                                        strpos(
+                                            $method,
+                                            'card'
+                                        ) !== false
+                                    ) {
+
+                                        echo '💳';
+
+                                    }
+
+                                    else {
+
+                                        echo '💰';
+
+                                    }
+
+                                    ?>
+
+
+                                    <?= h(
+                                        $payment[
+                                            'payment_method'
+                                        ]
+                                        ??
+                                        'Unknown'
+                                    ) ?>
+
 
                                 </span>
 
 
-                            <?php endif; ?>
+                            </td>
 
 
-                        </div>
 
+                            <!-- TRANSACTION -->
 
-                    </div>
+                            <td>
 
 
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Lesson Status
-
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <span
-                                class="
-                                    badge
-                                    <?= $lessonClass ?>
-                                "
-                            >
-
-                                <?php
-
-                                if (
-                                    $lesson ===
-                                    'completed'
-                                ) {
-
-                                    echo '✓ Completed';
-
-                                }
-
-                                elseif (
-                                    $lesson ===
-                                    'cancelled'
-                                ) {
-
-                                    echo '✕ Cancelled';
-
-                                }
-
-                                else {
-
-                                    echo '● Scheduled';
-
-                                }
-
-                                ?>
-
-                            </span>
-
-
-                        </div>
-
-
-                    </div>
-
-
-                </div>
-
-
-
-                <!-- =================================================
-                     TEACHER ASSIGNMENT
-                ================================================== -->
-
-                <div class="assignment">
-
-
-                    <div
-                        class="assignment-title"
-                    >
-
-                        <h3>
-
-                            👨‍🏫
-                            Teacher Assignment &
-                            Lesson Scheduling
-
-                        </h3>
-
-                    </div>
-
-
-
-                    <?php if (
-                        $isAssigned
-                    ): ?>
-
-
-                        <div
-                            class="teacher-current"
-                        >
-
-
-                            <span>
-
-                                Currently assigned teacher:
-
-                            </span>
-
-
-                            <strong>
-
-                                <?= h(
-                                    $booking[
-                                        'teacher_name'
-                                    ]
-                                ) ?>
-
-                            </strong>
-
-
-                        </div>
-
-
-                    <?php endif; ?>
-
-
-
-                    <form
-                        method="POST"
-                        action=""
-                        class="assignment-form"
-                    >
-
-
-                        <input
-                            type="hidden"
-                            name="booking_id"
-                            value="<?= h(
-                                $booking[
-                                    'id'
-                                ]
-                            ) ?>"
-                        >
-
-
-                        <input
-                            type="hidden"
-                            name="assign_booking"
-                            value="1"
-                        >
-
-
-                        <!-- TEACHER -->
-
-                        <div class="form-field">
-
-
-                            <label>
-
-                                Select Teacher
-
-                            </label>
-
-
-                            <select
-                                name="teacher_id"
-                                required
-                            >
-
-
-                                <option value="">
-
-                                    Select a teacher...
-
-                                </option>
-
-
-                                <?php foreach (
-                                    $teachers
-                                    as $teacher
+                                <?php if (
+                                    !empty(
+                                        $payment[
+                                            'transaction_reference'
+                                        ]
+                                    )
                                 ): ?>
 
 
-                                    <option
-                                        value="<?= h(
-                                            $teacher[
-                                                'teacher_id'
-                                            ]
-                                        ) ?>"
-                                        <?= (
-                                            $booking[
-                                                'teacher_id'
-                                            ]
-                                            ==
-                                            $teacher[
-                                                'teacher_id'
-                                            ]
-                                        )
-                                            ? 'selected'
-                                            : ''
-                                        ?>
+                                    <span
+                                        class="
+                                            transaction
+                                        "
                                     >
 
                                         <?= h(
-                                            $teacher[
-                                                'teacher_name'
+                                            $payment[
+                                                'transaction_reference'
                                             ]
                                         ) ?>
 
-                                        <?php if (
-                                            !empty(
-                                                $teacher[
-                                                    'subjects'
-                                                ]
-                                            )
-                                        ): ?>
+                                    </span>
 
-                                            —
+
+                                <?php else: ?>
+
+
+                                    <span
+                                        style="
+                                            color:#98a2b3;
+                                        "
+                                    >
+
+                                        Not available
+
+                                    </span>
+
+
+                                <?php endif; ?>
+
+
+                            </td>
+
+
+
+                            <!-- STATUS -->
+
+                            <td>
+
+
+                                <span
+                                    class="
+                                        badge
+                                        <?= h(
+                                            $statusClass
+                                        ) ?>
+                                    "
+                                >
+
+                                    <?= h(
+                                        $statusText
+                                    ) ?>
+
+                                </span>
+
+
+                            </td>
+
+
+
+                            <!-- DATE -->
+
+                            <?php if (
+                                $dateColumnExists
+                            ): ?>
+
+
+                                <td>
+
+
+                                    <?php if (
+                                        !empty(
+                                            $payment[
+                                                'created_at'
+                                            ]
+                                        )
+                                    ): ?>
+
+
+                                        <div
+                                            style="
+                                                font-weight:700;
+                                                color:#344054;
+                                            "
+                                        >
+
                                             <?= h(
-                                                $teacher[
-                                                    'subjects'
-                                                ]
+                                                date(
+                                                    'd M Y',
+                                                    strtotime(
+                                                        $payment[
+                                                            'created_at'
+                                                        ]
+                                                    )
+                                                )
                                             ) ?>
 
-                                        <?php endif; ?>
+                                        </div>
 
 
-                                    </option>
+                                        <div
+                                            style="
+                                                color:#98a2b3;
+                                                font-size:9px;
+                                                margin-top:3px;
+                                            "
+                                        >
 
+                                            <?= h(
+                                                date(
+                                                    'h:i A',
+                                                    strtotime(
+                                                        $payment[
+                                                            'created_at'
+                                                        ]
+                                                    )
+                                                )
+                                            ) ?>
 
-                                <?php endforeach; ?>
+                                        </div>
 
 
-                            </select>
+                                    <?php else: ?>
 
 
-                        </div>
+                                        <span
+                                            style="
+                                                color:#98a2b3;
+                                            "
+                                        >
 
+                                            N/A
 
+                                        </span>
 
-                        <!-- DATE -->
 
-                        <div class="form-field">
+                                    <?php endif; ?>
 
 
-                            <label>
+                                </td>
 
-                                Lesson Date
 
-                            </label>
+                            <?php endif; ?>
 
 
-                            <input
-                                type="date"
-                                name="lesson_date"
-                                value="<?= !empty(
-                                    $booking[
-                                        'lesson_date'
-                                    ]
-                                )
-                                    ? h(
-                                        $booking[
-                                            'lesson_date'
-                                        ]
-                                    )
-                                    : ''
-                                ?>"
-                                min="<?= date(
-                                    'Y-m-d'
-                                ) ?>"
-                                required
-                            >
+                        </tr>
 
 
-                        </div>
+                    <?php endforeach; ?>
 
 
+                    </tbody>
 
-                        <!-- TIME -->
 
-                        <div class="form-field">
+                </table>
 
 
-                            <label>
+            </div>
 
-                                Lesson Time
 
-                            </label>
+        <?php endif; ?>
 
 
-                            <input
-                                type="time"
-                                name="lesson_time"
-                                value="<?= !empty(
-                                    $booking[
-                                        'lesson_time'
-                                    ]
-                                )
-                                    ? h(
-                                        $booking[
-                                            'lesson_time'
-                                        ]
-                                    )
-                                    : ''
-                                ?>"
-                                required
-                            >
-
-
-                        </div>
-
-
-
-                        <!-- BUTTON -->
-
-                        <div
-                            class="form-field"
-                        >
-
-                            <label>
-
-                                &nbsp;
-
-                            </label>
-
-
-                            <button
-                                type="submit"
-                                class="assign-btn"
-                            >
-
-                                <?= $isAssigned
-                                    ? '↻ Update Schedule'
-                                    : '✓ Assign Teacher'
-                                ?>
-
-                            </button>
-
-
-                        </div>
-
-
-                    </form>
-
-
-
-                    <!-- ACTIONS -->
-
-                    <div
-                        class="actions"
-                    >
-
-
-                        <?php if (
-                            $isAssigned
-                            &&
-                            $lesson !==
-                            'completed'
-                        ): ?>
-
-
-                            <form
-                                method="POST"
-                                action=""
-                                onsubmit="
-                                    return confirm(
-                                        'Mark this lesson as completed?'
-                                    );
-                                "
-                            >
-
-
-                                <input
-                                    type="hidden"
-                                    name="booking_id"
-                                    value="<?= h(
-                                        $booking[
-                                            'id'
-                                        ]
-                                    ) ?>"
-                                >
-
-
-                                <button
-                                    type="submit"
-                                    name="complete_lesson"
-                                    class="
-                                        action-btn
-                                        complete-btn
-                                    "
-                                >
-
-                                    ✓ Mark Lesson
-                                    Completed
-
-                                </button>
-
-
-                            </form>
-
-
-                        <?php endif; ?>
-
-
-
-                        <?php if (
-                            $isAssigned
-                        ): ?>
-
-
-                            <form
-                                method="POST"
-                                action=""
-                                onsubmit="
-                                    return confirm(
-                                        'Remove this teacher assignment?'
-                                    );
-                                "
-                            >
-
-
-                                <input
-                                    type="hidden"
-                                    name="booking_id"
-                                    value="<?= h(
-                                        $booking[
-                                            'id'
-                                        ]
-                                    ) ?>"
-                                >
-
-
-                                <button
-                                    type="submit"
-                                    name="remove_assignment"
-                                    class="
-                                        action-btn
-                                        remove-btn
-                                    "
-                                >
-
-                                    ✕ Remove Assignment
-
-                                </button>
-
-
-                            </form>
-
-
-                        <?php endif; ?>
-
-
-                    </div>
-
-
-                </div>
-
-
-            </section>
-
-
-        <?php endforeach; ?>
-
-
-    <?php endif; ?>
+    </section>
 
 
 
@@ -4118,7 +2870,7 @@ select:focus {
 
         NISEL ONLINE EDUCATION
         ·
-        Administrator Booking Management
+        Administrator Payment Management
 
     </div>
 
