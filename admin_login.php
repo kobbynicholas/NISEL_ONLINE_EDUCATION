@@ -176,9 +176,7 @@ if (
                 |--------------------------------------------------------------------------
                 */
 
-                header(
-                    "Location: dashboard.php"
-                );
+                 header("Location: /online/admin/dashboard.php");
 
                 exit;
 
