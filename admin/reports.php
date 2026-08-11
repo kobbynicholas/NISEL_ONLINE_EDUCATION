@@ -1,6 +1,6 @@
 <?php
 
-require "../admin_auth.php";
+require "_login.php";
 
 require "../config/db.php";
 
