@@ -46,7 +46,7 @@ $student_id =
 |--------------------------------------------------------------------------
 */
 
-$secretKey = "YOUR_PAYSTACK_SECRET_KEY";
+$secretKey = "sk_test_90ec51eccfbefe07902468f713bba1ba663d7a28";
 
 
 /*
