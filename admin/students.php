@@ -5,7 +5,7 @@ session_start();
 /*
 |--------------------------------------------------------------------------
 | NISEL ONLINE EDUCATION
-| ADMIN - STUDENTS
+| ADMIN STUDENTS DIRECTORY
 | PDO VERSION
 |--------------------------------------------------------------------------
 */
@@ -13,7 +13,7 @@ session_start();
 
 /*
 |--------------------------------------------------------------------------
-| ADMIN AUTHENTICATION
+| ADMIN LOGIN CHECK
 |--------------------------------------------------------------------------
 */
 
@@ -21,10 +21,8 @@ if (
     !isset($_SESSION['admin_id']) ||
     empty($_SESSION['admin_id'])
 ) {
-
     header("Location: ../admin_login.php");
     exit;
-
 }
 
 
@@ -35,6 +33,18 @@ if (
 */
 
 require "../config/db.php";
+
+
+/*
+|--------------------------------------------------------------------------
+| PDO ERROR MODE
+|--------------------------------------------------------------------------
+*/
+
+$pdo->setAttribute(
+    PDO::ATTR_ERRMODE,
+    PDO::ERRMODE_EXCEPTION
+);
 
 
 /*
@@ -55,7 +65,125 @@ function h($value)
 
 /*
 |--------------------------------------------------------------------------
-| FILTER VALUES
+| INITIALS
+|--------------------------------------------------------------------------
+*/
+
+function getInitials($name)
+{
+    $name = trim((string)$name);
+
+    if ($name === '') {
+        return 'ST';
+    }
+
+    $words = preg_split(
+        '/\s+/',
+        $name
+    );
+
+    $initials = '';
+
+    foreach ($words as $word) {
+
+        if ($word === '') {
+            continue;
+        }
+
+        $initials .= strtoupper(
+            substr($word, 0, 1)
+        );
+
+        if (strlen($initials) >= 2) {
+            break;
+        }
+    }
+
+    return $initials ?: 'ST';
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FORMAT DATE
+|--------------------------------------------------------------------------
+*/
+
+function formatDate($date)
+{
+    if (empty($date)) {
+        return 'Not provided';
+    }
+
+    $time = strtotime($date);
+
+    if ($time === false) {
+        return $date;
+    }
+
+    return date(
+        'd M Y',
+        $time
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| SPLIT MULTIPLE VALUES
+|--------------------------------------------------------------------------
+|
+| Handles:
+|
+| Mathematics, Physics
+| Mathematics;Physics
+| Mathematics|Physics
+|
+|--------------------------------------------------------------------------
+*/
+
+function splitValues($value)
+{
+    if (
+        $value === null ||
+        trim($value) === ''
+    ) {
+        return [];
+    }
+
+    $parts = preg_split(
+        '/[,;|]+/',
+        $value
+    );
+
+    $result = [];
+
+    foreach ($parts as $part) {
+
+        $part = trim($part);
+
+        if ($part === '') {
+            continue;
+        }
+
+        if (!in_array(
+            strtolower($part),
+            array_map(
+                'strtolower',
+                $result
+            )
+        )) {
+            $result[] = $part;
+        }
+    }
+
+    return $result;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FILTERS
 |--------------------------------------------------------------------------
 */
 
@@ -68,16 +196,30 @@ $curriculum =
 $subject =
     trim($_GET['subject'] ?? '');
 
-$status =
-    trim($_GET['status'] ?? '');
-
 $payment =
     trim($_GET['payment'] ?? '');
+
+$status =
+    trim($_GET['status'] ?? '');
 
 
 /*
 |--------------------------------------------------------------------------
-| GET SUBJECTS FROM BOOKINGS
+| CURRICULUM OPTIONS
+|--------------------------------------------------------------------------
+*/
+
+$curriculumList = [
+    'Cambridge',
+    'IB',
+    'GES',
+    'SAT'
+];
+
+
+/*
+|--------------------------------------------------------------------------
+| GET SUBJECT LIST
 |--------------------------------------------------------------------------
 */
 
@@ -85,7 +227,7 @@ $subjectList = [];
 
 try {
 
-    $subjectStmt = $pdo->query("
+    $subjectQuery = $pdo->query("
         SELECT subjects
         FROM bookings
         WHERE subjects IS NOT NULL
@@ -93,48 +235,39 @@ try {
     ");
 
     $subjectRows =
-        $subjectStmt->fetchAll(
+        $subjectQuery->fetchAll(
             PDO::FETCH_COLUMN
         );
 
 
     foreach (
-        $subjectRows as $subjectRow
+        $subjectRows as $row
     ) {
 
-        $parts =
-            preg_split(
-                '/[,;|]+/',
-                $subjectRow
-            );
-
+        $values =
+            splitValues($row);
 
         foreach (
-            $parts as $part
+            $values as $value
         ) {
 
-            $part =
-                trim($part);
-
-
-            if (
-                $part !== ''
-            ) {
-
-                $subjectList[] =
-                    $part;
-
-            }
-
+            $subjectList[] =
+                $value;
         }
-
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | REMOVE DUPLICATES
+    |--------------------------------------------------------------------------
+    */
 
     $subjectList =
         array_values(
             array_unique(
-                $subjectList
+                $subjectList,
+                SORT_NATURAL
             )
         );
 
@@ -149,47 +282,28 @@ try {
             $subjectList
         );
 
-} catch (
-    PDOException $e
-) {
+} catch (PDOException $e) {
 
     $subjectList = [];
-
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| CURRICULUM OPTIONS
-|--------------------------------------------------------------------------
-*/
-
-$curriculumList = [
-
-    'Cambridge',
-    'IB',
-    'GES',
-    'SAT'
-
-];
-
-
-/*
-|--------------------------------------------------------------------------
-| BUILD STUDENT QUERY
+| BUILD QUERY
 |--------------------------------------------------------------------------
 |
-| We use students as the main table.
+| IMPORTANT:
 |
-| Bookings are joined so the administrator can also see:
+| The previous version joined using:
 |
-| - Subjects
-| - Curriculum
-| - Payment status
-| - Assigned teacher
+|     student_id OR email
 |
-| GROUP BY prevents a student with multiple bookings from appearing
-| multiple times.
+| That can cause unrelated booking records to be pulled into the same
+| student if IDs/emails do not match consistently.
+|
+| Your existing student dashboard uses the student's email to retrieve
+| bookings, so this version follows that same relationship.
 |
 |--------------------------------------------------------------------------
 */
@@ -204,7 +318,50 @@ $sql = "
         s.phone,
         s.dob,
 
-        COUNT(b.id) AS total_bookings,
+        COUNT(b.id)
+            AS total_bookings,
+
+        GROUP_CONCAT(
+            DISTINCT b.curriculum
+            ORDER BY b.curriculum
+            SEPARATOR '||'
+        )
+            AS curricula,
+
+        GROUP_CONCAT(
+            DISTINCT b.subjects
+            ORDER BY b.subjects
+            SEPARATOR '||'
+        )
+            AS subjects,
+
+        GROUP_CONCAT(
+            DISTINCT b.class_year
+            ORDER BY b.class_year
+            SEPARATOR '||'
+        )
+            AS class_years,
+
+        GROUP_CONCAT(
+            DISTINCT
+            CASE
+                WHEN
+                    b.teacher_name IS NOT NULL
+                    AND
+                    TRIM(b.teacher_name) <> ''
+                THEN b.teacher_name
+            END
+            ORDER BY b.teacher_name
+            SEPARATOR '||'
+        )
+            AS teachers,
+
+        GROUP_CONCAT(
+            DISTINCT b.payment_status
+            ORDER BY b.payment_status
+            SEPARATOR '||'
+        )
+            AS payment_statuses,
 
         MAX(
             CASE
@@ -217,61 +374,20 @@ $sql = "
                             )
                         )
                     )
-                    IN ('paid','success')
+                    IN (
+                        'paid',
+                        'success'
+                    )
                 THEN 1
                 ELSE 0
             END
-        ) AS has_paid_booking,
-
-        GROUP_CONCAT(
-            DISTINCT b.subjects
-            SEPARATOR ', '
-        ) AS booking_subjects,
-
-        GROUP_CONCAT(
-            DISTINCT b.curriculum
-            SEPARATOR ', '
-        ) AS booking_curricula,
-
-        GROUP_CONCAT(
-            DISTINCT b.class_year
-            SEPARATOR ', '
-        ) AS class_years,
-
-        GROUP_CONCAT(
-            DISTINCT
-            CASE
-                WHEN
-                    b.teacher_name IS NOT NULL
-                    AND
-                    TRIM(b.teacher_name) <> ''
-                THEN b.teacher_name
-            END
-            SEPARATOR ', '
-        ) AS assigned_teachers,
-
-        GROUP_CONCAT(
-            DISTINCT
-            b.payment_status
-            SEPARATOR ', '
-        ) AS payment_statuses
+        )
+            AS has_paid
 
     FROM students s
 
     LEFT JOIN bookings b
-        ON (
-            b.student_id = s.id
-            OR
-            (
-                (
-                    b.student_id IS NULL
-                    OR
-                    b.student_id = 0
-                )
-                AND
-                b.email = s.email
-            )
-        )
+        ON b.email = s.email
 
     WHERE 1 = 1
 
@@ -287,9 +403,7 @@ $params = [];
 |--------------------------------------------------------------------------
 */
 
-if (
-    $search !== ''
-) {
+if ($search !== '') {
 
     $sql .= "
 
@@ -319,7 +433,6 @@ if (
         '%' .
         $search .
         '%';
-
 }
 
 
@@ -329,9 +442,7 @@ if (
 |--------------------------------------------------------------------------
 */
 
-if (
-    $curriculum !== ''
-) {
+if ($curriculum !== '') {
 
     $sql .= "
 
@@ -343,7 +454,6 @@ if (
         '%' .
         $curriculum .
         '%';
-
 }
 
 
@@ -353,9 +463,7 @@ if (
 |--------------------------------------------------------------------------
 */
 
-if (
-    $subject !== ''
-) {
+if ($subject !== '') {
 
     $sql .= "
 
@@ -367,7 +475,6 @@ if (
         '%' .
         $subject .
         '%';
-
 }
 
 
@@ -377,50 +484,42 @@ if (
 |--------------------------------------------------------------------------
 */
 
-if (
-    $payment !== ''
-) {
+if ($payment === 'Paid') {
 
-    if (
-        $payment === 'Paid'
-    ) {
+    $sql .= "
 
-        $sql .= "
-
-            AND LOWER(
-                TRIM(
-                    COALESCE(
-                        b.payment_status,
-                        ''
-                    )
+        AND LOWER(
+            TRIM(
+                COALESCE(
+                    b.payment_status,
+                    ''
                 )
             )
-            IN ('paid','success')
+        )
+        IN (
+            'paid',
+            'success'
+        )
 
-        ";
+    ";
+}
 
-    }
 
-    elseif (
-        $payment === 'Pending'
-    ) {
+if ($payment === 'Pending') {
 
-        $sql .= "
+    $sql .= "
 
-            AND LOWER(
-                TRIM(
-                    COALESCE(
-                        b.payment_status,
-                        ''
-                    )
+        AND LOWER(
+            TRIM(
+                COALESCE(
+                    b.payment_status,
+                    ''
                 )
             )
-            = 'pending'
+        )
+        = 'pending'
 
-        ";
-
-    }
-
+    ";
 }
 
 
@@ -447,53 +546,25 @@ $sql .= "
 |--------------------------------------------------------------------------
 | STATUS FILTER
 |--------------------------------------------------------------------------
-|
-| Students don't appear to have a dedicated status field in the
-| student structure currently used by the portal.
-|
-| Therefore:
-|
-| Active = has at least one booking
-| New = no booking yet
-|
-|--------------------------------------------------------------------------
 */
 
-if (
-    $status !== ''
-) {
+if ($status === 'Active') {
 
-    /*
-    |--------------------------------------------------------------------------
-    | This filter is applied using HAVING because total_bookings is an
-    | aggregate value.
-    |--------------------------------------------------------------------------
-    */
+    $sql .= "
 
-    if (
-        $status === 'Active'
-    ) {
+        HAVING total_bookings > 0
 
-        $sql .= "
+    ";
+}
 
-            HAVING total_bookings > 0
 
-        ";
+if ($status === 'New') {
 
-    }
+    $sql .= "
 
-    elseif (
-        $status === 'New'
-    ) {
+        HAVING total_bookings = 0
 
-        $sql .= "
-
-            HAVING total_bookings = 0
-
-        ";
-
-    }
-
+    ";
 }
 
 
@@ -524,222 +595,73 @@ try {
             $sql
         );
 
-
     $stmt->execute(
         $params
     );
-
 
     $students =
         $stmt->fetchAll(
             PDO::FETCH_ASSOC
         );
 
-} catch (
-    PDOException $e
-) {
+} catch (PDOException $e) {
 
     die(
-        "Unable to load students: "
+        "Database error: "
         .
         h(
             $e->getMessage()
         )
     );
-
 }
 
 
 /*
 |--------------------------------------------------------------------------
-| TOTAL
+| STATISTICS
 |--------------------------------------------------------------------------
 */
 
 $totalStudents =
-    count(
-        $students
-    );
-
-
-/*
-|--------------------------------------------------------------------------
-| ACTIVE STUDENTS
-|--------------------------------------------------------------------------
-*/
+    count($students);
 
 $activeStudents = 0;
 
-
-/*
-|--------------------------------------------------------------------------
-| NEW STUDENTS
-|--------------------------------------------------------------------------
-*/
-
 $newStudents = 0;
-
-
-/*
-|--------------------------------------------------------------------------
-| PAID STUDENTS
-|--------------------------------------------------------------------------
-*/
 
 $paidStudents = 0;
 
 
 foreach (
-    $students
-    as $student
+    $students as $student
 ) {
 
-    $bookingCount =
+    $bookings =
         (int)(
             $student['total_bookings']
-            ??
-            0
+            ?? 0
         );
 
 
-    if (
-        $bookingCount > 0
-    ) {
+    if ($bookings > 0) {
 
         $activeStudents++;
 
     } else {
 
         $newStudents++;
-
     }
 
 
     if (
-        !empty(
-            $student['has_paid_booking']
-        )
+        (int)(
+            $student['has_paid']
+            ?? 0
+        ) === 1
     ) {
 
         $paidStudents++;
-
     }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| DATE FORMAT
-|--------------------------------------------------------------------------
-*/
-
-function formatDate(
-    $date
-)
-{
-
-    if (
-        empty($date)
-    ) {
-
-        return 'Not provided';
-
-    }
-
-
-    $timestamp =
-        strtotime(
-            $date
-        );
-
-
-    if (
-        $timestamp === false
-    ) {
-
-        return h($date);
-
-    }
-
-
-    return date(
-        'd M Y',
-        $timestamp
-    );
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| INITIAL LETTERS
-|--------------------------------------------------------------------------
-*/
-
-function initials(
-    $name
-)
-{
-
-    $name =
-        trim(
-            $name
-        );
-
-
-    if (
-        $name === ''
-    ) {
-
-        return 'S';
-
-    }
-
-
-    $words =
-        preg_split(
-            '/\s+/',
-            $name
-        );
-
-
-    $result = '';
-
-
-    foreach (
-        $words as $word
-    ) {
-
-        if (
-            $word !== ''
-        ) {
-
-            $result .=
-                strtoupper(
-                    substr(
-                        $word,
-                        0,
-                        1
-                    )
-                );
-
-        }
-
-
-        if (
-            strlen($result) >= 2
-        ) {
-
-            break;
-
-        }
-
-    }
-
-
-    return $result;
-
 }
 
 ?>
@@ -771,29 +693,22 @@ function initials(
 ===================================================== */
 
 * {
-
-    box-sizing:
-        border-box;
-
+    box-sizing: border-box;
 }
 
 
 body {
 
-    margin:
-        0;
+    margin: 0;
 
     font-family:
         Arial,
         Helvetica,
         sans-serif;
 
-    background:
-        #f4f7fb;
+    background: #f4f7fb;
 
-    color:
-        #172b4d;
-
+    color: #172b4d;
 }
 
 
@@ -803,20 +718,15 @@ body {
 
 .sidebar {
 
-    position:
-        fixed;
+    position: fixed;
 
-    left:
-        0;
+    left: 0;
 
-    top:
-        0;
+    top: 0;
 
-    width:
-        245px;
+    width: 245px;
 
-    height:
-        100vh;
+    height: 100vh;
 
     background:
         linear-gradient(
@@ -825,25 +735,19 @@ body {
             #00264d
         );
 
-    color:
-        white;
+    color: white;
 
-    padding:
-        25px 15px;
+    padding: 25px 15px;
 
-    z-index:
-        1000;
-
+    z-index: 1000;
 }
 
 
 .brand {
 
-    text-align:
-        center;
+    text-align: center;
 
-    padding-bottom:
-        25px;
+    padding-bottom: 25px;
 
     border-bottom:
         1px solid
@@ -853,23 +757,18 @@ body {
             255,
             .12
         );
-
 }
 
 
 .brand-icon {
 
-    width:
-        58px;
+    width: 58px;
 
-    height:
-        58px;
+    height: 58px;
 
-    margin:
-        0 auto 10px;
+    margin: 0 auto 10px;
 
-    border-radius:
-        16px;
+    border-radius: 16px;
 
     background:
         rgba(
@@ -879,76 +778,55 @@ body {
             .12
         );
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    font-size:
-        28px;
-
+    font-size: 28px;
 }
 
 
 .brand h2 {
 
-    margin:
-        0;
+    margin: 0;
 
-    font-size:
-        20px;
-
+    font-size: 20px;
 }
 
 
 .brand p {
 
-    margin:
-        5px 0 0;
+    margin: 5px 0 0;
 
-    font-size:
-        9px;
+    font-size: 9px;
 
-    letter-spacing:
-        2px;
+    letter-spacing: 2px;
 
-    opacity:
-        .7;
-
+    opacity: .7;
 }
 
 
 .nav {
 
-    margin-top:
-        25px;
-
+    margin-top: 25px;
 }
 
 
 .nav a {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        12px;
+    gap: 12px;
 
-    padding:
-        13px 14px;
+    padding: 13px 14px;
 
-    margin-bottom:
-        7px;
+    margin-bottom: 7px;
 
-    border-radius:
-        9px;
+    border-radius: 9px;
 
     color:
         rgba(
@@ -958,12 +836,11 @@ body {
             .82
         );
 
-    text-decoration:
-        none;
+    text-decoration: none;
 
-    font-size:
-        14px;
+    font-size: 14px;
 
+    transition: .2s;
 }
 
 
@@ -975,23 +852,18 @@ body {
             255,
             255,
             255,
-            .12
+            .13
         );
 
-    color:
-        white;
-
+    color: white;
 }
 
 
 .nav-icon {
 
-    width:
-        23px;
+    width: 23px;
 
-    text-align:
-        center;
-
+    text-align: center;
 }
 
 
@@ -1001,15 +873,11 @@ body {
 
 .main {
 
-    margin-left:
-        245px;
+    margin-left: 245px;
 
-    min-height:
-        100vh;
+    min-height: 100vh;
 
-    padding:
-        30px;
-
+    padding: 30px;
 }
 
 
@@ -1019,68 +887,49 @@ body {
 
 .topbar {
 
-    display:
-        flex;
+    display: flex;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        20px;
+    gap: 20px;
 
-    margin-bottom:
-        25px;
-
+    margin-bottom: 25px;
 }
 
 
 .page-title h1 {
 
-    margin:
-        0;
+    margin: 0;
 
-    font-size:
-        29px;
-
+    font-size: 29px;
 }
 
 
 .page-title p {
 
-    margin:
-        7px 0 0;
+    margin: 7px 0 0;
 
-    color:
-        #667085;
+    color: #667085;
 
-    font-size:
-        14px;
-
+    font-size: 14px;
 }
 
 
 .admin-badge {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        10px;
+    gap: 10px;
 
-    background:
-        white;
+    background: white;
 
-    padding:
-        9px 14px;
+    padding: 9px 14px;
 
-    border-radius:
-        10px;
+    border-radius: 10px;
 
     box-shadow:
         0 3px 12px
@@ -1091,35 +940,25 @@ body {
             .06
         );
 
-    font-size:
-        13px;
-
+    font-size: 13px;
 }
 
 
 .admin-avatar {
 
-    width:
-        35px;
+    width: 35px;
 
-    height:
-        35px;
+    height: 35px;
 
-    border-radius:
-        50%;
+    border-radius: 50%;
 
-    background:
-        #e8f2ff;
+    background: #e8f2ff;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
-
+    justify-content: center;
 }
 
 
@@ -1129,8 +968,7 @@ body {
 
 .stats {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         repeat(
@@ -1141,25 +979,19 @@ body {
             )
         );
 
-    gap:
-        18px;
+    gap: 18px;
 
-    margin-bottom:
-        25px;
-
+    margin-bottom: 25px;
 }
 
 
 .stat-card {
 
-    background:
-        white;
+    background: white;
 
-    padding:
-        20px;
+    padding: 20px;
 
-    border-radius:
-        14px;
+    border-radius: 14px;
 
     box-shadow:
         0 4px 18px
@@ -1170,69 +1002,49 @@ body {
             .05
         );
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        14px;
-
+    gap: 14px;
 }
 
 
 .stat-icon {
 
-    width:
-        50px;
+    width: 50px;
 
-    height:
-        50px;
+    height: 50px;
 
-    border-radius:
-        12px;
+    border-radius: 12px;
 
-    background:
-        #e8f2ff;
+    background: #e8f2ff;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    font-size:
-        22px;
-
+    font-size: 22px;
 }
 
 
 .stat-number {
 
-    font-size:
-        23px;
+    font-size: 23px;
 
-    font-weight:
-        800;
-
+    font-weight: 800;
 }
 
 
 .stat-label {
 
-    margin-top:
-        3px;
+    margin-top: 3px;
 
-    color:
-        #667085;
+    color: #667085;
 
-    font-size:
-        11px;
-
+    font-size: 11px;
 }
 
 
@@ -1242,17 +1054,13 @@ body {
 
 .filter-card {
 
-    background:
-        white;
+    background: white;
 
-    border-radius:
-        15px;
+    border-radius: 15px;
 
-    padding:
-        20px;
+    padding: 20px;
 
-    margin-bottom:
-        20px;
+    margin-bottom: 20px;
 
     box-shadow:
         0 4px 18px
@@ -1262,53 +1070,40 @@ body {
             0,
             .05
         );
-
 }
 
 
 .filter-title {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
-    margin-bottom:
-        16px;
-
+    margin-bottom: 16px;
 }
 
 
 .filter-title h2 {
 
-    margin:
-        0;
+    margin: 0;
 
-    font-size:
-        17px;
-
+    font-size: 17px;
 }
 
 
 .filter-title span {
 
-    color:
-        #98a2b3;
+    color: #98a2b3;
 
-    font-size:
-        12px;
-
+    font-size: 12px;
 }
 
 
 .filter-form {
 
-    display:
-        grid;
+    display: grid;
 
     grid-template-columns:
         2fr
@@ -1319,68 +1114,51 @@ body {
         auto
         auto;
 
-    gap:
-        10px;
-
+    gap: 10px;
 }
 
 
 .search-wrapper {
 
-    position:
-        relative;
-
+    position: relative;
 }
 
 
 .search-icon {
 
-    position:
-        absolute;
+    position: absolute;
 
-    left:
-        13px;
+    left: 13px;
 
-    top:
-        50%;
+    top: 50%;
 
     transform:
         translateY(-50%);
 
-    color:
-        #98a2b3;
-
+    color: #98a2b3;
 }
 
 
 .search-input,
 .filter-select {
 
-    width:
-        100%;
+    width: 100%;
 
-    height:
-        45px;
+    height: 45px;
 
     border:
         1px solid
         #d0d5dd;
 
-    border-radius:
-        9px;
+    border-radius: 9px;
 
-    background:
-        white;
+    background: white;
 
-    outline:
-        none;
+    outline: none;
 
-    color:
-        #344054;
+    color: #344054;
 
-    font-size:
-        13px;
-
+    font-size: 13px;
 }
 
 
@@ -1388,7 +1166,6 @@ body {
 
     padding:
         0 12px 0 40px;
-
 }
 
 
@@ -1396,15 +1173,13 @@ body {
 
     padding:
         0 10px;
-
 }
 
 
 .search-input:focus,
 .filter-select:focus {
 
-    border-color:
-        #0074b7;
+    border-color: #0074b7;
 
     box-shadow:
         0 0 0 3px
@@ -1414,71 +1189,50 @@ body {
             183,
             .08
         );
-
 }
 
 
 .filter-button {
 
-    height:
-        45px;
+    height: 45px;
 
-    padding:
-        0 18px;
+    padding: 0 18px;
 
-    border:
-        none;
+    border: none;
 
-    border-radius:
-        9px;
+    border-radius: 9px;
 
-    background:
-        #003366;
+    background: #003366;
 
-    color:
-        white;
+    color: white;
 
-    font-weight:
-        700;
+    font-weight: 700;
 
-    cursor:
-        pointer;
-
+    cursor: pointer;
 }
 
 
 .clear-button {
 
-    height:
-        45px;
+    height: 45px;
 
-    padding:
-        0 15px;
+    padding: 0 15px;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    border-radius:
-        9px;
+    border-radius: 9px;
 
-    background:
-        #f2f4f7;
+    background: #f2f4f7;
 
-    color:
-        #344054;
+    color: #344054;
 
-    text-decoration:
-        none;
+    text-decoration: none;
 
-    font-size:
-        13px;
-
+    font-size: 13px;
 }
 
 
@@ -1488,78 +1242,57 @@ body {
 
 .active-filters {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    flex-wrap:
-        wrap;
+    flex-wrap: wrap;
 
-    gap:
-        7px;
+    gap: 7px;
 
-    margin-top:
-        15px;
-
+    margin-top: 15px;
 }
 
 
 .filter-label {
 
-    color:
-        #667085;
+    color: #667085;
 
-    font-size:
-        12px;
-
+    font-size: 12px;
 }
 
 
 .filter-tag {
 
-    display:
-        inline-flex;
+    display: inline-flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        5px;
+    gap: 5px;
 
-    padding:
-        5px 9px;
+    padding: 5px 9px;
 
-    border-radius:
-        20px;
+    border-radius: 20px;
 
-    background:
-        #eef4ff;
+    background: #eef4ff;
 
-    color:
-        #003366;
+    color: #003366;
 
-    font-size:
-        11px;
+    font-size: 11px;
 
-    font-weight:
-        700;
-
+    font-weight: 700;
 }
 
 
 /* =====================================================
-   TABLE
+   TABLE CARD
 ===================================================== */
 
 .table-card {
 
-    background:
-        white;
+    background: white;
 
-    border-radius:
-        15px;
+    border-radius: 15px;
 
     box-shadow:
         0 4px 18px
@@ -1570,168 +1303,127 @@ body {
             .05
         );
 
-    overflow:
-        hidden;
-
+    overflow: hidden;
 }
 
 
 .table-header {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
-    padding:
-        20px;
+    padding: 20px;
 
     border-bottom:
         1px solid
         #eaecf0;
-
 }
 
 
 .table-header h2 {
 
-    margin:
-        0;
+    margin: 0;
 
-    font-size:
-        17px;
-
+    font-size: 17px;
 }
 
 
 .student-count {
 
-    color:
-        #667085;
+    color: #667085;
 
-    font-size:
-        13px;
-
+    font-size: 13px;
 }
 
 
 .table-wrapper {
 
-    overflow-x:
-        auto;
-
+    overflow-x: auto;
 }
 
 
 table {
 
-    width:
-        100%;
+    width: 100%;
 
-    min-width:
-        1200px;
+    min-width: 1250px;
 
-    border-collapse:
-        collapse;
-
+    border-collapse: collapse;
 }
 
 
 thead {
 
-    background:
-        #f8fafc;
-
+    background: #f8fafc;
 }
 
 
 th {
 
-    padding:
-        14px 16px;
+    padding: 14px 16px;
 
-    text-align:
-        left;
+    text-align: left;
 
-    font-size:
-        10px;
+    font-size: 10px;
 
-    text-transform:
-        uppercase;
+    text-transform: uppercase;
 
-    letter-spacing:
-        .5px;
+    letter-spacing: .5px;
 
-    color:
-        #667085;
+    color: #667085;
 
-    white-space:
-        nowrap;
-
+    white-space: nowrap;
 }
 
 
 td {
 
-    padding:
-        16px;
+    padding: 16px;
 
     border-top:
         1px solid
         #f0f2f5;
 
-    vertical-align:
-        middle;
+    vertical-align: middle;
 
-    font-size:
-        13px;
-
+    font-size: 13px;
 }
 
 
 tbody tr:hover {
 
-    background:
-        #f8fbff;
-
+    background: #f8fbff;
 }
 
 
 /* =====================================================
-   STUDENT
+   STUDENT PROFILE
 ===================================================== */
 
 .student-profile {
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        12px;
+    gap: 12px;
 
-    min-width:
-        200px;
-
+    min-width: 200px;
 }
 
 
 .student-avatar {
 
-    width:
-        50px;
+    width: 50px;
 
-    height:
-        50px;
+    height: 50px;
 
-    border-radius:
-        50%;
+    flex: 0 0 50px;
+
+    border-radius: 50%;
 
     background:
         linear-gradient(
@@ -1740,49 +1432,35 @@ tbody tr:hover {
             #d9ecff
         );
 
-    color:
-        #003366;
+    color: #003366;
 
-    display:
-        flex;
+    display: flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    justify-content:
-        center;
+    justify-content: center;
 
-    font-size:
-        15px;
+    font-size: 15px;
 
-    font-weight:
-        800;
-
+    font-weight: 800;
 }
 
 
 .student-name {
 
-    font-weight:
-        700;
+    font-weight: 700;
 
-    color:
-        #172b4d;
-
+    color: #172b4d;
 }
 
 
 .student-id {
 
-    color:
-        #98a2b3;
+    color: #98a2b3;
 
-    font-size:
-        11px;
+    font-size: 11px;
 
-    margin-top:
-        3px;
-
+    margin-top: 3px;
 }
 
 
@@ -1792,77 +1470,180 @@ tbody tr:hover {
 
 .contact {
 
-    line-height:
-        1.7;
+    line-height: 1.7;
 
+    white-space: nowrap;
 }
 
 
 .contact-email {
 
-    color:
-        #344054;
-
+    color: #344054;
 }
 
 
 .contact-phone {
 
-    color:
-        #667085;
-
+    color: #667085;
 }
 
 
 /* =====================================================
-   ACADEMIC
+   CURRICULUM AREA
 ===================================================== */
 
-.academic {
+.academic-box {
 
-    max-width:
-        210px;
+    width: 270px;
 
-    line-height:
-        1.5;
+    max-width: 270px;
+}
 
+
+/*
+|--------------------------------------------------------------------------
+| CURRICULUM BADGES
+|--------------------------------------------------------------------------
+*/
+
+.curriculum-list {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 5px;
+
+    margin-bottom: 8px;
 }
 
 
 .curriculum-badge {
 
-    display:
-        inline-block;
+    display: inline-flex;
 
-    margin-bottom:
-        5px;
+    align-items: center;
 
-    padding:
-        4px 8px;
+    padding: 5px 9px;
 
-    border-radius:
-        20px;
+    border-radius: 20px;
 
-    background:
-        #eef4ff;
+    background: #eef4ff;
 
-    color:
-        #003366;
+    color: #003366;
 
-    font-size:
-        10px;
+    font-size: 10px;
 
-    font-weight:
-        700;
+    font-weight: 700;
+
+    border: 1px solid #d9e8ff;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| DIFFERENT CURRICULUM COLORS
+|--------------------------------------------------------------------------
+*/
+
+.curriculum-badge.cambridge {
+
+    background: #eef4ff;
+
+    color: #175cd3;
+}
+
+
+.curriculum-badge.ib {
+
+    background: #f4ebff;
+
+    color: #6941c6;
+}
+
+
+.curriculum-badge.ges {
+
+    background: #ecfdf3;
+
+    color: #027a48;
+}
+
+
+.curriculum-badge.sat {
+
+    background: #fff4e5;
+
+    color: #b54708;
+}
+
+
+/* =====================================================
+   SUBJECT TAGS
+===================================================== */
+
+.subject-list {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 5px;
+
+    max-height: 105px;
+
+    overflow-y: auto;
+
+    padding-right: 4px;
+}
+
+
+.subject-tag {
+
+    display: inline-block;
+
+    padding: 4px 7px;
+
+    border-radius: 6px;
+
+    background: #f2f4f7;
+
+    color: #475467;
+
+    font-size: 10px;
+
+    line-height: 1.3;
 
 }
 
 
-.subject-text {
+/* =====================================================
+   CLASS
+===================================================== */
 
-    color:
-        #475467;
+.class-list {
 
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 5px;
+
+    max-width: 150px;
+}
+
+
+.class-tag {
+
+    padding: 5px 8px;
+
+    border-radius: 6px;
+
+    background: #f2f4f7;
+
+    color: #475467;
+
+    font-size: 10px;
 }
 
 
@@ -1870,131 +1651,40 @@ tbody tr:hover {
    TEACHER
 ===================================================== */
 
-.teacher-text {
+.teacher-list {
 
-    max-width:
-        150px;
+    display: flex;
 
-    color:
-        #475467;
+    flex-direction: column;
 
-    line-height:
-        1.5;
+    gap: 5px;
+
+    max-width: 160px;
+}
+
+
+.teacher-tag {
+
+    display: inline-block;
+
+    padding: 5px 8px;
+
+    border-radius: 6px;
+
+    background: #f9f5ff;
+
+    color: #6941c6;
+
+    font-size: 10px;
 
 }
 
 
 .no-teacher {
 
-    color:
-        #98a2b3;
+    color: #98a2b3;
 
-    font-style:
-        italic;
-
-}
-
-
-/* =====================================================
-   STATUS
-===================================================== */
-
-.status {
-
-    display:
-        inline-block;
-
-    padding:
-        5px 10px;
-
-    border-radius:
-        20px;
-
-    font-size:
-        10px;
-
-    font-weight:
-        700;
-
-}
-
-
-.status.active {
-
-    background:
-        #e7f7ed;
-
-    color:
-        #16803d;
-
-}
-
-
-.status.new {
-
-    background:
-        #eef4ff;
-
-    color:
-        #175cd3;
-
-}
-
-
-/* =====================================================
-   PAYMENT
-===================================================== */
-
-.payment {
-
-    display:
-        inline-block;
-
-    padding:
-        5px 10px;
-
-    border-radius:
-        20px;
-
-    font-size:
-        10px;
-
-    font-weight:
-        700;
-
-}
-
-
-.payment.paid {
-
-    background:
-        #e7f7ed;
-
-    color:
-        #16803d;
-
-}
-
-
-.payment.pending {
-
-    background:
-        #fff4e5;
-
-    color:
-        #b54708;
-
-}
-
-
-.payment.none {
-
-    background:
-        #f2f4f7;
-
-    color:
-        #667085;
-
+    font-style: italic;
 }
 
 
@@ -2004,26 +1694,95 @@ tbody tr:hover {
 
 .booking-number {
 
-    font-size:
-        17px;
+    font-size: 18px;
 
-    font-weight:
-        800;
+    font-weight: 800;
 
-    color:
-        #003366;
-
+    color: #003366;
 }
 
 
 .booking-label {
 
-    color:
-        #98a2b3;
+    color: #98a2b3;
 
-    font-size:
-        10px;
+    font-size: 10px;
+}
 
+
+/* =====================================================
+   PAYMENT
+===================================================== */
+
+.payment {
+
+    display: inline-block;
+
+    padding: 5px 10px;
+
+    border-radius: 20px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+}
+
+
+.payment.paid {
+
+    background: #e7f7ed;
+
+    color: #16803d;
+}
+
+
+.payment.pending {
+
+    background: #fff4e5;
+
+    color: #b54708;
+}
+
+
+.payment.none {
+
+    background: #f2f4f7;
+
+    color: #667085;
+}
+
+
+/* =====================================================
+   STATUS
+===================================================== */
+
+.status {
+
+    display: inline-block;
+
+    padding: 5px 10px;
+
+    border-radius: 20px;
+
+    font-size: 10px;
+
+    font-weight: 700;
+}
+
+
+.status.active {
+
+    background: #e7f7ed;
+
+    color: #16803d;
+}
+
+
+.status.new {
+
+    background: #eef4ff;
+
+    color: #175cd3;
 }
 
 
@@ -2033,92 +1792,67 @@ tbody tr:hover {
 
 .view-button {
 
-    display:
-        inline-flex;
+    display: inline-flex;
 
-    align-items:
-        center;
+    align-items: center;
 
-    gap:
-        5px;
+    gap: 5px;
 
-    padding:
-        8px 11px;
+    padding: 8px 11px;
 
-    border-radius:
-        8px;
+    border-radius: 8px;
 
-    background:
-        #003366;
+    background: #003366;
 
-    color:
-        white;
+    color: white;
 
-    text-decoration:
-        none;
+    text-decoration: none;
 
-    font-size:
-        11px;
+    font-size: 11px;
 
-    font-weight:
-        700;
-
+    font-weight: 700;
 }
 
 
 .view-button:hover {
 
-    background:
-        #0055a5;
-
+    background: #0055a5;
 }
 
 
 /* =====================================================
-   EMPTY STATE
+   EMPTY
 ===================================================== */
 
 .empty-state {
 
-    padding:
-        70px 20px;
+    padding: 70px 20px;
 
-    text-align:
-        center;
-
+    text-align: center;
 }
 
 
 .empty-icon {
 
-    font-size:
-        45px;
+    font-size: 45px;
 
-    margin-bottom:
-        12px;
-
+    margin-bottom: 12px;
 }
 
 
 .empty-state h3 {
 
-    margin:
-        0 0 7px;
-
+    margin: 0 0 7px;
 }
 
 
 .empty-state p {
 
-    margin:
-        0;
+    margin: 0;
 
-    color:
-        #98a2b3;
+    color: #98a2b3;
 
-    font-size:
-        13px;
-
+    font-size: 13px;
 }
 
 
@@ -2128,18 +1862,13 @@ tbody tr:hover {
 
 .footer {
 
-    text-align:
-        center;
+    text-align: center;
 
-    padding:
-        25px 0 5px;
+    padding: 25px 0 5px;
 
-    color:
-        #98a2b3;
+    color: #98a2b3;
 
-    font-size:
-        11px;
-
+    font-size: 11px;
 }
 
 
@@ -2147,9 +1876,7 @@ tbody tr:hover {
    RESPONSIVE
 ===================================================== */
 
-@media (
-    max-width: 1200px
-) {
+@media (max-width: 1250px) {
 
     .stats {
 
@@ -2158,7 +1885,6 @@ tbody tr:hover {
                 2,
                 1fr
             );
-
     }
 
 
@@ -2169,24 +1895,18 @@ tbody tr:hover {
                 2,
                 1fr
             );
-
     }
 
 }
 
 
-@media (
-    max-width: 900px
-) {
+@media (max-width: 900px) {
 
     .sidebar {
 
-        width:
-            70px;
+        width: 70px;
 
-        padding:
-            20px 8px;
-
+        padding: 20px 8px;
     }
 
 
@@ -2194,86 +1914,64 @@ tbody tr:hover {
     .brand p,
     .nav-text {
 
-        display:
-            none;
-
+        display: none;
     }
 
 
     .brand {
 
-        border:
-            none;
-
+        border: none;
     }
 
 
     .nav a {
 
-        justify-content:
-            center;
-
+        justify-content: center;
     }
 
 
     .main {
 
-        margin-left:
-            70px;
+        margin-left: 70px;
 
-        padding:
-            20px;
-
+        padding: 20px;
     }
 
 }
 
 
-@media (
-    max-width: 600px
-) {
+@media (max-width: 600px) {
 
     .main {
 
-        padding:
-            15px;
-
+        padding: 15px;
     }
 
 
     .topbar {
 
-        flex-direction:
-            column;
+        flex-direction: column;
 
-        align-items:
-            flex-start;
-
+        align-items: flex-start;
     }
 
 
     .stats {
 
-        grid-template-columns:
-            1fr;
-
+        grid-template-columns: 1fr;
     }
 
 
     .filter-form {
 
-        grid-template-columns:
-            1fr;
-
+        grid-template-columns: 1fr;
     }
 
 
     .filter-button,
     .clear-button {
 
-        width:
-            100%;
-
+        width: 100%;
     }
 
 }
@@ -2288,7 +1986,7 @@ tbody tr:hover {
 
 <!-- =====================================================
      SIDEBAR
-====================================================== -->
+===================================================== -->
 
 <aside class="sidebar">
 
@@ -2413,12 +2111,14 @@ tbody tr:hover {
 
 <!-- =====================================================
      MAIN
-====================================================== -->
+===================================================== -->
 
 <main class="main">
 
 
-    <!-- HEADER -->
+    <!-- =================================================
+         HEADER
+    ================================================== -->
 
     <div class="topbar">
 
@@ -2435,8 +2135,8 @@ tbody tr:hover {
 
             <p>
 
-                View students, academic information,
-                bookings and payment status.
+                Manage students, curricula,
+                subjects, bookings and payments.
 
             </p>
 
@@ -2455,6 +2155,7 @@ tbody tr:hover {
 
 
             <div>
+
 
                 <strong>
 
@@ -2478,6 +2179,7 @@ tbody tr:hover {
                     Administrator
 
                 </div>
+
 
             </div>
 
@@ -2521,10 +2223,12 @@ tbody tr:hover {
 
                 </div>
 
+
             </div>
 
 
         </div>
+
 
 
         <div class="stat-card">
@@ -2552,10 +2256,12 @@ tbody tr:hover {
 
                 </div>
 
+
             </div>
 
 
         </div>
+
 
 
         <div class="stat-card">
@@ -2579,14 +2285,16 @@ tbody tr:hover {
 
                 <div class="stat-label">
 
-                    Students Without Bookings
+                    Without Bookings
 
                 </div>
+
 
             </div>
 
 
         </div>
+
 
 
         <div class="stat-card">
@@ -2613,6 +2321,7 @@ tbody tr:hover {
                     With Paid Booking
 
                 </div>
+
 
             </div>
 
@@ -2704,23 +2413,19 @@ tbody tr:hover {
 
                 <?php foreach (
                     $subjectList
-                    as $subjectOption
+                    as $item
                 ): ?>
 
 
                     <option
-                        value="<?= h(
-                            $subjectOption
-                        ) ?>"
-                        <?= $subject ===
-                            $subjectOption
+                        value="<?= h($item) ?>"
+                        <?= $subject === $item
                             ? 'selected'
-                            : '' ?>
+                            : ''
+                        ?>
                     >
 
-                        <?= h(
-                            $subjectOption
-                        ) ?>
+                        <?= h($item) ?>
 
                     </option>
 
@@ -2748,23 +2453,19 @@ tbody tr:hover {
 
                 <?php foreach (
                     $curriculumList
-                    as $curriculumOption
+                    as $item
                 ): ?>
 
 
                     <option
-                        value="<?= h(
-                            $curriculumOption
-                        ) ?>"
-                        <?= $curriculum ===
-                            $curriculumOption
+                        value="<?= h($item) ?>"
+                        <?= $curriculum === $item
                             ? 'selected'
-                            : '' ?>
+                            : ''
+                        ?>
                     >
 
-                        <?= h(
-                            $curriculumOption
-                        ) ?>
+                        <?= h($item) ?>
 
                     </option>
 
@@ -2794,7 +2495,8 @@ tbody tr:hover {
                     value="Paid"
                     <?= $payment === 'Paid'
                         ? 'selected'
-                        : '' ?>
+                        : ''
+                    ?>
                 >
 
                     Paid
@@ -2806,7 +2508,8 @@ tbody tr:hover {
                     value="Pending"
                     <?= $payment === 'Pending'
                         ? 'selected'
-                        : '' ?>
+                        : ''
+                    ?>
                 >
 
                     Pending
@@ -2836,7 +2539,8 @@ tbody tr:hover {
                     value="Active"
                     <?= $status === 'Active'
                         ? 'selected'
-                        : '' ?>
+                        : ''
+                    ?>
                 >
 
                     Active / Booked
@@ -2848,7 +2552,8 @@ tbody tr:hover {
                     value="New"
                     <?= $status === 'New'
                         ? 'selected'
-                        : '' ?>
+                        : ''
+                    ?>
                 >
 
                     New / No Booking
@@ -2875,16 +2580,24 @@ tbody tr:hover {
 
             <!-- CLEAR -->
 
-            <?php if (
+            <?php
+
+            $hasFilters =
                 $search !== ''
                 ||
                 $subject !== ''
                 ||
                 $curriculum !== ''
                 ||
-                $status !== ''
-                ||
                 $payment !== ''
+                ||
+                $status !== '';
+
+            ?>
+
+
+            <?php if (
+                $hasFilters
             ): ?>
 
 
@@ -2911,18 +2624,12 @@ tbody tr:hover {
 
 
 
-        <!-- ACTIVE FILTERS -->
+        <!-- =================================================
+             ACTIVE FILTERS
+        ================================================== -->
 
         <?php if (
-            $search !== ''
-            ||
-            $subject !== ''
-            ||
-            $curriculum !== ''
-            ||
-            $status !== ''
-            ||
-            $payment !== ''
+            $hasFilters
         ): ?>
 
 
@@ -2950,11 +2657,8 @@ tbody tr:hover {
                     >
 
                         🔍
-
                         Search:
-                        <?= h(
-                            $search
-                        ) ?>
+                        <?= h($search) ?>
 
                     </span>
 
@@ -2972,11 +2676,8 @@ tbody tr:hover {
                     >
 
                         📚
-
                         Subject:
-                        <?= h(
-                            $subject
-                        ) ?>
+                        <?= h($subject) ?>
 
                     </span>
 
@@ -2994,11 +2695,8 @@ tbody tr:hover {
                     >
 
                         🎓
-
                         Curriculum:
-                        <?= h(
-                            $curriculum
-                        ) ?>
+                        <?= h($curriculum) ?>
 
                     </span>
 
@@ -3016,11 +2714,8 @@ tbody tr:hover {
                     >
 
                         💳
-
                         Payment:
-                        <?= h(
-                            $payment
-                        ) ?>
+                        <?= h($payment) ?>
 
                     </span>
 
@@ -3038,11 +2733,8 @@ tbody tr:hover {
                     >
 
                         ●
-
                         Status:
-                        <?= h(
-                            $status
-                        ) ?>
+                        <?= h($status) ?>
 
                     </span>
 
@@ -3061,7 +2753,7 @@ tbody tr:hover {
 
 
     <!-- =================================================
-         STUDENT TABLE
+         STUDENTS TABLE
     ================================================== -->
 
     <div class="table-card">
@@ -3089,6 +2781,7 @@ tbody tr:hover {
 
 
         </div>
+
 
 
         <?php if (
@@ -3197,10 +2890,96 @@ tbody tr:hover {
                     ): ?>
 
 
+                        <?php
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CURRICULUMS
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $curriculumValues =
+                            splitValues(
+                                str_replace(
+                                    '||',
+                                    ',',
+                                    $student[
+                                        'curricula'
+                                    ]
+                                    ??
+                                    ''
+                                )
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | SUBJECTS
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $subjectValues =
+                            splitValues(
+                                str_replace(
+                                    '||',
+                                    ',',
+                                    $student[
+                                        'subjects'
+                                    ]
+                                    ??
+                                    ''
+                                )
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | CLASSES
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $classValues =
+                            splitValues(
+                                str_replace(
+                                    '||',
+                                    ',',
+                                    $student[
+                                        'class_years'
+                                    ]
+                                    ??
+                                    ''
+                                )
+                            );
+
+
+                        /*
+                        |--------------------------------------------------------------------------
+                        | TEACHERS
+                        |--------------------------------------------------------------------------
+                        */
+
+                        $teacherValues =
+                            splitValues(
+                                str_replace(
+                                    '||',
+                                    ',',
+                                    $student[
+                                        'teachers'
+                                    ]
+                                    ??
+                                    ''
+                                )
+                            );
+
+                        ?>
+
+
                         <tr>
 
 
-                            <!-- STUDENT -->
+                            <!-- =================================
+                                 STUDENT
+                            ================================== -->
 
                             <td>
 
@@ -3215,7 +2994,7 @@ tbody tr:hover {
                                     >
 
                                         <?= h(
-                                            initials(
+                                            getInitials(
                                                 $student[
                                                     'student_name'
                                                 ]
@@ -3265,7 +3044,9 @@ tbody tr:hover {
 
 
 
-                            <!-- CONTACT -->
+                            <!-- =================================
+                                 CONTACT
+                            ================================== -->
 
                             <td>
 
@@ -3288,7 +3069,9 @@ tbody tr:hover {
 
                                             📧
                                             <?= h(
-                                                $student['email']
+                                                $student[
+                                                    'email'
+                                                ]
                                             ) ?>
 
                                         </div>
@@ -3310,35 +3093,12 @@ tbody tr:hover {
 
                                             📞
                                             <?= h(
-                                                $student['phone']
+                                                $student[
+                                                    'phone'
+                                                ]
                                             ) ?>
 
                                         </div>
-
-
-                                    <?php endif; ?>
-
-
-                                    <?php if (
-                                        empty(
-                                            $student['email']
-                                        )
-                                        &&
-                                        empty(
-                                            $student['phone']
-                                        )
-                                    ): ?>
-
-
-                                        <span
-                                            style="
-                                                color:#98a2b3;
-                                            "
-                                        >
-
-                                            Not provided
-
-                                        </span>
 
 
                                     <?php endif; ?>
@@ -3351,13 +3111,19 @@ tbody tr:hover {
 
 
 
-                            <!-- DOB -->
+                            <!-- =================================
+                                 DOB
+                            ================================== -->
 
                             <td>
 
 
-                                <?= formatDate(
-                                    $student['dob']
+                                <?= h(
+                                    formatDate(
+                                        $student[
+                                            'dob'
+                                        ]
+                                    )
                                 ) ?>
 
 
@@ -3365,47 +3131,72 @@ tbody tr:hover {
 
 
 
-                            <!-- ACADEMIC -->
+                            <!-- =================================
+                                 CURRICULUM / SUBJECT
+                            ================================== -->
 
                             <td>
 
 
                                 <div
-                                    class="academic"
+                                    class="academic-box"
                                 >
 
 
-                                    <?php
-
-                                    $curricula =
-                                        trim(
-                                            $student[
-                                                'booking_curricula'
-                                            ]
-                                            ??
-                                            ''
-                                        );
-
-                                    ?>
-
+                                    <!-- CURRICULUM BADGES -->
 
                                     <?php if (
-                                        $curricula !== ''
+                                        !empty(
+                                            $curriculumValues
+                                        )
                                     ): ?>
 
 
-                                        <span
-                                            class="
-                                                curriculum-badge
-                                            "
+                                        <div
+                                            class="curriculum-list"
                                         >
 
-                                            🎓
-                                            <?= h(
-                                                $curricula
-                                            ) ?>
 
-                                        </span>
+                                            <?php foreach (
+                                                $curriculumValues
+                                                as $cur
+                                            ): ?>
+
+
+                                                <?php
+
+                                                $curClass =
+                                                    strtolower(
+                                                        trim(
+                                                            $cur
+                                                        )
+                                                    );
+
+                                                ?>
+
+
+                                                <span
+                                                    class="
+                                                        curriculum-badge
+                                                        <?= h(
+                                                            $curClass
+                                                        ) ?>
+                                                    "
+                                                >
+
+                                                    🎓
+
+                                                    <?= h(
+                                                        $cur
+                                                    ) ?>
+
+                                                </span>
+
+
+                                            <?php endforeach; ?>
+
+
+                                        </div>
 
 
                                     <?php else: ?>
@@ -3414,6 +3205,7 @@ tbody tr:hover {
                                         <span
                                             style="
                                                 color:#98a2b3;
+                                                font-size:11px;
                                             "
                                         >
 
@@ -3425,46 +3217,63 @@ tbody tr:hover {
                                     <?php endif; ?>
 
 
-                                    <div
-                                        class="
-                                            subject-text
-                                        "
-                                    >
 
-                                        <?php
+                                    <!-- SUBJECT TAGS -->
 
-                                        $subjects =
-                                            trim(
-                                                $student[
-                                                    'booking_subjects'
-                                                ]
-                                                ??
-                                                ''
-                                            );
-
-                                        ?>
+                                    <?php if (
+                                        !empty(
+                                            $subjectValues
+                                        )
+                                    ): ?>
 
 
-                                        <?php if (
-                                            $subjects !== ''
-                                        ): ?>
+                                        <div
+                                            class="subject-list"
+                                        >
 
 
-                                            📚
-                                            <?= h(
-                                                $subjects
-                                            ) ?>
+                                            <?php foreach (
+                                                $subjectValues
+                                                as $sub
+                                            ): ?>
 
 
-                                        <?php else: ?>
+                                                <span
+                                                    class="subject-tag"
+                                                >
 
+                                                    📚
+
+                                                    <?= h(
+                                                        $sub
+                                                    ) ?>
+
+                                                </span>
+
+
+                                            <?php endforeach; ?>
+
+
+                                        </div>
+
+
+                                    <?php else: ?>
+
+
+                                        <div
+                                            style="
+                                                color:#98a2b3;
+                                                font-size:11px;
+                                                margin-top:5px;
+                                            "
+                                        >
 
                                             No subjects
 
-                                        <?php endif; ?>
+                                        </div>
 
 
-                                    </div>
+                                    <?php endif; ?>
 
 
                                 </div>
@@ -3474,33 +3283,46 @@ tbody tr:hover {
 
 
 
-                            <!-- CLASS -->
+                            <!-- =================================
+                                 CLASS / YEAR
+                            ================================== -->
 
                             <td>
 
 
-                                <?php
-
-                                $classes =
-                                    trim(
-                                        $student[
-                                            'class_years'
-                                        ]
-                                        ??
-                                        ''
-                                    );
-
-                                ?>
-
-
                                 <?php if (
-                                    $classes !== ''
+                                    !empty(
+                                        $classValues
+                                    )
                                 ): ?>
 
 
-                                    <?= h(
-                                        $classes
-                                    ) ?>
+                                    <div
+                                        class="class-list"
+                                    >
+
+
+                                        <?php foreach (
+                                            $classValues
+                                            as $class
+                                        ): ?>
+
+
+                                            <span
+                                                class="class-tag"
+                                            >
+
+                                                <?= h(
+                                                    $class
+                                                ) ?>
+
+                                            </span>
+
+
+                                        <?php endforeach; ?>
+
+
+                                    </div>
 
 
                                 <?php else: ?>
@@ -3524,39 +3346,46 @@ tbody tr:hover {
 
 
 
-                            <!-- TEACHER -->
+                            <!-- =================================
+                                 TEACHER
+                            ================================== -->
 
                             <td>
 
 
-                                <?php
-
-                                $teachers =
-                                    trim(
-                                        $student[
-                                            'assigned_teachers'
-                                        ]
-                                        ??
-                                        ''
-                                    );
-
-                                ?>
-
-
                                 <?php if (
-                                    $teachers !== ''
+                                    !empty(
+                                        $teacherValues
+                                    )
                                 ): ?>
 
 
                                     <div
-                                        class="teacher-text"
+                                        class="teacher-list"
                                     >
 
-                                        👨‍🏫
 
-                                        <?= h(
-                                            $teachers
-                                        ) ?>
+                                        <?php foreach (
+                                            $teacherValues
+                                            as $teacher
+                                        ): ?>
+
+
+                                            <span
+                                                class="teacher-tag"
+                                            >
+
+                                                👨‍🏫
+
+                                                <?= h(
+                                                    $teacher
+                                                ) ?>
+
+                                            </span>
+
+
+                                        <?php endforeach; ?>
+
 
                                     </div>
 
@@ -3580,7 +3409,9 @@ tbody tr:hover {
 
 
 
-                            <!-- BOOKINGS -->
+                            <!-- =================================
+                                 BOOKINGS
+                            ================================== -->
 
                             <td>
 
@@ -3611,7 +3442,9 @@ tbody tr:hover {
 
 
 
-                            <!-- PAYMENT -->
+                            <!-- =================================
+                                 PAYMENT
+                            ================================== -->
 
                             <td>
 
@@ -3620,7 +3453,9 @@ tbody tr:hover {
 
                                 $paymentStatuses =
                                     strtolower(
-                                        trim(
+                                        str_replace(
+                                            '||',
+                                            ',',
                                             $student[
                                                 'payment_statuses'
                                             ]
@@ -3633,11 +3468,13 @@ tbody tr:hover {
 
 
                                 <?php if (
-                                    !empty(
+                                    (int)(
                                         $student[
-                                            'has_paid_booking'
+                                            'has_paid'
                                         ]
-                                    )
+                                        ??
+                                        0
+                                    ) === 1
                                 ): ?>
 
 
@@ -3695,18 +3532,21 @@ tbody tr:hover {
 
 
 
-                            <!-- STATUS -->
+                            <!-- =================================
+                                 STATUS
+                            ================================== -->
 
                             <td>
 
 
                                 <?php if (
-                                    (int)
-                                    $student[
-                                        'total_bookings'
-                                    ]
-                                    >
-                                    0
+                                    (int)(
+                                        $student[
+                                            'total_bookings'
+                                        ]
+                                        ??
+                                        0
+                                    ) > 0
                                 ): ?>
 
 
@@ -3744,7 +3584,9 @@ tbody tr:hover {
 
 
 
-                            <!-- ACTION -->
+                            <!-- =================================
+                                 ACTION
+                            ================================== -->
 
                             <td>
 
@@ -3785,6 +3627,8 @@ tbody tr:hover {
     </div>
 
 
+
+    <!-- FOOTER -->
 
     <div
         class="footer"
