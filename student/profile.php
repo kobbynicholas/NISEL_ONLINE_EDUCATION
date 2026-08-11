@@ -64,7 +64,7 @@ try {
 
         session_destroy();
 
-        header("Location: login.php");
+        header("Location: profile.php");
 
         exit;
     }
