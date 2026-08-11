@@ -2290,7 +2290,6 @@ img {
         "
     >
 
-
     <div class="curriculum-content">
 
         <h3>
@@ -3115,9 +3114,7 @@ img {
 
 <div class="footer-brand">
 
-    <h3>
-        NISEL ONLINE EDUCATION
-    </h3>
+   
 
     <p>
 
@@ -3135,7 +3132,9 @@ img {
         >
 
     </div>
-
+ <h3>
+        NISEL ONLINE EDUCATION
+    </h3>
         
         Providing flexible and personalised online
         education for students following Cambridge,
