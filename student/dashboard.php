@@ -902,26 +902,38 @@ student portal.
 
         <div class="booking-info">
 
-            <span>
-                📅 2 lessons per week
-            </span>
+    <span>
+        📅 2 lessons per week
+    </span>
 
-            <span>
-                📚 8 lessons per month
-            </span>
+    <span>
+        📚 8 lessons per month
+    </span>
 
-            <span>
-                💰 GHS 1,000
-            </span>
+    <span>
+        💰 Cambridge: GHS 1,000
+    </span>
 
-        </div>
+    <span>
+        💰 IB: GHS 1,200
+    </span>
+
+    <span>
+        💰 SAT: GHS 850
+    </span>
+       
+    <span>
+        💰 GES: GHS 800
+    </span>
+
+</div>
 
         <a
             href="book_lesson.php"
             class="booking-button"
         >
 
-            ➕ Book a Subject
+            ➕ Book a Lesson
 
         </a>
 
