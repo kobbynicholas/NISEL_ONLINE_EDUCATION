@@ -4,6 +4,21 @@ session_start();
 
 require "../config/db.php";
 
+/*
+|--------------------------------------------------------------------------
+| NISEL ONLINE EDUCATION
+| STUDENT PROFILE
+| PDO VERSION
+|--------------------------------------------------------------------------
+*/
+
+/* =========================================================
+   INITIALIZE MESSAGES
+========================================================= */
+
+$success = "";
+$error   = "";
+
 
 /* =========================================================
    CHECK STUDENT LOGIN
@@ -11,62 +26,113 @@ require "../config/db.php";
 
 if (
     !isset($_SESSION['student_logged_in']) ||
-    $_SESSION['student_logged_in'] !== true
+    $_SESSION['student_logged_in'] !== true ||
+    !isset($_SESSION['student_id']) ||
+    empty($_SESSION['student_id'])
 ) {
     header("Location: login.php");
     exit;
 }
 
 
-$studentId = $_SESSION['student_id'];
+/* =========================================================
+   GET LOGGED-IN STUDENT
+========================================================= */
 
-$studentName =
+$student_id = (int) $_SESSION['student_id'];
+
+$student_name =
     $_SESSION['student_name'] ?? "Student";
 
-$studentEmail =
+$student_email =
     $_SESSION['student_email'] ?? "";
 
+
 /* =========================================================
-   HELPER
+   HELPER FUNCTION
 ========================================================= */
 
 function h($value)
 {
     return htmlspecialchars(
-        (string)($value ?? ""),
+        (string) $value,
         ENT_QUOTES,
-        "UTF-8"
+        'UTF-8'
     );
 }
 
 
 /* =========================================================
-   LOAD STUDENT
+   DETECT AVAILABLE STUDENT COLUMNS
 ========================================================= */
 
 try {
 
-   $stmt = $pdo->prepare("
-    SELECT *
-    FROM students
-    WHERE id = ?
-    LIMIT 1
-");
+    $columnsStmt = $pdo->query(
+        "DESCRIBE students"
+    );
+
+    $columns = [];
+
+    while ($column = $columnsStmt->fetch(PDO::FETCH_ASSOC)) {
+
+        $columns[] = $column['Field'];
+
+    }
+
+} catch (PDOException $e) {
+
+    die(
+        "Unable to inspect the student database table."
+    );
+}
+
+
+/* =========================================================
+   CHECK OPTIONAL COLUMNS
+========================================================= */
+
+$hasPhotoColumn =
+    in_array('photo', $columns, true);
+
+$hasPasswordColumn =
+    in_array('password', $columns, true);
+
+$hasPhoneColumn =
+    in_array('phone', $columns, true);
+
+$hasDobColumn =
+    in_array('dob', $columns, true);
+
+
+/* =========================================================
+   GET CURRENT STUDENT
+========================================================= */
+
+try {
+
+    $stmt = $pdo->prepare("
+        SELECT *
+        FROM students
+        WHERE id = ?
+        LIMIT 1
+    ");
 
     $stmt->execute([
-        $studentId
+        $student_id
     ]);
 
-    $student = $stmt->fetch(
-        PDO::FETCH_ASSOC
-    );
+    $student =
+        $stmt->fetch(PDO::FETCH_ASSOC);
 
 
     if (!$student) {
 
         session_destroy();
 
-        header("Location: profile.php");
+        header(
+            "Location: login.php"
+        );
 
         exit;
     }
@@ -74,259 +140,483 @@ try {
 } catch (PDOException $e) {
 
     die(
-        "Unable to load profile: "
-        . h($e->getMessage())
+        "Unable to load student profile."
     );
 }
 
 
 /* =========================================================
-   UPDATE PROFILE
+   PROCESS PROFILE UPDATE
 ========================================================= */
 
 if (
-    $_SERVER["REQUEST_METHOD"] === "POST"
-    &&
-    isset($_POST["update_profile"])
+    $_SERVER['REQUEST_METHOD'] === 'POST'
 ) {
 
-    $studentName =
-        trim($_POST["student_name"] ?? "");
-
-    $email =
-        trim($_POST["email"] ?? "");
-
-    $phone =
-        trim($_POST["phone"] ?? "");
-
-    $dob =
-        trim($_POST["dob"] ?? "");
-
-    $curriculum =
-        trim($_POST["curriculum"] ?? "");
-
-    $classYear =
-        trim($_POST["class_year"] ?? "");
+    $action =
+        $_POST['action'] ?? '';
 
 
-    if ($studentName === "") {
+    /* =====================================================
+       UPDATE PROFILE
+    ===================================================== */
 
-        $error =
-            "Student name is required.";
+    if ($action === 'update_profile') {
 
-    } elseif ($email === "") {
+        $new_name =
+            trim(
+                $_POST['student_name'] ?? ''
+            );
 
-        $error =
-            "Email address is required.";
+        $new_phone =
+            trim(
+                $_POST['phone'] ?? ''
+            );
 
-    } elseif (
-        !filter_var(
-            $email,
-            FILTER_VALIDATE_EMAIL
-        )
-    ) {
-
-        $error =
-            "Please enter a valid email address.";
-
-    } else {
-
-        try {
-
-            /*
-            -------------------------------------------------
-            CHECK WHETHER EMAIL IS ALREADY USED
-            -------------------------------------------------
-            */
-
-            $checkStmt = $pdo->prepare("
-                SELECT student_id
-                FROM students
-                WHERE email = ?
-                AND student_id <> ?
-                LIMIT 1
-            ");
-
-            $checkStmt->execute([
-                $email,
-                $studentId
-            ]);
+        $new_dob =
+            trim(
+                $_POST['dob'] ?? ''
+            );
 
 
-            if ($checkStmt->fetch()) {
+        /* -------------------------------------------------
+           VALIDATION
+        ------------------------------------------------- */
 
-                $error =
-                    "This email address is already being used by another student.";
-
-            } else {
-
-                /*
-                -------------------------------------------------
-                UPDATE
-                -------------------------------------------------
-                */
-
-                $updateStmt = $pdo->prepare("
-                    UPDATE students
-
-                    SET
-                        student_name = ?,
-                        email = ?,
-                        phone = ?,
-                        dob = ?,
-                        curriculum = ?,
-                        class_year = ?
-
-                    WHERE student_id = ?
-                ");
-
-
-                $updateStmt->execute([
-
-                    $studentName,
-                    $email,
-                    $phone,
-                    $dob !== ""
-                        ? $dob
-                        : null,
-                    $curriculum,
-                    $classYear,
-                    $studentId
-
-                ]);
-
-
-                /*
-                -------------------------------------------------
-                UPDATE SESSION NAME
-                -------------------------------------------------
-                */
-
-                $_SESSION["student_name"] =
-                    $studentName;
-
-
-                $success =
-                    "Your profile has been updated successfully.";
-
-
-                /*
-                -------------------------------------------------
-                RELOAD STUDENT
-                -------------------------------------------------
-                */
-
-                $stmt = $pdo->prepare("
-                    SELECT *
-                    FROM students
-                    WHERE student_id = ?
-                    LIMIT 1
-                ");
-
-                $stmt->execute([
-                    $studentId
-                ]);
-
-                $student =
-                    $stmt->fetch(
-                        PDO::FETCH_ASSOC
-                    );
-            }
-
-        } catch (PDOException $e) {
+        if ($new_name === '') {
 
             $error =
-                "Unable to update profile: "
-                . $e->getMessage();
-        }
-    }
-}
+                "Student name cannot be empty.";
 
-
-/* =========================================================
-   PROFILE PHOTO UPLOAD
-========================================================= */
-
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST"
-    &&
-    isset($_POST["upload_photo"])
-) {
-
-    if (
-        !isset($_FILES["profile_photo"])
-        ||
-        $_FILES["profile_photo"]["error"]
-        !== UPLOAD_ERR_OK
-    ) {
-
-        $error =
-            "Please select a valid photo.";
-
-    } else {
-
-        $file =
-            $_FILES["profile_photo"];
-
-        $maxSize =
-            3 * 1024 * 1024;
-
-
-        if ($file["size"] > $maxSize) {
+        } elseif (
+            strlen($new_name) < 2
+        ) {
 
             $error =
-                "Photo must not exceed 3MB.";
+                "Please enter a valid student name.";
 
         } else {
 
-            $allowedTypes = [
-                "image/jpeg",
-                "image/png",
-                "image/webp"
-            ];
+            try {
+
+                /*
+                ------------------------------------------------
+                BUILD UPDATE QUERY
+                ------------------------------------------------
+                */
+
+                $updateFields = [];
+
+                $updateValues = [];
 
 
-            $finfo =
-                new finfo(
-                    FILEINFO_MIME_TYPE
-                );
+                /*
+                STUDENT NAME
+                */
 
-            $mime =
-                $finfo->file(
-                    $file["tmp_name"]
-                );
+                if (
+                    in_array(
+                        'student_name',
+                        $columns,
+                        true
+                    )
+                ) {
+
+                    $updateFields[] =
+                        "student_name = ?";
+
+                    $updateValues[] =
+                        $new_name;
+                }
+
+
+                /*
+                PHONE
+                */
+
+                if (
+                    $hasPhoneColumn
+                ) {
+
+                    $updateFields[] =
+                        "phone = ?";
+
+                    $updateValues[] =
+                        $new_phone;
+                }
+
+
+                /*
+                DATE OF BIRTH
+                */
+
+                if (
+                    $hasDobColumn
+                ) {
+
+                    $updateFields[] =
+                        "dob = ?";
+
+                    $updateValues[] =
+                        ($new_dob !== '')
+                            ? $new_dob
+                            : null;
+                }
+
+
+                /*
+                MAKE SURE THERE IS SOMETHING TO UPDATE
+                */
+
+                if (
+                    empty($updateFields)
+                ) {
+
+                    $error =
+                        "No profile fields are available for updating.";
+
+                } else {
+
+                    $updateValues[] =
+                        $student_id;
+
+
+                    $sql = "
+                        UPDATE students
+                        SET "
+                        .
+                        implode(
+                            ", ",
+                            $updateFields
+                        )
+                        .
+                        "
+                        WHERE id = ?
+                        LIMIT 1
+                    ";
+
+
+                    $update =
+                        $pdo->prepare($sql);
+
+
+                    $update->execute(
+                        $updateValues
+                    );
+
+
+                    /*
+                    ------------------------------------------------
+                    UPDATE SESSION
+                    ------------------------------------------------
+                    */
+
+                    $_SESSION[
+                        'student_name'
+                    ] = $new_name;
+
+
+                    /*
+                    ------------------------------------------------
+                    SUCCESS MESSAGE
+                    ------------------------------------------------
+                    */
+
+                    $success =
+                        "Your profile has been updated successfully.";
+
+
+                    /*
+                    ------------------------------------------------
+                    RELOAD STUDENT DATA
+                    ------------------------------------------------
+                    */
+
+                    $stmt =
+                        $pdo->prepare("
+                            SELECT *
+                            FROM students
+                            WHERE id = ?
+                            LIMIT 1
+                        ");
+
+                    $stmt->execute([
+                        $student_id
+                    ]);
+
+                    $student =
+                        $stmt->fetch(
+                            PDO::FETCH_ASSOC
+                        );
+                }
+
+            } catch (PDOException $e) {
+
+                $error =
+                    "Unable to update your profile. "
+                    .
+                    "Please try again.";
+            }
+        }
+    }
+
+
+    /* =====================================================
+       CHANGE PASSWORD
+    ===================================================== */
+
+    elseif (
+        $action === 'change_password'
+    ) {
+
+        if (!$hasPasswordColumn) {
+
+            $error =
+                "Password changes are not available for this student table.";
+
+        } else {
+
+            $current_password =
+                $_POST['current_password']
+                ?? '';
+
+            $new_password =
+                $_POST['new_password']
+                ?? '';
+
+            $confirm_password =
+                $_POST['confirm_password']
+                ?? '';
 
 
             if (
-                !in_array(
-                    $mime,
-                    $allowedTypes,
-                    true
-                )
+                $current_password === ''
+                ||
+                $new_password === ''
+                ||
+                $confirm_password === ''
             ) {
 
                 $error =
-                    "Only JPG, PNG and WEBP images are allowed.";
+                    "Please complete all password fields.";
+
+            } elseif (
+                strlen($new_password) < 8
+            ) {
+
+                $error =
+                    "Your new password must contain at least 8 characters.";
+
+            } elseif (
+                $new_password !==
+                $confirm_password
+            ) {
+
+                $error =
+                    "The new passwords do not match.";
 
             } else {
 
+                try {
+
+                    /*
+                    --------------------------------------------
+                    GET CURRENT PASSWORD
+                    --------------------------------------------
+                    */
+
+                    $passwordStmt =
+                        $pdo->prepare("
+                            SELECT password
+                            FROM students
+                            WHERE id = ?
+                            LIMIT 1
+                        ");
+
+                    $passwordStmt->execute([
+                        $student_id
+                    ]);
+
+                    $passwordData =
+                        $passwordStmt->fetch(
+                            PDO::FETCH_ASSOC
+                        );
+
+
+                    if (!$passwordData) {
+
+                        $error =
+                            "Student account could not be found.";
+
+                    } elseif (
+                        !password_verify(
+                            $current_password,
+                            $passwordData['password']
+                        )
+                    ) {
+
+                        $error =
+                            "Your current password is incorrect.";
+
+                    } else {
+
+                        /*
+                        ----------------------------------------
+                        HASH NEW PASSWORD
+                        ----------------------------------------
+                        */
+
+                        $hashedPassword =
+                            password_hash(
+                                $new_password,
+                                PASSWORD_DEFAULT
+                            );
+
+
+                        /*
+                        ----------------------------------------
+                        UPDATE PASSWORD
+                        ----------------------------------------
+                        */
+
+                        $updatePassword =
+                            $pdo->prepare("
+                                UPDATE students
+                                SET password = ?
+                                WHERE id = ?
+                                LIMIT 1
+                            ");
+
+                        $updatePassword->execute([
+                            $hashedPassword,
+                            $student_id
+                        ]);
+
+
+                        $success =
+                            "Your password has been changed successfully.";
+                    }
+
+                } catch (PDOException $e) {
+
+                    $error =
+                        "Unable to change your password. "
+                        .
+                        "Please try again.";
+                }
+            }
+        }
+    }
+
+
+    /* =====================================================
+       PROFILE PHOTO
+    ===================================================== */
+
+    elseif (
+        $action === 'update_photo'
+    ) {
+
+        if (!$hasPhotoColumn) {
+
+            $error =
+                "Photo upload is not available because the students table does not contain a photo column.";
+
+        } elseif (
+            !isset($_FILES['photo'])
+            ||
+            $_FILES['photo']['error']
+            === UPLOAD_ERR_NO_FILE
+        ) {
+
+            $error =
+                "Please select a profile photo.";
+
+        } elseif (
+            $_FILES['photo']['error']
+            !== UPLOAD_ERR_OK
+        ) {
+
+            $error =
+                "There was an error uploading the photo.";
+
+        } else {
+
+            try {
+
                 /*
-                -------------------------------------------------
-                UPLOAD DIRECTORY
-                -------------------------------------------------
+                --------------------------------------------
+                FILE SIZE
+                --------------------------------------------
                 */
 
-                $uploadDir =
-                    __DIR__
-                    . "/../uploads/students/";
+                $maxSize =
+                    5 * 1024 * 1024;
 
 
                 if (
-                    !is_dir($uploadDir)
+                    $_FILES['photo']['size']
+                    > $maxSize
+                ) {
+
+                    throw new Exception(
+                        "Photo must not exceed 5MB."
+                    );
+                }
+
+
+                /*
+                --------------------------------------------
+                CHECK MIME TYPE
+                --------------------------------------------
+                */
+
+                $allowedTypes = [
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp'
+                ];
+
+
+                $fileType =
+                    mime_content_type(
+                        $_FILES['photo']['tmp_name']
+                    );
+
+
+                if (
+                    !in_array(
+                        $fileType,
+                        $allowedTypes,
+                        true
+                    )
+                ) {
+
+                    throw new Exception(
+                        "Only JPG, PNG and WEBP images are allowed."
+                    );
+                }
+
+
+                /*
+                --------------------------------------------
+                CREATE DIRECTORY
+                --------------------------------------------
+                */
+
+                $uploadDirectory =
+                    __DIR__
+                    . "/uploads/students/";
+
+
+                if (
+                    !is_dir(
+                        $uploadDirectory
+                    )
                 ) {
 
                     mkdir(
-                        $uploadDir,
+                        $uploadDirectory,
                         0755,
                         true
                     );
@@ -334,154 +624,152 @@ if (
 
 
                 /*
-                -------------------------------------------------
+                --------------------------------------------
                 FILE EXTENSION
-                -------------------------------------------------
+                --------------------------------------------
                 */
 
-                $extension = match ($mime) {
-
-                    "image/jpeg" => "jpg",
-
-                    "image/png" => "png",
-
-                    "image/webp" => "webp",
-
-                    default => "jpg"
-                };
+                $extension =
+                    strtolower(
+                        pathinfo(
+                            $_FILES['photo']['name'],
+                            PATHINFO_EXTENSION
+                        )
+                    );
 
 
                 /*
-                -------------------------------------------------
+                --------------------------------------------
                 UNIQUE FILE NAME
-                -------------------------------------------------
+                --------------------------------------------
                 */
 
-                $fileName =
+                $newPhotoName =
                     "student_"
-                    . preg_replace(
-                        "/[^A-Za-z0-9_-]/",
-                        "",
-                        $studentId
-                    )
-                    . "_"
-                    . time()
-                    . "."
-                    . $extension;
+                    .
+                    $student_id
+                    .
+                    "_"
+                    .
+                    time()
+                    .
+                    "."
+                    .
+                    $extension;
 
 
-                $destination =
-                    $uploadDir
-                    . $fileName;
+                $photoPath =
+                    $uploadDirectory
+                    .
+                    $newPhotoName;
 
+
+                /*
+                --------------------------------------------
+                MOVE FILE
+                --------------------------------------------
+                */
 
                 if (
-                    move_uploaded_file(
-                        $file["tmp_name"],
-                        $destination
+                    !move_uploaded_file(
+                        $_FILES['photo']['tmp_name'],
+                        $photoPath
                     )
                 ) {
 
-                    /*
-                    -------------------------------------------------
-                    OLD PHOTO
-                    -------------------------------------------------
-                    */
-
-                    $oldPhoto =
-                        $student["photo"]
-                        ?? "";
+                    throw new Exception(
+                        "Unable to save the uploaded photo."
+                    );
+                }
 
 
-                    /*
-                    -------------------------------------------------
-                    SAVE PHOTO PATH
-                    -------------------------------------------------
-                    */
+                /*
+                --------------------------------------------
+                DELETE OLD PHOTO
+                --------------------------------------------
+                */
 
-                    $photoPath =
-                        "uploads/students/"
-                        . $fileName;
-
-
-                    $photoStmt =
-                        $pdo->prepare("
-                            UPDATE students
-                            SET photo = ?
-                            WHERE student_id = ?
-                        ");
+                $oldPhoto =
+                    $student['photo']
+                    ?? '';
 
 
-                    $photoStmt->execute([
-                        $photoPath,
-                        $studentId
-                    ]);
+                if (
+                    !empty($oldPhoto)
+                ) {
 
-
-                    /*
-                    -------------------------------------------------
-                    DELETE OLD PHOTO
-                    -------------------------------------------------
-                    */
-
-                    if (
-                        !empty($oldPhoto)
-                    ) {
-
-                        $oldFile =
-                            __DIR__
-                            . "/../"
-                            . ltrim(
-                                $oldPhoto,
-                                "/\\"
-                            );
-
-
-                        if (
-                            is_file(
-                                $oldFile
-                            )
-                        ) {
-
-                            @unlink(
-                                $oldFile
-                            );
-                        }
-                    }
-
-
-                    $success =
-                        "Profile photo updated successfully.";
-
-
-                    /*
-                    -------------------------------------------------
-                    RELOAD STUDENT
-                    -------------------------------------------------
-                    */
-
-                    $stmt =
-                        $pdo->prepare("
-                            SELECT *
-                            FROM students
-                            WHERE student_id = ?
-                            LIMIT 1
-                        ");
-
-                    $stmt->execute([
-                        $studentId
-                    ]);
-
-                    $student =
-                        $stmt->fetch(
-                            PDO::FETCH_ASSOC
+                    $oldPhotoPath =
+                        $uploadDirectory
+                        .
+                        basename(
+                            $oldPhoto
                         );
 
-                } else {
 
-                    $error =
-                        "Unable to upload the photo.";
+                    if (
+                        is_file(
+                            $oldPhotoPath
+                        )
+                    ) {
+
+                        @unlink(
+                            $oldPhotoPath
+                        );
+                    }
                 }
+
+
+                /*
+                --------------------------------------------
+                SAVE PHOTO NAME
+                --------------------------------------------
+                */
+
+                $photoUpdate =
+                    $pdo->prepare("
+                        UPDATE students
+                        SET photo = ?
+                        WHERE id = ?
+                        LIMIT 1
+                    ");
+
+                $photoUpdate->execute([
+                    $newPhotoName,
+                    $student_id
+                ]);
+
+
+                /*
+                --------------------------------------------
+                RELOAD STUDENT
+                --------------------------------------------
+                */
+
+                $stmt =
+                    $pdo->prepare("
+                        SELECT *
+                        FROM students
+                        WHERE id = ?
+                        LIMIT 1
+                    ");
+
+                $stmt->execute([
+                    $student_id
+                ]);
+
+                $student =
+                    $stmt->fetch(
+                        PDO::FETCH_ASSOC
+                    );
+
+
+                $success =
+                    "Your profile photo has been updated successfully.";
+
+            } catch (Exception $e) {
+
+                $error =
+                    $e->getMessage();
             }
         }
     }
@@ -489,240 +777,106 @@ if (
 
 
 /* =========================================================
-   CHANGE PASSWORD
+   GET DISPLAY VALUES
 ========================================================= */
 
-if (
-    $_SERVER["REQUEST_METHOD"] === "POST"
-    &&
-    isset($_POST["change_password"])
-) {
-
-    $currentPassword =
-        $_POST["current_password"]
-        ?? "";
-
-    $newPassword =
-        $_POST["new_password"]
-        ?? "";
-
-    $confirmPassword =
-        $_POST["confirm_password"]
-        ?? "";
+$displayName =
+    $student['student_name']
+    ??
+    $student_name
+    ??
+    'Student';
 
 
-    try {
-
-        if (
-            $currentPassword === ""
-            ||
-            $newPassword === ""
-            ||
-            $confirmPassword === ""
-        ) {
-
-            throw new Exception(
-                "Please complete all password fields."
-            );
-        }
+$displayEmail =
+    $student['email']
+    ??
+    $student_email
+    ??
+    '';
 
 
-        if (
-            strlen($newPassword) < 8
-        ) {
-
-            throw new Exception(
-                "New password must contain at least 8 characters."
-            );
-        }
+$displayPhone =
+    $student['phone']
+    ??
+    '';
 
 
-        if (
-            $newPassword !==
-            $confirmPassword
-        ) {
-
-            throw new Exception(
-                "New passwords do not match."
-            );
-        }
+$displayDob =
+    $student['dob']
+    ??
+    '';
 
 
-        /*
-        -------------------------------------------------
-        GET PASSWORD
-        -------------------------------------------------
-        */
-
-        $passwordStmt =
-            $pdo->prepare("
-                SELECT password
-                FROM students
-                WHERE student_id = ?
-                LIMIT 1
-            ");
-
-        $passwordStmt->execute([
-            $studentId
-        ]);
-
-        $account =
-            $passwordStmt->fetch(
-                PDO::FETCH_ASSOC
-            );
+$displayCurriculum =
+    $student['curriculum']
+    ??
+    '';
 
 
-        if (!$account) {
-
-            throw new Exception(
-                "Student account was not found."
-            );
-        }
-
-
-        if (
-            !password_verify(
-                $currentPassword,
-                $account["password"]
-            )
-        ) {
-
-            throw new Exception(
-                "Current password is incorrect."
-            );
-        }
+$displayClass =
+    $student['class_year']
+    ??
+    $student['class']
+    ??
+    '';
 
 
-        /*
-        -------------------------------------------------
-        HASH PASSWORD
-        -------------------------------------------------
-        */
-
-        $hashedPassword =
-            password_hash(
-                $newPassword,
-                PASSWORD_DEFAULT
-            );
+$displayStudentId =
+    $student['student_id']
+    ??
+    $student['id']
+    ??
+    $student_id;
 
 
-        /*
-        -------------------------------------------------
-        UPDATE PASSWORD
-        -------------------------------------------------
-        */
-
-        $updatePassword =
-            $pdo->prepare("
-                UPDATE students
-                SET password = ?
-                WHERE student_id = ?
-            ");
-
-        $updatePassword->execute([
-
-            $hashedPassword,
-            $studentId
-
-        ]);
-
-
-        $success =
-            "Your password has been changed successfully.";
-
-    } catch (Exception $e) {
-
-        $error =
-            $e->getMessage();
-    }
-}
-
-
-/* =========================================================
-   STATISTICS
-========================================================= */
-
-$totalBookings = 0;
-
-$completedLessons = 0;
-
-$upcomingLessons = 0;
-
-
-try {
-
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM bookings
-        WHERE student_id = ?
-    ");
-
-    $stmt->execute([
-        $studentId
-    ]);
-
-    $totalBookings =
-        (int)$stmt->fetchColumn();
-
-
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM bookings
-        WHERE student_id = ?
-        AND LOWER(lesson_status) = 'completed'
-    ");
-
-    $stmt->execute([
-        $studentId
-    ]);
-
-    $completedLessons =
-        (int)$stmt->fetchColumn();
-
-
-    $stmt = $pdo->prepare("
-        SELECT COUNT(*)
-        FROM bookings
-        WHERE student_id = ?
-        AND lesson_date >= CURDATE()
-    ");
-
-    $stmt->execute([
-        $studentId
-    ]);
-
-    $upcomingLessons =
-        (int)$stmt->fetchColumn();
-
-} catch (PDOException $e) {
-
-    // Statistics are optional.
-}
+$displaySubjects =
+    $student['subjects']
+    ??
+    '';
 
 
 /* =========================================================
    PHOTO
 ========================================================= */
 
-$photo =
-    trim(
-        $student["photo"] ?? ""
-    );
+$photoUrl = "";
 
+if (
+    $hasPhotoColumn
+    &&
+    !empty(
+        $student['photo']
+        ?? ''
+    )
+) {
 
-if ($photo !== "") {
-
-    $photoUrl =
-        "../"
-        . ltrim(
-            $photo,
-            "/\\"
+    $photoFile =
+        basename(
+            $student['photo']
         );
 
-} else {
+    $photoPath =
+        __DIR__
+        .
+        "/uploads/students/"
+        .
+        $photoFile;
 
-    $photoUrl =
-        "";
+
+    if (
+        is_file(
+            $photoPath
+        )
+    ) {
+
+        $photoUrl =
+            "uploads/students/"
+            .
+            rawurlencode(
+                $photoFile
+            );
+    }
 }
 
 
@@ -730,22 +884,19 @@ if ($photo !== "") {
    INITIAL
 ========================================================= */
 
-$name =
-    $student["student_name"]
-    ?? "Student";
-
-
 $initial =
     strtoupper(
         substr(
-            trim($name),
+            trim(
+                $displayName
+            ),
             0,
             1
         )
     );
 
-?>
 
+?>
 <!DOCTYPE html>
 
 <html lang="en">
@@ -760,8 +911,7 @@ $initial =
 >
 
 <title>
-My Profile |
-NISEL ONLINE EDUCATION
+    My Profile | NISEL ONLINE EDUCATION
 </title>
 
 
@@ -772,15 +922,15 @@ NISEL ONLINE EDUCATION
 ========================================================= */
 
 * {
-
     box-sizing: border-box;
-
     margin: 0;
-
     padding: 0;
-
 }
 
+
+/* =========================================================
+   BODY
+========================================================= */
 
 body {
 
@@ -790,10 +940,10 @@ body {
         sans-serif;
 
     background:
-        #f3f7fb;
+        #eef3f8;
 
     color:
-        #1e293b;
+        #243447;
 
 }
 
@@ -807,10 +957,9 @@ body {
     position: fixed;
 
     left: 0;
-
     top: 0;
 
-    width: 240px;
+    width: 235px;
 
     height: 100vh;
 
@@ -818,14 +967,16 @@ body {
         linear-gradient(
             180deg,
             #003b70,
-            #002b52
+            #063d70
         );
 
     color: white;
 
-    padding: 25px 14px;
+    padding:
+        25px 14px;
 
-    z-index: 100;
+    z-index: 1000;
+
 }
 
 
@@ -833,72 +984,84 @@ body {
 
     text-align: center;
 
-    padding-bottom: 25px;
+    padding:
+        0 10px 24px;
 
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 
     border-bottom:
         1px solid
-        rgba(
-            255,
-            255,
-            255,
-            .12
-        );
+        rgba(255,255,255,.15);
 
 }
 
 
-.logo h2 {
+.logo-title {
 
-    font-size: 19px;
+    font-size: 20px;
+
+    font-weight: 800;
+
+    letter-spacing:
+        .5px;
 
 }
 
 
-.logo span {
+.logo-subtitle {
 
-    display: block;
+    font-size: 10px;
 
-    margin-top: 5px;
+    letter-spacing:
+        2px;
 
-    font-size: 9px;
+    opacity: .65;
 
-    letter-spacing: 2px;
+    margin-top: 4px;
 
-    opacity: .6;
+}
+
+
+.menu {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap: 7px;
 
 }
 
 
 .menu a {
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
     gap: 11px;
 
-    padding: 13px 14px;
+    padding:
+        13px 14px;
 
-    margin-bottom: 5px;
+    border-radius:
+        9px;
 
     color:
-        rgba(
-            255,
-            255,
-            255,
-            .8
-        );
+        white;
 
-    text-decoration: none;
+    text-decoration:
+        none;
 
-    border-radius: 9px;
-
-    font-size: 13px;
+    font-size:
+        13px;
 
     transition:
-        .2s;
+        .2s ease;
 
 }
 
@@ -906,14 +1069,10 @@ body {
 .menu a:hover {
 
     background:
-        rgba(
-            255,
-            255,
-            255,
-            .1
-        );
+        rgba(255,255,255,.12);
 
-    color: white;
+    transform:
+        translateX(2px);
 
 }
 
@@ -921,19 +1080,10 @@ body {
 .menu a.active {
 
     background:
-        rgba(
-            255,
-            255,
-            255,
-            .16
-        );
-
-    color: white;
-
-    font-weight: bold;
+        rgba(255,255,255,.16);
 
     box-shadow:
-        inset 3px 0 #38bdf8;
+        inset 3px 0 0 #39bdf8;
 
 }
 
@@ -944,137 +1094,118 @@ body {
 
 .main {
 
-    margin-left: 240px;
+    margin-left:
+        235px;
 
-    padding: 28px;
+    padding:
+        28px;
+
+    min-height:
+        100vh;
 
 }
 
 
 /* =========================================================
-   HEADER
+   PAGE HEADER
 ========================================================= */
 
-.header {
+.page-header {
 
-    background: white;
+    background:
+        white;
 
-    border-radius: 16px;
+    border-radius:
+        16px;
 
-    padding: 22px 25px;
+    padding:
+        24px 28px;
 
-    display: flex;
-
-    justify-content:
-        space-between;
-
-    align-items:
-        center;
-
-    margin-bottom: 20px;
+    margin-bottom:
+        22px;
 
     box-shadow:
-        0 5px 20px
-        rgba(
-            15,
-            23,
-            42,
-            .05
-        );
+        0 8px 25px
+        rgba(0,0,0,.05);
 
 }
 
 
-.header h1 {
+.page-header h1 {
 
     color:
         #003b70;
 
-    font-size: 25px;
+    font-size:
+        28px;
+
+    margin-bottom:
+        7px;
 
 }
 
 
-.header p {
+.page-header p {
 
     color:
         #718096;
 
-    font-size: 12px;
-
-    margin-top: 5px;
-
-}
-
-
-.student-badge {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    background:
-        #f0f6fb;
-
-    padding:
-        8px 13px;
-
-    border-radius:
-        25px;
-
-    font-size: 11px;
-
-    color:
-        #003b70;
-
-    font-weight: bold;
+    font-size:
+        14px;
 
 }
 
 
 /* =========================================================
-   ALERT
+   ALERTS
 ========================================================= */
 
 .alert {
 
-    padding: 14px 18px;
+    padding:
+        14px 17px;
 
-    border-radius: 10px;
+    border-radius:
+        10px;
 
-    margin-bottom: 20px;
+    margin-bottom:
+        18px;
 
-    font-size: 13px;
+    font-size:
+        14px;
 
-}
-
-
-.alert.success {
-
-    background:
-        #dcfce7;
-
-    color:
-        #166534;
-
-    border:
-        1px solid #bbf7d0;
+    line-height:
+        1.5;
 
 }
 
 
-.alert.error {
+.alert-success {
 
     background:
-        #fee2e2;
+        #e8f8ef;
 
     color:
-        #991b1b;
+        #18794e;
 
     border:
-        1px solid #fecaca;
+        1px solid
+        #bce8ce;
+
+}
+
+
+.alert-error {
+
+    background:
+        #fff0f0;
+
+    color:
+        #b42318;
+
+    border:
+        1px solid
+        #f2b8b5;
 
 }
 
@@ -1088,296 +1219,212 @@ body {
     background:
         linear-gradient(
             135deg,
-            #003b70,
-            #0074b7
+            #00457e,
+            #0876b9
         );
 
-    border-radius: 18px;
+    border-radius:
+        17px;
 
-    padding: 30px;
+    padding:
+        28px;
 
-    color: white;
+    color:
+        white;
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 25px;
+    gap:
+        24px;
 
-    margin-bottom: 20px;
+    margin-bottom:
+        22px;
 
-    position: relative;
-
-    overflow: hidden;
+    box-shadow:
+        0 12px 28px
+        rgba(0,61,112,.18);
 
 }
 
 
-.profile-hero::after {
+.avatar {
 
-    content: "";
+    width:
+        105px;
 
-    position: absolute;
+    height:
+        105px;
 
-    width: 220px;
-
-    height: 220px;
-
-    border-radius: 50%;
-
-    right: -70px;
-
-    top: -100px;
+    border-radius:
+        50%;
 
     background:
-        rgba(
-            255,
-            255,
-            255,
-            .08
-        );
-
-}
-
-
-.profile-photo {
-
-    width: 105px;
-
-    height: 105px;
-
-    border-radius: 50%;
-
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            .16
-        );
+        rgba(255,255,255,.12);
 
     border:
         4px solid
-        rgba(
-            255,
-            255,
-            255,
-            .55
-        );
+        rgba(255,255,255,.55);
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
-    font-size: 40px;
+    overflow:
+        hidden;
 
-    font-weight: 800;
+    flex-shrink:
+        0;
 
-    overflow: hidden;
+    font-size:
+        43px;
 
-    flex-shrink: 0;
-
-}
-
-
-.profile-photo img {
-
-    width: 100%;
-
-    height: 100%;
-
-    object-fit: cover;
+    font-weight:
+        700;
 
 }
 
 
-.profile-info {
+.avatar img {
 
-    position: relative;
+    width:
+        100%;
 
-    z-index: 2;
+    height:
+        100%;
 
-}
-
-
-.profile-info h2 {
-
-    font-size: 25px;
-
-    margin-bottom: 6px;
+    object-fit:
+        cover;
 
 }
 
 
-.profile-info p {
+.profile-hero h2 {
 
-    opacity: .82;
+    font-size:
+        25px;
 
-    font-size: 12px;
-
-    margin-bottom: 5px;
+    margin-bottom:
+        8px;
 
 }
 
 
-.profile-id {
+.profile-email {
 
-    display: inline-block;
+    opacity:
+        .9;
 
-    margin-top: 8px;
+    font-size:
+        13px;
 
-    padding: 6px 10px;
+    margin-bottom:
+        8px;
 
-    border-radius: 20px;
+}
+
+
+.student-id {
+
+    display:
+        inline-block;
+
+    padding:
+        6px 10px;
+
+    border-radius:
+        20px;
 
     background:
-        rgba(
-            255,
-            255,
-            255,
-            .13
-        );
+        rgba(255,255,255,.13);
 
-    font-size: 10px;
+    font-size:
+        11px;
 
 }
 
 
 /* =========================================================
-   STATISTICS
-========================================================= */
-
-.stats {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(
-            3,
-            1fr
-        );
-
-    gap: 15px;
-
-    margin-bottom: 20px;
-
-}
-
-
-.stat {
-
-    background: white;
-
-    padding: 18px;
-
-    border-radius: 14px;
-
-    box-shadow:
-        0 5px 20px
-        rgba(
-            15,
-            23,
-            42,
-            .05
-        );
-
-}
-
-
-.stat-icon {
-
-    font-size: 22px;
-
-    margin-bottom: 8px;
-
-}
-
-
-.stat-label {
-
-    color:
-        #718096;
-
-    font-size: 10px;
-
-    font-weight: 700;
-
-    text-transform:
-        uppercase;
-
-}
-
-
-.stat-number {
-
-    color:
-        #003b70;
-
-    font-size: 25px;
-
-    font-weight: 800;
-
-    margin-top: 5px;
-
-}
-
-
-/* =========================================================
-   CONTENT
+   GRID
 ========================================================= */
 
 .content-grid {
 
-    display: grid;
+    display:
+        grid;
 
     grid-template-columns:
-        1.2fr
-        .8fr;
+        minmax(0, 1.45fr)
+        minmax(300px, .75fr);
 
-    gap: 20px;
+    gap:
+        22px;
 
 }
 
 
+/* =========================================================
+   CARD
+========================================================= */
+
 .card {
 
-    background: white;
+    background:
+        white;
 
-    border-radius: 16px;
+    border-radius:
+        15px;
 
-    padding: 23px;
+    padding:
+        23px;
+
+    margin-bottom:
+        22px;
 
     box-shadow:
-        0 5px 20px
-        rgba(
-            15,
-            23,
-            42,
-            .05
-        );
-
-    margin-bottom: 20px;
+        0 7px 22px
+        rgba(0,0,0,.05);
 
 }
 
 
 .card-title {
 
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        9px;
+
     color:
         #003b70;
 
-    font-size: 17px;
+    font-size:
+        18px;
 
-    font-weight: 800;
+    font-weight:
+        700;
 
-    margin-bottom: 20px;
+    padding-bottom:
+        15px;
 
-    padding-bottom: 14px;
+    margin-bottom:
+        18px;
 
     border-bottom:
-        1px solid #edf1f5;
+        1px solid
+        #edf1f5;
 
 }
 
@@ -1388,13 +1435,28 @@ body {
 
 .form-grid {
 
-    display: grid;
+    display:
+        grid;
 
     grid-template-columns:
-        1fr
-        1fr;
+        repeat(2, minmax(0,1fr));
 
-    gap: 17px;
+    gap:
+        17px;
+
+}
+
+
+.form-group {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap:
+        7px;
 
 }
 
@@ -1409,53 +1471,59 @@ body {
 
 .form-group label {
 
-    display: block;
+    font-size:
+        12px;
 
-    font-size: 12px;
-
-    font-weight: 700;
+    font-weight:
+        700;
 
     color:
-        #475569;
-
-    margin-bottom: 7px;
+        #4a5568;
 
 }
 
 
-.form-group input,
-.form-group select {
+.form-group input {
 
-    width: 100%;
+    width:
+        100%;
 
-    padding: 11px 12px;
+    padding:
+        12px 13px;
 
     border:
-        1px solid #d5dde7;
+        1px solid
+        #d7dee8;
 
-    border-radius: 8px;
+    border-radius:
+        9px;
 
-    font-size: 13px;
+    outline:
+        none;
 
-    outline: none;
+    font-size:
+        14px;
+
+    color:
+        #263238;
+
+    background:
+        #fff;
+
+    transition:
+        .2s ease;
 
 }
 
 
-.form-group input:focus,
-.form-group select:focus {
+.form-group input:focus {
 
     border-color:
-        #0074b7;
+        #0876b9;
 
     box-shadow:
         0 0 0 3px
-        rgba(
-            0,
-            116,
-            183,
-            .1
-        );
+        rgba(8,118,185,.10);
 
 }
 
@@ -1463,10 +1531,24 @@ body {
 .form-group input[readonly] {
 
     background:
-        #f7f9fb;
+        #f5f7fa;
 
     color:
-        #7b8794;
+        #718096;
+
+}
+
+
+.form-note {
+
+    font-size:
+        11px;
+
+    color:
+        #8a94a6;
+
+    margin-top:
+        1px;
 
 }
 
@@ -1475,156 +1557,131 @@ body {
    BUTTON
 ========================================================= */
 
-.save-btn {
+.btn {
 
-    margin-top: 20px;
+    display:
+        inline-flex;
 
-    border: none;
+    align-items:
+        center;
 
-    background:
-        linear-gradient(
-            135deg,
-            #003b70,
-            #0074b7
-        );
+    justify-content:
+        center;
 
-    color: white;
+    gap:
+        8px;
+
+    border:
+        none;
+
+    border-radius:
+        9px;
 
     padding:
-        12px 20px;
+        12px 18px;
 
-    border-radius: 8px;
+    cursor:
+        pointer;
 
-    cursor: pointer;
+    font-size:
+        13px;
 
-    font-weight: 700;
+    font-weight:
+        700;
 
-    font-size: 12px;
+    text-decoration:
+        none;
+
+    transition:
+        .2s ease;
 
 }
 
 
-.save-btn:hover {
+.btn-primary {
+
+    background:
+        #003b70;
+
+    color:
+        white;
+
+}
+
+
+.btn-primary:hover {
+
+    background:
+        #00599b;
 
     transform:
         translateY(-1px);
 
-    box-shadow:
-        0 6px 15px
-        rgba(
-            0,
-            59,
-            112,
-            .2
-        );
-
 }
 
 
-/* =========================================================
-   PHOTO UPLOAD
-========================================================= */
-
-.photo-upload {
-
-    text-align:
-        center;
-
-}
-
-
-.photo-preview {
-
-    width: 125px;
-
-    height: 125px;
-
-    border-radius: 50%;
-
-    margin: 0 auto 15px;
-
-    overflow: hidden;
+.btn-light {
 
     background:
-        #eaf1f7;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
+        #edf5fb;
 
     color:
         #003b70;
 
-    font-size: 40px;
-
-    font-weight: bold;
-
 }
 
 
-.photo-preview img {
-
-    width: 100%;
-
-    height: 100%;
-
-    object-fit: cover;
-
-}
-
-
-.file-input {
-
-    width: 100%;
-
-    padding: 10px;
-
-    border:
-        1px dashed #b7c6d6;
-
-    border-radius: 8px;
+.btn-light:hover {
 
     background:
-        #f8fafc;
+        #dfeefa;
+
+}
+
+
+.form-actions {
+
+    margin-top:
+        20px;
+
+    display:
+        flex;
+
+    justify-content:
+        flex-end;
 
 }
 
 
 /* =========================================================
-   INFO LIST
+   PROFILE INFORMATION
 ========================================================= */
 
-.info-list {
+.info-row {
 
-    list-style: none;
-
-}
-
-
-.info-list li {
-
-    display: flex;
+    display:
+        flex;
 
     justify-content:
         space-between;
 
-    gap: 15px;
+    gap:
+        20px;
 
-    padding: 13px 0;
+    padding:
+        12px 0;
 
     border-bottom:
-        1px solid #edf1f5;
-
-    font-size: 12px;
+        1px solid
+        #edf1f5;
 
 }
 
 
-.info-list li:last-child {
+.info-row:last-child {
 
-    border-bottom: none;
+    border-bottom:
+        none;
 
 }
 
@@ -1632,7 +1689,10 @@ body {
 .info-label {
 
     color:
-        #7b8794;
+        #718096;
+
+    font-size:
+        12px;
 
 }
 
@@ -1640,39 +1700,154 @@ body {
 .info-value {
 
     color:
-        #334155;
+        #263238;
 
-    font-weight: 700;
+    font-size:
+        13px;
 
-    text-align: right;
+    font-weight:
+        600;
 
-}
+    text-align:
+        right;
 
-
-.badge {
-
-    display: inline-block;
-
-    padding:
-        5px 9px;
-
-    border-radius:
-        20px;
-
-    font-size: 9px;
-
-    font-weight: 800;
+    word-break:
+        break-word;
 
 }
 
 
-.badge.active {
+/* =========================================================
+   SUBJECT BOX
+========================================================= */
+
+.subject-box {
 
     background:
-        #dcfce7;
+        #f4f8fc;
+
+    border-left:
+        4px solid
+        #0876b9;
+
+    border-radius:
+        8px;
+
+    padding:
+        14px;
+
+    font-size:
+        13px;
+
+    line-height:
+        1.7;
 
     color:
-        #166534;
+        #425466;
+
+}
+
+
+/* =========================================================
+   PHOTO CARD
+========================================================= */
+
+.photo-preview {
+
+    width:
+        135px;
+
+    height:
+        135px;
+
+    border-radius:
+        50%;
+
+    overflow:
+        hidden;
+
+    margin:
+        0 auto 17px;
+
+    background:
+        #edf3f8;
+
+    border:
+        4px solid
+        #dce8f2;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    color:
+        #003b70;
+
+    font-size:
+        42px;
+
+    font-weight:
+        700;
+
+}
+
+
+.photo-preview img {
+
+    width:
+        100%;
+
+    height:
+        100%;
+
+    object-fit:
+        cover;
+
+}
+
+
+.photo-form input[type="file"] {
+
+    width:
+        100%;
+
+    font-size:
+        12px;
+
+    padding:
+        10px;
+
+    border:
+        1px dashed
+        #b8c8d8;
+
+    border-radius:
+        9px;
+
+    background:
+        #f8fafc;
+
+}
+
+
+.photo-note {
+
+    color:
+        #7a8796;
+
+    font-size:
+        11px;
+
+    line-height:
+        1.5;
+
+    margin:
+        9px 0 15px;
 
 }
 
@@ -1681,24 +1856,65 @@ body {
    PASSWORD
 ========================================================= */
 
-.password-note {
+.password-group {
 
-    background:
-        #f0f7ff;
+    position:
+        relative;
+
+}
+
+
+.password-group input {
+
+    padding-right:
+        55px;
+
+}
+
+
+.toggle-password {
+
+    position:
+        absolute;
+
+    right:
+        12px;
+
+    bottom:
+        12px;
 
     color:
-        #155e8a;
+        #0876b9;
 
-    border:
-        1px solid #cce5f7;
+    font-size:
+        11px;
 
-    border-radius: 9px;
+    cursor:
+        pointer;
 
-    padding: 12px;
+    font-weight:
+        700;
 
-    font-size: 11px;
+}
 
-    margin-bottom: 18px;
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer {
+
+    text-align:
+        center;
+
+    color:
+        #8a94a6;
+
+    font-size:
+        11px;
+
+    padding:
+        8px 0 20px;
 
 }
 
@@ -1707,49 +1923,63 @@ body {
    MOBILE
 ========================================================= */
 
-@media(max-width:1000px) {
+@media (max-width: 950px) {
 
     .content-grid {
 
-        grid-template-columns: 1fr;
+        grid-template-columns:
+            1fr;
 
     }
 
 }
 
 
-@media(max-width:800px) {
+@media (max-width: 760px) {
 
     .sidebar {
 
         position:
             relative;
 
-        width: 100%;
+        width:
+            100%;
 
-        height: auto;
+        height:
+            auto;
+
+        padding:
+            16px;
+
+    }
+
+
+    .logo {
+
+        margin-bottom:
+            12px;
+
+    }
+
+
+    .menu {
+
+        display:
+            grid;
+
+        grid-template-columns:
+            repeat(2, 1fr);
 
     }
 
 
     .main {
 
-        margin-left: 0;
+        margin-left:
+            0;
 
-        padding: 15px;
-
-    }
-
-
-    .header {
-
-        flex-direction:
-            column;
-
-        align-items:
-            flex-start;
-
-        gap: 12px;
+        padding:
+            15px;
 
     }
 
@@ -1764,18 +1994,6 @@ body {
 
     }
 
-
-    .stats {
-
-        grid-template-columns:
-            1fr;
-
-    }
-
-}
-
-
-@media(max-width:550px) {
 
     .form-grid {
 
@@ -1792,10 +2010,72 @@ body {
 
     }
 
+}
+
+
+@media (max-width: 480px) {
+
+    .menu {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+
+    .page-header h1 {
+
+        font-size:
+            23px;
+
+    }
+
 
     .profile-hero {
 
-        padding: 25px 15px;
+        padding:
+            22px 15px;
+
+    }
+
+
+    .avatar {
+
+        width:
+            85px;
+
+        height:
+            85px;
+
+        font-size:
+            34px;
+
+    }
+
+
+    .card {
+
+        padding:
+            17px;
+
+    }
+
+
+    .info-row {
+
+        flex-direction:
+            column;
+
+        gap:
+            4px;
+
+    }
+
+
+    .info-value {
+
+        text-align:
+            left;
 
     }
 
@@ -1809,33 +2089,31 @@ body {
 <body>
 
 
-<!-- =====================================================
+<!-- =========================================================
      SIDEBAR
-===================================================== -->
+========================================================= -->
 
 <aside class="sidebar">
 
-
     <div class="logo">
 
-        <h2>
+        <div class="logo-title">
             NISEL
-        </h2>
+        </div>
 
-        <span>
+        <div class="logo-subtitle">
             ONLINE EDUCATION
-        </span>
+        </div>
 
     </div>
 
 
     <nav class="menu">
 
-
         <a href="dashboard.php">
 
             🏠
-            Dashboard
+            <span>Dashboard</span>
 
         </a>
 
@@ -1843,7 +2121,7 @@ body {
         <a href="schedule.php">
 
             📅
-            My Schedule
+            <span>My Schedule</span>
 
         </a>
 
@@ -1851,7 +2129,7 @@ body {
         <a href="book_lesson.php">
 
             📚
-            Book a Lesson
+            <span>Book a Lesson</span>
 
         </a>
 
@@ -1859,7 +2137,7 @@ body {
         <a href="payments.php">
 
             💳
-            My Payments
+            <span>My Payments</span>
 
         </a>
 
@@ -1870,7 +2148,7 @@ body {
         >
 
             👤
-            My Profile
+            <span>My Profile</span>
 
         </a>
 
@@ -1878,10 +2156,9 @@ body {
         <a href="logout.php">
 
             🚪
-            Logout
+            <span>Logout</span>
 
         </a>
-
 
     </nav>
 
@@ -1889,52 +2166,39 @@ body {
 
 
 
-<!-- =====================================================
+<!-- =========================================================
      MAIN
-===================================================== -->
+========================================================= -->
 
 <main class="main">
 
 
-    <!-- HEADER -->
+    <!-- PAGE HEADER -->
 
-    <header class="header">
+    <section class="page-header">
 
+        <h1>
+            👤 My Profile
+        </h1>
 
-        <div>
+        <p>
+            Manage your NISEL student account and personal information.
+        </p>
 
-            <h1>
-                👤 My Profile
-            </h1>
-
-            <p>
-                Manage your NISEL student account.
-            </p>
-
-        </div>
-
-
-        <div class="student-badge">
-
-            🎓
-            Student Account
-
-        </div>
-
-
-    </header>
+    </section>
 
 
 
-    <!-- ALERTS -->
+    <!-- =====================================================
+         ALERTS
+    ====================================================== -->
 
-    <?php if (
-        $success !== ""
-    ): ?>
+    <?php if ($success !== ''): ?>
 
-        <div class="alert success">
+        <div class="alert alert-success">
 
             ✅
+
             <?= h($success) ?>
 
         </div>
@@ -1942,13 +2206,12 @@ body {
     <?php endif; ?>
 
 
-    <?php if (
-        $error !== ""
-    ): ?>
+    <?php if ($error !== ''): ?>
 
-        <div class="alert error">
+        <div class="alert alert-error">
 
             ⚠️
+
             <?= h($error) ?>
 
         </div>
@@ -1957,104 +2220,53 @@ body {
 
 
 
-    <!-- =================================================
+    <!-- =====================================================
          PROFILE HERO
-    ================================================== -->
+    ====================================================== -->
 
     <section class="profile-hero">
 
 
-        <div class="profile-photo">
+        <div class="avatar">
 
-
-            <?php if (
-                $photoUrl !== ""
-                &&
-                file_exists(
-                    __DIR__
-                    . "/../"
-                    . ltrim(
-                        $photo,
-                        "/\\"
-                    )
-                )
-            ): ?>
-
+            <?php if ($photoUrl !== ''): ?>
 
                 <img
-                    src="<?= h(
-                        $photoUrl
-                    ) ?>"
+                    src="<?= h($photoUrl) ?>"
                     alt="Student Photo"
                 >
 
-
             <?php else: ?>
 
-
-                <?= h(
-                    $initial
-                ) ?>
-
+                <?= h($initial) ?>
 
             <?php endif; ?>
 
-
         </div>
 
 
-        <div class="profile-info">
-
+        <div>
 
             <h2>
-
-                <?= h(
-                    $student[
-                        "student_name"
-                    ]
-                ) ?>
-
+                <?= h($displayName) ?>
             </h2>
 
 
-            <p>
+            <div class="profile-email">
 
                 📧
-                <?= h(
-                    $student[
-                        "email"
-                    ]
-                ) ?>
+                <?= h($displayEmail) ?>
 
-            </p>
+            </div>
 
 
-            <p>
-
-                🎓
-                <?= h(
-                    $student[
-                        "curriculum"
-                    ]
-                    ??
-                    "Student"
-                ) ?>
-
-            </p>
-
-
-            <span class="profile-id">
+            <span class="student-id">
 
                 Student ID:
-                <?= h(
-                    $student[
-                        "student_id"
-                    ]
-                ) ?>
+                <?= h($displayStudentId) ?>
 
             </span>
 
-
         </div>
 
 
@@ -2062,336 +2274,242 @@ body {
 
 
 
-    <!-- =================================================
-         STATISTICS
-    ================================================== -->
-
-    <section class="stats">
-
-
-        <div class="stat">
-
-            <div class="stat-icon">
-                📚
-            </div>
-
-            <div class="stat-label">
-                Total Bookings
-            </div>
-
-            <div class="stat-number">
-                <?= number_format(
-                    $totalBookings
-                ) ?>
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div class="stat-icon">
-                ✅
-            </div>
-
-            <div class="stat-label">
-                Completed Lessons
-            </div>
-
-            <div class="stat-number">
-                <?= number_format(
-                    $completedLessons
-                ) ?>
-            </div>
-
-        </div>
-
-
-        <div class="stat">
-
-            <div class="stat-icon">
-                📅
-            </div>
-
-            <div class="stat-label">
-                Upcoming Lessons
-            </div>
-
-            <div class="stat-number">
-                <?= number_format(
-                    $upcomingLessons
-                ) ?>
-            </div>
-
-        </div>
-
-
-    </section>
-
-
-
-    <!-- =================================================
+    <!-- =====================================================
          CONTENT
-    ================================================== -->
+    ====================================================== -->
 
     <div class="content-grid">
 
 
-        <!-- LEFT -->
+        <!-- =================================================
+             LEFT COLUMN
+        ================================================= -->
 
         <div>
 
 
-            <!-- PERSONAL INFORMATION -->
+            <!-- PROFILE DETAILS -->
 
             <section class="card">
 
-
                 <div class="card-title">
 
-                    ✏️ Personal Information
+                    👤
+                    Personal Information
 
                 </div>
 
 
-                <form method="POST">
+                <form
+                    method="POST"
+                    action=""
+                >
+
+                    <input
+                        type="hidden"
+                        name="action"
+                        value="update_profile"
+                    >
 
 
                     <div class="form-grid">
 
 
+                        <!-- NAME -->
+
                         <div class="form-group">
 
-                            <label>
+                            <label for="student_name">
                                 Full Name
                             </label>
 
                             <input
                                 type="text"
+                                id="student_name"
                                 name="student_name"
-                                value="<?php
-                                echo h(
-                                    $student[
-                                        "student_name"
-                                    ]
-                                );
-                                ?>"
+                                value="<?= h($displayName) ?>"
                                 required
                             >
 
                         </div>
 
 
+                        <!-- EMAIL -->
+
                         <div class="form-group">
 
-                            <label>
+                            <label for="email">
                                 Email Address
                             </label>
 
                             <input
                                 type="email"
-                                name="email"
-                                value="<?php
-                                echo h(
-                                    $student[
-                                        "email"
-                                    ]
-                                );
-                                ?>"
-                                required
+                                id="email"
+                                value="<?= h($displayEmail) ?>"
+                                readonly
                             >
+
+                            <div class="form-note">
+                                Your login email is managed by your NISEL account.
+                            </div>
 
                         </div>
 
 
-                        <div class="form-group">
+                        <!-- PHONE -->
 
-                            <label>
-                                Phone Number
-                            </label>
+                        <?php if ($hasPhoneColumn): ?>
 
-                            <input
-                                type="text"
-                                name="phone"
-                                value="<?php
-                                echo h(
-                                    $student[
-                                        "phone"
-                                    ]
-                                    ?? ""
-                                );
-                                ?>"
-                                placeholder="0240000000"
-                            >
+                            <div class="form-group">
 
-                        </div>
+                                <label for="phone">
+                                    Phone Number
+                                </label>
 
-
-                        <div class="form-group">
-
-                            <label>
-                                Date of Birth
-                            </label>
-
-                            <input
-                                type="date"
-                                name="dob"
-                                value="<?php
-                                echo h(
-                                    $student[
-                                        "dob"
-                                    ]
-                                    ?? ""
-                                );
-                                ?>"
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Curriculum
-                            </label>
-
-                            <select
-                                name="curriculum"
-                            >
-
-                                <option value="">
-                                    Select Curriculum
-                                </option>
-
-
-                                <option
-                                    value="Cambridge"
-                                    <?php
-                                    echo
-                                    (
-                                        $student[
-                                            "curriculum"
-                                        ]
-                                        ??
-                                        ""
-                                    )
-                                    ===
-                                    "Cambridge"
-                                        ? "selected"
-                                        : "";
-                                    ?>
+                                <input
+                                    type="text"
+                                    id="phone"
+                                    name="phone"
+                                    value="<?= h($displayPhone) ?>"
+                                    placeholder="Enter your phone number"
                                 >
-                                    Cambridge
-                                </option>
+
+                            </div>
+
+                        <?php endif; ?>
 
 
-                                <option
-                                    value="IB"
-                                    <?php
-                                    echo
-                                    (
-                                        $student[
-                                            "curriculum"
-                                        ]
-                                        ??
-                                        ""
-                                    )
-                                    ===
-                                    "IB"
-                                        ? "selected"
-                                        : "";
-                                    ?>
+                        <!-- DOB -->
+
+                        <?php if ($hasDobColumn): ?>
+
+                            <div class="form-group">
+
+                                <label for="dob">
+                                    Date of Birth
+                                </label>
+
+                                <input
+                                    type="date"
+                                    id="dob"
+                                    name="dob"
+                                    value="<?= h($displayDob) ?>"
                                 >
-                                    IB
-                                </option>
 
+                            </div>
 
-                                <option
-                                    value="GES"
-                                    <?php
-                                    echo
-                                    (
-                                        $student[
-                                            "curriculum"
-                                        ]
-                                        ??
-                                        ""
-                                    )
-                                    ===
-                                    "GES"
-                                        ? "selected"
-                                        : "";
-                                    ?>
-                                >
-                                    GES
-                                </option>
-
-
-                                <option
-                                    value="SAT"
-                                    <?php
-                                    echo
-                                    (
-                                        $student[
-                                            "curriculum"
-                                        ]
-                                        ??
-                                        ""
-                                    )
-                                    ===
-                                    "SAT"
-                                        ? "selected"
-                                        : "";
-                                    ?>
-                                >
-                                    SAT
-                                </option>
-
-
-                            </select>
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Class / Year
-                            </label>
-
-                            <input
-                                type="text"
-                                name="class_year"
-                                value="<?php
-                                echo h(
-                                    $student[
-                                        "class_year"
-                                    ]
-                                    ?? ""
-                                );
-                                ?>"
-                                placeholder="e.g. Year 11"
-                            >
-
-                        </div>
+                        <?php endif; ?>
 
 
                     </div>
 
 
-                    <button
-                        type="submit"
-                        name="update_profile"
-                        class="save-btn"
-                    >
+                    <div class="form-actions">
 
-                        💾
-                        Save Profile Changes
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
 
-                    </button>
+                            💾
+                            Save Changes
 
+                        </button>
+
+                    </div>
 
                 </form>
+
+            </section>
+
+
+
+            <!-- ACADEMIC INFORMATION -->
+
+            <section class="card">
+
+                <div class="card-title">
+
+                    🎓
+                    Academic Information
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <div class="info-label">
+                        Curriculum
+                    </div>
+
+                    <div class="info-value">
+                        <?= h(
+                            $displayCurriculum
+                            ?: 'Not provided'
+                        ) ?>
+                    </div>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <div class="info-label">
+                        Class / Year
+                    </div>
+
+                    <div class="info-value">
+                        <?= h(
+                            $displayClass
+                            ?: 'Not provided'
+                        ) ?>
+                    </div>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <div class="info-label">
+                        Student ID
+                    </div>
+
+                    <div class="info-value">
+                        <?= h($displayStudentId) ?>
+                    </div>
+
+                </div>
+
+
+                <?php if ($displaySubjects !== ''): ?>
+
+                    <div
+                        style="
+                            margin-top:18px;
+                        "
+                    >
+
+                        <div
+                            class="info-label"
+                            style="
+                                margin-bottom:8px;
+                            "
+                        >
+                            Registered Subject(s)
+                        </div>
+
+
+                        <div class="subject-box">
+
+                            <?= nl2br(
+                                h($displaySubjects)
+                            ) ?>
+
+                        </div>
+
+                    </div>
+
+                <?php endif; ?>
 
 
             </section>
@@ -2400,184 +2518,202 @@ body {
 
             <!-- PASSWORD -->
 
-            <section class="card">
+            <?php if ($hasPasswordColumn): ?>
 
+                <section class="card">
 
-                <div class="card-title">
-
-                    🔐 Change Password
-
-                </div>
-
-
-                <div class="password-note">
-
-                    For your security, use a password
-                    containing at least 8 characters.
-
-                </div>
-
-
-                <form method="POST">
-
-
-                    <div class="form-grid">
-
-
-                        <div
-                            class="
-                                form-group
-                                full
-                            "
-                        >
-
-                            <label>
-                                Current Password
-                            </label>
-
-                            <input
-                                type="password"
-                                name="current_password"
-                                required
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>
-                                New Password
-                            </label>
-
-                            <input
-                                type="password"
-                                name="new_password"
-                                minlength="8"
-                                required
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Confirm Password
-                            </label>
-
-                            <input
-                                type="password"
-                                name="confirm_password"
-                                minlength="8"
-                                required
-                            >
-
-                        </div>
-
-
-                    </div>
-
-
-                    <button
-                        type="submit"
-                        name="change_password"
-                        class="save-btn"
-                    >
+                    <div class="card-title">
 
                         🔐
                         Change Password
 
-                    </button>
+                    </div>
 
 
-                </form>
+                    <form
+                        method="POST"
+                        action=""
+                    >
+
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="change_password"
+                        >
 
 
-            </section>
+                        <div class="form-grid">
+
+
+                            <div class="form-group password-group">
+
+                                <label for="current_password">
+                                    Current Password
+                                </label>
+
+                                <input
+                                    type="password"
+                                    id="current_password"
+                                    name="current_password"
+                                    required
+                                >
+
+                                <span
+                                    class="toggle-password"
+                                    onclick="
+                                        togglePassword(
+                                            'current_password',
+                                            this
+                                        )
+                                    "
+                                >
+                                    Show
+                                </span>
+
+                            </div>
+
+
+                            <div class="form-group password-group">
+
+                                <label for="new_password">
+                                    New Password
+                                </label>
+
+                                <input
+                                    type="password"
+                                    id="new_password"
+                                    name="new_password"
+                                    minlength="8"
+                                    required
+                                >
+
+                                <span
+                                    class="toggle-password"
+                                    onclick="
+                                        togglePassword(
+                                            'new_password',
+                                            this
+                                        )
+                                    "
+                                >
+                                    Show
+                                </span>
+
+                            </div>
+
+
+                            <div class="form-group password-group">
+
+                                <label for="confirm_password">
+                                    Confirm New Password
+                                </label>
+
+                                <input
+                                    type="password"
+                                    id="confirm_password"
+                                    name="confirm_password"
+                                    minlength="8"
+                                    required
+                                >
+
+                                <span
+                                    class="toggle-password"
+                                    onclick="
+                                        togglePassword(
+                                            'confirm_password',
+                                            this
+                                        )
+                                    "
+                                >
+                                    Show
+                                </span>
+
+                            </div>
+
+
+                        </div>
+
+
+                        <div class="form-actions">
+
+                            <button
+                                type="submit"
+                                class="btn btn-primary"
+                            >
+
+                                🔐
+                                Update Password
+
+                            </button>
+
+                        </div>
+
+                    </form>
+
+                </section>
+
+            <?php endif; ?>
 
 
         </div>
 
 
 
-        <!-- RIGHT -->
+        <!-- =================================================
+             RIGHT COLUMN
+        ================================================= -->
 
         <div>
 
 
             <!-- PHOTO -->
 
-            <section class="card">
+            <?php if ($hasPhotoColumn): ?>
+
+                <section class="card">
+
+                    <div class="card-title">
+
+                        📷
+                        Profile Photo
+
+                    </div>
 
 
-                <div class="card-title">
+                    <div class="photo-preview">
 
-                    📸 Profile Photo
+                        <?php if ($photoUrl !== ''): ?>
 
-                </div>
+                            <img
+                                src="<?= h($photoUrl) ?>"
+                                alt="Student Photo"
+                            >
+
+                        <?php else: ?>
+
+                            <?= h($initial) ?>
+
+                        <?php endif; ?>
+
+                    </div>
 
 
-                <form
-                    method="POST"
-                    enctype="multipart/form-data"
-                >
-
-
-                    <div
-                        class="photo-upload"
+                    <form
+                        method="POST"
+                        enctype="multipart/form-data"
+                        class="photo-form"
                     >
 
-
-                        <div
-                            class="
-                                photo-preview
-                            "
+                        <input
+                            type="hidden"
+                            name="action"
+                            value="update_photo"
                         >
-
-
-                            <?php if (
-                                $photoUrl !== ""
-                                &&
-                                file_exists(
-                                    __DIR__
-                                    . "/../"
-                                    . ltrim(
-                                        $photo,
-                                        "/\\"
-                                    )
-                                )
-                            ): ?>
-
-
-                                <img
-                                    src="<?php
-                                    echo h(
-                                        $photoUrl
-                                    );
-                                    ?>"
-                                    alt="Profile Photo"
-                                >
-
-
-                            <?php else: ?>
-
-
-                                <?= h(
-                                    $initial
-                                ) ?>
-
-
-                            <?php endif; ?>
-
-
-                        </div>
 
 
                         <input
                             type="file"
-                            name="profile_photo"
-                            class="file-input"
+                            name="photo"
                             accept="
                                 image/jpeg,
                                 image/png,
@@ -2587,24 +2723,18 @@ body {
                         >
 
 
-                        <p
-                            style="
-                                margin-top:10px;
-                                color:#8996a6;
-                                font-size:10px;
-                            "
-                        >
+                        <div class="photo-note">
 
-                            JPG, PNG or WEBP.
-                            Maximum 3MB.
+                            JPG, PNG or WEBP only.
+                            Maximum file size: 5MB.
 
-                        </p>
+                        </div>
 
 
                         <button
                             type="submit"
-                            name="upload_photo"
-                            class="save-btn"
+                            class="btn btn-primary"
+                            style="width:100%;"
                         >
 
                             📷
@@ -2612,14 +2742,11 @@ body {
 
                         </button>
 
+                    </form>
 
-                    </div>
+                </section>
 
-
-                </form>
-
-
-            </section>
+            <?php endif; ?>
 
 
 
@@ -2627,137 +2754,142 @@ body {
 
             <section class="card">
 
-
                 <div class="card-title">
 
-                    ℹ️ Account Information
+                    ℹ️
+                    Account Information
 
                 </div>
 
 
-                <ul class="info-list">
+                <div class="info-row">
+
+                    <div class="info-label">
+                        Account Type
+                    </div>
+
+                    <div class="info-value">
+                        Student
+                    </div>
+
+                </div>
 
 
-                    <li>
+                <div class="info-row">
 
-                        <span
-                            class="info-label"
-                        >
-                            Student ID
-                        </span>
+                    <div class="info-label">
+                        Account ID
+                    </div>
 
-                        <span
-                            class="info-value"
-                        >
+                    <div class="info-value">
+                        <?= h($displayStudentId) ?>
+                    </div>
 
-                            <?= h(
-                                $student[
-                                    "student_id"
-                                ]
-                            ) ?>
-
-                        </span>
-
-                    </li>
+                </div>
 
 
-                    <li>
+                <div class="info-row">
 
-                        <span
-                            class="info-label"
-                        >
-                            Email
-                        </span>
+                    <div class="info-label">
+                        Email
+                    </div>
 
-                        <span
-                            class="info-value"
-                        >
+                    <div class="info-value">
+                        <?= h($displayEmail) ?>
+                    </div>
 
-                            <?= h(
-                                $student[
-                                    "email"
-                                ]
-                            ) ?>
-
-                        </span>
-
-                    </li>
+                </div>
 
 
-                    <li>
+                <div class="info-row">
 
-                        <span
-                            class="info-label"
-                        >
-                            Curriculum
-                        </span>
+                    <div class="info-label">
+                        Curriculum
+                    </div>
 
-                        <span
-                            class="info-value"
-                        >
+                    <div class="info-value">
+                        <?= h(
+                            $displayCurriculum
+                            ?: 'Not provided'
+                        ) ?>
+                    </div>
 
-                            <?= h(
-                                $student[
-                                    "curriculum"
-                                ]
-                                ??
-                                "Not specified"
-                            ) ?>
-
-                        </span>
-
-                    </li>
+                </div>
 
 
-                    <li>
-
-                        <span
-                            class="info-label"
-                        >
-                            Class / Year
-                        </span>
-
-                        <span
-                            class="info-value"
-                        >
-
-                            <?= h(
-                                $student[
-                                    "class_year"
-                                ]
-                                ??
-                                "Not specified"
-                            ) ?>
-
-                        </span>
-
-                    </li>
+            </section>
 
 
-                    <li>
 
-                        <span
-                            class="info-label"
-                        >
-                            Account Status
-                        </span>
+            <!-- QUICK LINKS -->
 
-                        <span
-                            class="
-                                badge
-                                active
-                            "
-                        >
+            <section class="card">
 
-                            Active
+                <div class="card-title">
 
-                        </span>
+                    ⚡
+                    Quick Actions
 
-                    </li>
+                </div>
 
 
-                </ul>
+                <a
+                    href="dashboard.php"
+                    class="btn btn-light"
+                    style="
+                        width:100%;
+                        margin-bottom:9px;
+                    "
+                >
 
+                    🏠
+                    Student Dashboard
+
+                </a>
+
+
+                <a
+                    href="schedule.php"
+                    class="btn btn-light"
+                    style="
+                        width:100%;
+                        margin-bottom:9px;
+                    "
+                >
+
+                    📅
+                    My Schedule
+
+                </a>
+
+
+                <a
+                    href="book_lesson.php"
+                    class="btn btn-light"
+                    style="
+                        width:100%;
+                        margin-bottom:9px;
+                    "
+                >
+
+                    📚
+                    Book a Lesson
+
+                </a>
+
+
+                <a
+                    href="payments.php"
+                    class="btn btn-light"
+                    style="
+                        width:100%;
+                    "
+                >
+
+                    💳
+                    My Payments
+
+                </a>
 
             </section>
 
@@ -2768,7 +2900,63 @@ body {
     </div>
 
 
+
+    <div class="footer">
+
+        © <?= date('Y') ?>
+        NISEL ONLINE EDUCATION.
+        Student Portal.
+
+    </div>
+
+
 </main>
+
+
+
+<script>
+
+/* =========================================================
+   PASSWORD VISIBILITY
+========================================================= */
+
+function togglePassword(
+    inputId,
+    element
+) {
+
+    const input =
+        document.getElementById(
+            inputId
+        );
+
+
+    if (!input) {
+        return;
+    }
+
+
+    if (
+        input.type === "password"
+    ) {
+
+        input.type =
+            "text";
+
+        element.textContent =
+            "Hide";
+
+    } else {
+
+        input.type =
+            "password";
+
+        element.textContent =
+            "Show";
+    }
+}
+
+</script>
 
 
 </body>
