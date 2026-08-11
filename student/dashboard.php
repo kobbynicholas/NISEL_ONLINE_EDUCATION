@@ -900,31 +900,27 @@ student portal.
             monthly lesson package.
         </p>
 
-        <div class="booking-info">
+       <div class="pricing-list">
 
-    <span>
-        📅 2 lessons per week
-    </span>
+    <div>
+        <strong>Cambridge</strong>
+        <span>GHS 1,000</span>
+    </div>
 
-    <span>
-        📚 8 lessons per month
-    </span>
+    <div>
+        <strong>IB</strong>
+        <span>GHS 1,200</span>
+    </div>
 
-    <span>
-        💰 Cambridge: GHS 1,000
-    </span>
+    <div>
+        <strong>SAT</strong>
+        <span>GHS 850</span>
+    </div>
 
-    <span>
-        💰 IB: GHS 1,200
-    </span>
-
-    <span>
-        💰 SAT: GHS 850
-    </span>
-       
-    <span>
-        💰 GES: GHS 800
-    </span>
+    <div>
+        <strong>GES</strong>
+        <span>GHS 800</span>
+    </div>
 
 </div>
 
