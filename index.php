@@ -2757,38 +2757,29 @@ img {
     <div class="teacher-info">
 
         <h3>
-            Mr. Nicholas
+            Mr. Samuel Nyamekye
         </h3>
 
         <p class="teacher-role">
-            Mathematics & Physics
+            Biology & Science
         </p>
 
         <span class="teacher-tag">
-            Cambridge
+            PhD in Molecular Biology
         </span>
 
         <span class="teacher-tag">
-            IGCSE
+            (IB, IGCSE, AS/A level)
         </span>
 
         <p class="teacher-description">
 
             Experienced online educator helping students
             develop strong understanding and confidence
-            in Mathematics and Physics.
+            in Biology and Science.
 
         </p>
 
-
-        <a
-            href="student/register.php"
-            class="teacher-button"
-        >
-
-            Book a Lesson →
-
-        </a>
 
     </div>
 
@@ -2816,38 +2807,28 @@ img {
     <div class="teacher-info">
 
         <h3>
-            Teacher Mavis
+            Mrs. Mavis Agbakli
         </h3>
 
         <p class="teacher-role">
-            Chemistry & Biology
+            English
         </p>
 
         <span class="teacher-tag">
-            Cambridge
+           MPhil in English 
         </span>
 
         <span class="teacher-tag">
-            GES
+            (Cambridge AS/A Level, IGCSE, IB, GES) 
         </span>
 
         <p class="teacher-description">
 
-            Supporting students with clear explanations,
-            practical understanding and examination
-            preparation.
+            Helping learners improve their communication,
+            comprehension, writing and examination skills.
 
         </p>
 
-
-        <a
-            href="student/register.php"
-            class="teacher-button"
-        >
-
-            Book a Lesson →
-
-        </a>
 
     </div>
 
@@ -2875,37 +2856,29 @@ img {
     <div class="teacher-info">
 
         <h3>
-            Teacher 3
+            Mr. Samuel Tenkorang
         </h3>
 
         <p class="teacher-role">
-            English & Literature
+            Physics & Science
         </p>
 
         <span class="teacher-tag">
-            Cambridge
+           BSc. Physics
         </span>
 
         <span class="teacher-tag">
-            IB
+             (Cambridge AS/A Level, IGCSE, IB)
         </span>
 
         <p class="teacher-description">
 
-            Helping learners improve their communication,
-            comprehension, writing and examination skills.
-
+            Supporting students with clear explanations,
+            practical understanding and examination
+            preparation.
+            
         </p>
-
-
-        <a
-            href="student/register.php"
-            class="teacher-button"
-        >
-
-            Book a Lesson →
-
-        </a>
+        
 
     </div>
 
@@ -2933,19 +2906,19 @@ img {
     <div class="teacher-info">
 
         <h3>
-            Teacher 4
+            Miss. Linda Adu Mensah
         </h3>
 
         <p class="teacher-role">
-            Economics & Accounting
+            Economics & Business
         </p>
 
         <span class="teacher-tag">
-            Cambridge
+            Masters in Public Administration
         </span>
 
         <span class="teacher-tag">
-            GES
+            (Cambridge AS/A Level, IB)
         </span>
 
         <p class="teacher-description">
@@ -2954,16 +2927,6 @@ img {
             solving and examination-focused preparation.
 
         </p>
-
-
-        <a
-            href="student/register.php"
-            class="teacher-button"
-        >
-
-            Book a Lesson →
-
-        </a>
 
     </div>
 
