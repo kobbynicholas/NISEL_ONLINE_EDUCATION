@@ -3121,6 +3121,22 @@ img {
 
     <p>
 
+
+
+<div class="teacher-photo">
+
+        <img
+            src="assets/images/teachers/admin.jpg"
+            alt="NISEL Teacher"
+            onerror="
+                this.style.display='none';
+                this.parentElement.innerHTML='👩‍🏫';
+            "
+        >
+
+    </div>
+
+        
         Providing flexible and personalised online
         education for students following Cambridge,
         IB and GES curricula.
