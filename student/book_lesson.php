@@ -611,7 +611,7 @@ if (
                 */
 
                 header(
-                    "Location: payment.php?booking_id="
+                    "Location: payments.php?booking_id="
                     .
                     urlencode(
                         $bookingId
@@ -2201,7 +2201,7 @@ const curriculumPrices = {
 
     IB: 1200,
 
-    SAT:800,
+    SAT:850,
    
     GES: 800
 
