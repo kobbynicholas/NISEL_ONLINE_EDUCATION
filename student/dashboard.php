@@ -1074,7 +1074,7 @@ echo htmlspecialchars(
 <div class="quick-links">
 
 
-<a href="bookings.php">
+<a href="book_lesson.php">
 📚 Book a Lesson
 </a>
 
