@@ -70,7 +70,7 @@ $curriculumPrices = [
 
     'SAT' => 800,
    
-    'GES' => 800,
+    'GES' => 800
 ];
 
 
