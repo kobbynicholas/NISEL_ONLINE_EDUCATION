@@ -2734,6 +2734,8 @@ img {
 
 <!-- TEACHER 1 -->
 
+<div class="curriculum-grid">
+    
 <div class="teacher-card">
 
     <div class="teacher-photo">
@@ -2780,10 +2782,11 @@ img {
     </div>
 
 </div>
-
+  </div>
 
 <!-- TEACHER 2 -->
-
+<div class="curriculum-grid">
+    
 <div class="teacher-card">
 
     <div class="teacher-photo">
@@ -2829,10 +2832,11 @@ img {
     </div>
 
 </div>
-
+  </div>
 
 <!-- TEACHER 3 -->
-
+<div class="curriculum-grid">
+    
 <div class="teacher-card">
 
     <div class="teacher-photo">
@@ -2879,10 +2883,11 @@ img {
     </div>
 
 </div>
-
+  </div>
 
 <!-- TEACHER 4 -->
-
+<div class="curriculum-grid">
+    
 <div class="teacher-card">
 
     <div class="teacher-photo">
@@ -2931,7 +2936,7 @@ img {
 
 </div>
 
-
+  </div>
 
 </div>
 
