@@ -1,27 +1,77 @@
 <?php
 
-require "../admin_auth.php";
+session_start();
+
 require "../config/db.php";
+
+
+/*
+|--------------------------------------------------------------------------
+| ADMIN LOGIN CHECK
+|--------------------------------------------------------------------------
+*/
+
+if (
+    !isset($_SESSION['admin_id']) ||
+    empty($_SESSION['admin_id'])
+) {
+    header("Location: ../admin_login.php");
+    exit;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| VARIABLES
+|--------------------------------------------------------------------------
+*/
 
 $message = "";
 $message_type = "";
 
+
 /*
+|--------------------------------------------------------------------------
+| HELPER
+|--------------------------------------------------------------------------
+*/
+
+function h($value)
+{
+    return htmlspecialchars(
+        (string)$value,
+        ENT_QUOTES,
+        'UTF-8'
+    );
+}
+
+
 /*
-=========================================================
-ASSIGN TEACHER
-=========================================================
+|--------------------------------------------------------------------------
+| ASSIGN TEACHER
+|--------------------------------------------------------------------------
 */
 
 if (
-    $_SERVER["REQUEST_METHOD"] === "POST"
-    && isset($_POST["assign_teacher"])
+    $_SERVER["REQUEST_METHOD"] === "POST" &&
+    isset($_POST["assign_teacher"])
 ) {
 
-    $booking_id = (int)($_POST["booking_id"] ?? 0);
-    $teacher_id = trim($_POST["teacher_id"] ?? "");
+    $booking_id = (int)(
+        $_POST["booking_id"] ?? 0
+    );
 
-    if ($booking_id <= 0 || empty($teacher_id)) {
+    $teacher_id = trim(
+        $_POST["teacher_id"] ?? ""
+    );
+
+
+    if ($booking_id <= 0) {
+
+        $message = "Invalid booking selected.";
+        $message_type = "error";
+
+    } elseif ($teacher_id === "") {
 
         $message = "Please select a teacher.";
         $message_type = "error";
@@ -31,18 +81,34 @@ if (
         try {
 
             /*
-            ==============================================
-            GET TEACHER INFORMATION
-            ==============================================
+            |--------------------------------------------------------------------------
+            | START TRANSACTION
+            |--------------------------------------------------------------------------
+            */
+
+            $pdo->beginTransaction();
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | GET TEACHER
+            |--------------------------------------------------------------------------
             */
 
             $teacherStmt = $pdo->prepare("
                 SELECT
                     teacher_id,
-                    teacher_name
+                    teacher_name,
+                    email,
+                    phone,
+                    subjects,
+                    curriculum,
+                    availability,
+                    zoom_link,
+                    status
                 FROM teachers
                 WHERE teacher_id = ?
-                AND status = 'Active'
+                AND LOWER(status) = 'active'
                 LIMIT 1
             ");
 
@@ -58,46 +124,99 @@ if (
             if (!$teacher) {
 
                 throw new Exception(
-                    "Teacher account not found."
+                    "The selected teacher was not found or is not active."
                 );
 
             }
 
 
             /*
-            ==============================================
-            UPDATE BOOKING
-            ==============================================
+            |--------------------------------------------------------------------------
+            | GET BOOKING
+            |--------------------------------------------------------------------------
+            */
+
+            $bookingStmt = $pdo->prepare("
+                SELECT
+                    id,
+                    booking_reference,
+                    student_name,
+                    email,
+                    subjects,
+                    curriculum,
+                    teacher_id,
+                    teacher_name,
+                    assignment_status
+                FROM bookings
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+            $bookingStmt->execute([
+                $booking_id
+            ]);
+
+            $booking = $bookingStmt->fetch(
+                PDO::FETCH_ASSOC
+            );
+
+
+            if (!$booking) {
+
+                throw new Exception(
+                    "The selected booking was not found."
+                );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | UPDATE BOOKING
+            |--------------------------------------------------------------------------
+            |
+            | IMPORTANT:
+            |
+            | teacher_id   = teachers.teacher_id
+            | teacher_name = teachers.teacher_name
+            |
             */
 
             $updateStmt = $pdo->prepare("
                 UPDATE bookings
+
                 SET
-                    teacher_id = ?,
-                    teacher_name = ?,
+                    teacher_id = :teacher_id,
+                    teacher_name = :teacher_name,
                     assignment_status = 'Assigned'
-                WHERE id = ?
+
+                WHERE id = :booking_id
             ");
+
 
             $updateStmt->execute([
 
-                $teacher["teacher_id"],
+                ":teacher_id" =>
+                    $teacher["teacher_id"],
 
-                $teacher["teacher_name"],
+                ":teacher_name" =>
+                    $teacher["teacher_name"],
 
-                $booking_id
+                ":booking_id" =>
+                    $booking_id
 
             ]);
 
 
             /*
-            ==============================================
-            VERIFY UPDATE
-            ==============================================
+            |--------------------------------------------------------------------------
+            | VERIFY THE UPDATE
+            |--------------------------------------------------------------------------
             */
 
             $verifyStmt = $pdo->prepare("
                 SELECT
+                    id,
                     teacher_id,
                     teacher_name,
                     assignment_status
@@ -119,29 +238,79 @@ if (
             if (!$updatedBooking) {
 
                 throw new Exception(
-                    "Booking could not be verified."
+                    "The booking could not be verified after the update."
                 );
 
             }
 
 
-            $message =
-                "Teacher "
-                . htmlspecialchars(
+            /*
+            |--------------------------------------------------------------------------
+            | VERIFY TEACHER NAME
+            |--------------------------------------------------------------------------
+            */
+
+            if (
+                $updatedBooking["teacher_id"]
+                !==
+                $teacher["teacher_id"]
+            ) {
+
+                throw new Exception(
+                    "Teacher ID was not saved correctly."
+                );
+
+            }
+
+
+            if (
+                trim(
                     $updatedBooking["teacher_name"]
                 )
-                . " assigned successfully.";
+                !==
+                trim(
+                    $teacher["teacher_name"]
+                )
+            ) {
+
+                throw new Exception(
+                    "Teacher name was not saved correctly."
+                );
+
+            }
+
+
+            /*
+            |--------------------------------------------------------------------------
+            | COMMIT
+            |--------------------------------------------------------------------------
+            */
+
+            $pdo->commit();
+
+
+            $message =
+                "Teacher " .
+                $teacher["teacher_name"] .
+                " has been successfully assigned to " .
+                $booking["student_name"] .
+                ".";
 
             $message_type = "success";
 
 
         } catch (Exception $e) {
 
+            if (
+                $pdo->inTransaction()
+            ) {
+                $pdo->rollBack();
+            }
+
+
             $message =
-                "Assignment failed: "
-                . htmlspecialchars(
-                    $e->getMessage()
-                );
+                "Unable to assign teacher: " .
+                $e->getMessage();
 
             $message_type = "error";
 
@@ -152,12 +321,93 @@ if (
 
 
 /*
-=========================================================
-GET TEACHERS
-=========================================================
+|--------------------------------------------------------------------------
+| UNASSIGN TEACHER
+|--------------------------------------------------------------------------
 */
 
-$teachersStmt = $pdo->prepare("
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST" &&
+    isset($_POST["unassign_teacher"])
+) {
+
+    $booking_id = (int)(
+        $_POST["booking_id"] ?? 0
+    );
+
+
+    if ($booking_id <= 0) {
+
+        $message =
+            "Invalid booking selected.";
+
+        $message_type = "error";
+
+    } else {
+
+        try {
+
+            $stmt = $pdo->prepare("
+                UPDATE bookings
+
+                SET
+                    teacher_id = NULL,
+                    teacher_name = NULL,
+                    assignment_status = 'Unassigned'
+
+                WHERE id = ?
+            ");
+
+            $stmt->execute([
+                $booking_id
+            ]);
+
+
+            $message =
+                "Teacher assignment removed successfully.";
+
+            $message_type = "success";
+
+
+        } catch (PDOException $e) {
+
+            $message =
+                "Unable to remove teacher assignment.";
+
+            $message_type = "error";
+
+        }
+
+    }
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| FILTERS
+|--------------------------------------------------------------------------
+*/
+
+$search =
+    trim($_GET["search"] ?? "");
+
+$curriculum =
+    trim($_GET["curriculum"] ?? "");
+
+$payment =
+    trim($_GET["payment"] ?? "");
+
+$assignment =
+    trim($_GET["assignment"] ?? "");
+
+
+/*
+|--------------------------------------------------------------------------
+| GET TEACHERS
+|--------------------------------------------------------------------------
+*/
+
+$teacherListStmt = $pdo->prepare("
     SELECT
         teacher_id,
         teacher_name,
@@ -165,58 +415,257 @@ $teachersStmt = $pdo->prepare("
         phone,
         subjects,
         curriculum,
-        status
+        availability,
+        zoom_link
     FROM teachers
-    WHERE status = 'Active'
+    WHERE LOWER(status) = 'active'
     ORDER BY teacher_name ASC
 ");
 
-$teachersStmt->execute();
+$teacherListStmt->execute();
 
-$teachers = $teachersStmt->fetchAll(PDO::FETCH_ASSOC);
+$teachers =
+    $teacherListStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
 
 
 /*
-=========================================================
-GET BOOKINGS
-=========================================================
+|--------------------------------------------------------------------------
+| GET BOOKINGS
+|--------------------------------------------------------------------------
 */
 
-$bookingsStmt = $pdo->prepare("
+$sql = "
+
     SELECT
+
         b.id,
+
         b.booking_reference,
+
         b.student_name,
+
         b.email,
+
         b.phone,
+
+        b.dob,
+
         b.curriculum,
+
         b.class_year,
+
         b.subjects,
+
         b.amount,
+
         b.payment_status,
+
         b.teacher_id,
+
         b.teacher_name,
+
         b.assignment_status,
+
         b.lesson_date,
-        b.lesson_time
+
+        b.lesson_time,
+
+        b.lesson_status,
+
+        t.teacher_name AS real_teacher_name,
+
+        t.email AS real_teacher_email,
+
+        t.phone AS real_teacher_phone,
+
+        t.zoom_link AS real_teacher_zoom
 
     FROM bookings b
 
+    LEFT JOIN teachers t
+
+        ON b.teacher_id = t.teacher_id
+
+    WHERE 1 = 1
+
+";
+
+
+$params = [];
+
+
+/*
+|--------------------------------------------------------------------------
+| SEARCH
+|--------------------------------------------------------------------------
+*/
+
+if ($search !== "") {
+
+    $sql .= "
+
+        AND (
+
+            b.student_name LIKE :search
+
+            OR b.email LIKE :search
+
+            OR b.phone LIKE :search
+
+            OR b.booking_reference LIKE :search
+
+            OR b.subjects LIKE :search
+
+            OR b.teacher_name LIKE :search
+
+        )
+
+    ";
+
+    $params[":search"] =
+        "%" . $search . "%";
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CURRICULUM FILTER
+|--------------------------------------------------------------------------
+*/
+
+if ($curriculum !== "") {
+
+    $sql .= "
+        AND b.curriculum = :curriculum
+    ";
+
+    $params[":curriculum"] =
+        $curriculum;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| PAYMENT FILTER
+|--------------------------------------------------------------------------
+*/
+
+if ($payment !== "") {
+
+    $sql .= "
+        AND LOWER(b.payment_status) = LOWER(:payment)
+    ";
+
+    $params[":payment"] =
+        $payment;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ASSIGNMENT FILTER
+|--------------------------------------------------------------------------
+*/
+
+if ($assignment === "assigned") {
+
+    $sql .= "
+
+        AND b.teacher_id IS NOT NULL
+
+        AND b.teacher_id <> ''
+
+    ";
+
+}
+
+elseif ($assignment === "unassigned") {
+
+    $sql .= "
+
+        AND (
+            b.teacher_id IS NULL
+            OR b.teacher_id = ''
+        )
+
+    ";
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| ORDER
+|--------------------------------------------------------------------------
+*/
+
+$sql .= "
+
     ORDER BY
+
         CASE
-            WHEN b.teacher_id IS NULL
-                 OR b.teacher_id = ''
+
+            WHEN
+                b.teacher_id IS NULL
+                OR b.teacher_id = ''
+
             THEN 0
+
             ELSE 1
-        END,
+
+        END ASC,
 
         b.id DESC
-");
 
-$bookingsStmt->execute();
+";
+
+
+$bookingStmt =
+    $pdo->prepare($sql);
+
+$bookingStmt->execute(
+    $params
+);
 
 $bookings =
-    $bookingsStmt->fetchAll(PDO::FETCH_ASSOC);
+    $bookingStmt->fetchAll(
+        PDO::FETCH_ASSOC
+    );
+
+
+/*
+|--------------------------------------------------------------------------
+| STATISTICS
+|--------------------------------------------------------------------------
+*/
+
+$totalBookings =
+    count($bookings);
+
+
+$assignedCount = 0;
+
+$unassignedCount = 0;
+
+
+foreach ($bookings as $b) {
+
+    if (
+        !empty($b["teacher_id"])
+    ) {
+
+        $assignedCount++;
+
+    } else {
+
+        $unassignedCount++;
+
+    }
+
+}
+
 
 ?>
 <!DOCTYPE html>
@@ -227,8 +676,10 @@ $bookings =
 
 <meta charset="UTF-8">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>
 Assign Teachers |
@@ -238,8 +689,14 @@ NISEL ONLINE EDUCATION
 
 <style>
 
+/* =====================================================
+   RESET
+===================================================== */
+
 * {
+
     box-sizing: border-box;
+
 }
 
 
@@ -254,13 +711,14 @@ body {
 
     background: #eef3f8;
 
-    color: #333;
+    color: #1f2937;
+
 }
 
 
-/* =========================================
+/* =====================================================
    SIDEBAR
-========================================= */
+===================================================== */
 
 .sidebar {
 
@@ -274,11 +732,19 @@ body {
 
     height: 100vh;
 
-    background: #003366;
+    background:
+        linear-gradient(
+            180deg,
+            #003b70,
+            #002b52
+        );
 
     color: white;
 
-    padding: 25px 15px;
+    padding: 25px 14px;
+
+    overflow-y: auto;
+
 }
 
 
@@ -288,150 +754,470 @@ body {
 
     font-size: 20px;
 
-    font-weight: bold;
+    font-weight: 800;
 
-    line-height: 1.5;
+    line-height: 1.35;
 
-    margin-bottom: 35px;
+    padding-bottom: 25px;
+
+    margin-bottom: 15px;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.15);
+
+}
+
+
+.logo small {
+
+    display: block;
+
+    font-size: 9px;
+
+    letter-spacing: 2px;
+
+    opacity: .7;
+
+    margin-top: 5px;
+
 }
 
 
 .menu a {
 
-    display: block;
+    display: flex;
+
+    align-items: center;
+
+    gap: 10px;
+
+    padding: 13px 14px;
+
+    margin: 5px 0;
 
     color: white;
 
     text-decoration: none;
 
-    padding: 13px;
+    border-radius: 9px;
 
-    margin-bottom: 7px;
-
-    border-radius: 7px;
+    transition:
+        .2s ease;
 
 }
 
 
 .menu a:hover {
 
-    background: #0055a5;
+    background:
+        rgba(255,255,255,.12);
+
 }
 
 
 .menu a.active {
 
-    background: #0055a5;
+    background:
+        rgba(255,255,255,.16);
+
+    box-shadow:
+        inset 3px 0 #38bdf8;
+
 }
 
 
-/* =========================================
+/* =====================================================
    MAIN
-========================================= */
+===================================================== */
 
 .main {
 
     margin-left: 240px;
 
-    padding: 30px;
+    padding: 28px;
+
 }
 
 
-.header {
+/* =====================================================
+   TOP HEADER
+===================================================== */
+
+.top-header {
 
     background: white;
 
-    padding: 25px;
+    border-radius: 16px;
 
-    border-radius: 10px;
+    padding: 24px 28px;
 
-    margin-bottom: 25px;
+    margin-bottom: 22px;
+
+    display: flex;
+
+    justify-content:
+        space-between;
+
+    align-items:
+        center;
 
     box-shadow:
-        0 3px 12px
-        rgba(0,0,0,.08);
+        0 5px 20px
+        rgba(15,23,42,.06);
+
 }
 
 
-.header h1 {
+.top-header h1 {
 
     margin: 0;
 
-    color: #003366;
+    color: #003b70;
+
+    font-size: 27px;
+
 }
 
 
-.header p {
+.top-header p {
 
-    margin-bottom: 0;
+    margin: 7px 0 0;
 
-    color: #666;
+    color: #64748b;
+
 }
 
 
-/* =========================================
-   MESSAGES
-========================================= */
+.admin-badge {
 
-.message {
+    background: #e8f3ff;
 
-    padding: 15px;
+    color: #0055a5;
 
-    border-radius: 8px;
+    padding: 10px 15px;
 
-    margin-bottom: 20px;
+    border-radius: 25px;
 
     font-weight: bold;
+
+    font-size: 13px;
+
 }
 
 
-.message.success {
+/* =====================================================
+   ALERT
+===================================================== */
 
-    background: #d4edda;
+.alert {
 
-    color: #155724;
-
-    border: 1px solid #c3e6cb;
-}
-
-
-.message.error {
-
-    background: #f8d7da;
-
-    color: #721c24;
-
-    border: 1px solid #f5c6cb;
-}
-
-
-/* =========================================
-   CARD
-========================================= */
-
-.card {
-
-    background: white;
+    padding: 15px 18px;
 
     border-radius: 10px;
 
-    padding: 20px;
+    margin-bottom: 20px;
 
-    margin-bottom: 25px;
+    font-weight: 600;
 
-    box-shadow:
-        0 3px 12px
-        rgba(0,0,0,.08);
 }
 
 
-/* =========================================
-   TABLE
-========================================= */
+.alert.success {
+
+    background: #dcfce7;
+
+    color: #166534;
+
+    border:
+        1px solid #bbf7d0;
+
+}
+
+
+.alert.error {
+
+    background: #fee2e2;
+
+    color: #991b1b;
+
+    border:
+        1px solid #fecaca;
+
+}
+
+
+/* =====================================================
+   STATISTICS
+===================================================== */
+
+.stats {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 18px;
+
+    margin-bottom: 22px;
+
+}
+
+
+.stat-card {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 14px;
+
+    box-shadow:
+        0 5px 20px
+        rgba(15,23,42,.06);
+
+}
+
+
+.stat-title {
+
+    color: #64748b;
+
+    font-size: 13px;
+
+    font-weight: 600;
+
+}
+
+
+.stat-number {
+
+    color: #003b70;
+
+    font-size: 28px;
+
+    font-weight: 800;
+
+    margin-top: 7px;
+
+}
+
+
+.stat-card.assigned {
+
+    border-left:
+        4px solid #22c55e;
+
+}
+
+
+.stat-card.unassigned {
+
+    border-left:
+        4px solid #f59e0b;
+
+}
+
+
+.stat-card.total {
+
+    border-left:
+        4px solid #0ea5e9;
+
+}
+
+
+/* =====================================================
+   FILTER CARD
+===================================================== */
+
+.filter-card {
+
+    background: white;
+
+    border-radius: 15px;
+
+    padding: 20px;
+
+    margin-bottom: 20px;
+
+    box-shadow:
+        0 5px 20px
+        rgba(15,23,42,.06);
+
+}
+
+
+.filter-title {
+
+    font-size: 17px;
+
+    font-weight: 700;
+
+    color: #003b70;
+
+    margin-bottom: 15px;
+
+}
+
+
+.filters {
+
+    display: grid;
+
+    grid-template-columns:
+        2fr
+        1fr
+        1fr
+        1fr
+        auto;
+
+    gap: 10px;
+
+}
+
+
+.filters input,
+.filters select {
+
+    width: 100%;
+
+    padding: 11px 13px;
+
+    border:
+        1px solid #d5dce5;
+
+    border-radius: 8px;
+
+    outline: none;
+
+    background: white;
+
+}
+
+
+.filters input:focus,
+.filters select:focus {
+
+    border-color: #0ea5e9;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(14,165,233,.1);
+
+}
+
+
+.filter-btn {
+
+    border: none;
+
+    padding: 11px 18px;
+
+    background: #003b70;
+
+    color: white;
+
+    border-radius: 8px;
+
+    cursor: pointer;
+
+    font-weight: 700;
+
+}
+
+
+.filter-btn:hover {
+
+    background: #0055a5;
+
+}
+
+
+.clear-btn {
+
+    display: inline-flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 11px 15px;
+
+    background: #f1f5f9;
+
+    color: #475569;
+
+    border-radius: 8px;
+
+    text-decoration: none;
+
+    font-weight: 600;
+
+}
+
+
+/* =====================================================
+   TABLE CARD
+===================================================== */
+
+.table-card {
+
+    background: white;
+
+    border-radius: 15px;
+
+    box-shadow:
+        0 5px 20px
+        rgba(15,23,42,.06);
+
+    overflow: hidden;
+
+}
+
+
+.table-header {
+
+    padding: 20px 22px;
+
+    border-bottom:
+        1px solid #edf1f5;
+
+    display: flex;
+
+    justify-content:
+        space-between;
+
+    align-items: center;
+
+}
+
+
+.table-header h2 {
+
+    margin: 0;
+
+    font-size: 18px;
+
+    color: #003b70;
+
+}
+
+
+.result-count {
+
+    color: #64748b;
+
+    font-size: 13px;
+
+}
+
 
 .table-wrapper {
 
     overflow-x: auto;
+
 }
 
 
@@ -439,128 +1225,241 @@ table {
 
     width: 100%;
 
-    border-collapse: collapse;
+    min-width: 1250px;
 
-    min-width: 1000px;
+    border-collapse:
+        collapse;
+
 }
 
 
-th {
+thead th {
 
-    background: #003366;
+    background: #f8fafc;
 
-    color: white;
+    color: #475569;
 
-    padding: 13px;
+    font-size: 11px;
+
+    text-transform:
+        uppercase;
+
+    letter-spacing: .5px;
+
+    padding: 14px;
 
     text-align: left;
-}
-
-
-td {
-
-    padding: 13px;
 
     border-bottom:
-        1px solid #eee;
+        1px solid #e2e8f0;
+
+}
+
+
+tbody td {
+
+    padding: 15px 14px;
+
+    border-bottom:
+        1px solid #edf1f5;
 
     vertical-align: middle;
+
 }
 
 
-tr:hover {
+tbody tr:hover {
 
     background: #f8fbff;
+
 }
 
 
-/* =========================================
+/* =====================================================
    STUDENT
-========================================= */
+===================================================== */
 
 .student-name {
 
-    font-weight: bold;
+    color: #003b70;
 
-    color: #003366;
+    font-weight: 700;
+
 }
 
 
 .reference {
 
+    font-size: 11px;
+
+    color: #94a3b8;
+
+    margin-top: 4px;
+
+}
+
+
+.contact {
+
     font-size: 12px;
 
-    color: #777;
+    color: #64748b;
+
+    margin-top: 4px;
+
 }
 
 
-.subject {
-
-    font-weight: bold;
-}
-
-
-/* =========================================
+/* =====================================================
    BADGES
-========================================= */
+===================================================== */
 
 .badge {
 
-    display: inline-block;
+    display: inline-flex;
+
+    align-items: center;
 
     padding: 6px 10px;
 
     border-radius: 20px;
 
-    font-size: 12px;
+    font-size: 11px;
 
-    font-weight: bold;
+    font-weight: 700;
+
 }
 
 
-.paid {
+.badge.paid {
 
-    background: #d4edda;
+    background: #dcfce7;
 
-    color: #155724;
+    color: #166534;
+
 }
 
 
-.pending {
+.badge.pending {
 
-    background: #fff3cd;
+    background: #fef3c7;
 
-    color: #856404;
+    color: #92400e;
+
 }
 
 
-.assigned {
+.badge.assigned {
 
-    background: #d1ecf1;
+    background: #dcfce7;
 
-    color: #0c5460;
+    color: #166534;
+
+}
+
+
+.badge.unassigned {
+
+    background: #fee2e2;
+
+    color: #991b1b;
+
+}
+
+
+.curriculum {
+
+    color: #334155;
+
+    font-weight: 700;
+
+}
+
+
+.subject {
+
+    max-width: 210px;
+
+    color: #475569;
+
+    line-height: 1.45;
+
+}
+
+
+/* =====================================================
+   CURRENT TEACHER
+===================================================== */
+
+.current-teacher {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 9px;
+
+}
+
+
+.teacher-avatar {
+
+    width: 36px;
+
+    height: 36px;
+
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            135deg,
+            #dbeafe,
+            #bfdbfe
+        );
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    color: #1d4ed8;
+
+    font-weight: 800;
+
+}
+
+
+.teacher-name {
+
+    font-weight: 700;
+
+    color: #003b70;
+
 }
 
 
 .not-assigned {
 
-    background: #f8d7da;
+    color: #94a3b8;
 
-    color: #721c24;
+    font-size: 12px;
+
 }
 
 
-/* =========================================
+/* =====================================================
    ASSIGN FORM
-========================================= */
+===================================================== */
 
 .assign-form {
 
     display: flex;
 
-    gap: 8px;
-
     align-items: center;
+
+    gap: 7px;
+
 }
 
 
@@ -568,46 +1467,131 @@ tr:hover {
 
     min-width: 190px;
 
-    padding: 9px;
+    padding: 9px 10px;
 
     border:
-        1px solid #ccc;
+        1px solid #cbd5e1;
 
-    border-radius: 6px;
+    border-radius: 7px;
 
     background: white;
+
+    color: #334155;
+
+    outline: none;
+
 }
 
 
-.assign-form button {
+.assign-form select:focus {
+
+    border-color: #0ea5e9;
+
+}
+
+
+.assign-btn {
 
     border: none;
 
-    padding: 9px 14px;
-
-    background: #003366;
+    background: #003b70;
 
     color: white;
 
-    border-radius: 6px;
+    padding: 9px 13px;
+
+    border-radius: 7px;
 
     cursor: pointer;
 
-    font-weight: bold;
+    font-weight: 700;
+
 }
 
 
-.assign-form button:hover {
+.assign-btn:hover {
 
     background: #0055a5;
+
 }
 
 
-/* =========================================
-   MOBILE
-========================================= */
+.unassign-btn {
 
-@media(max-width: 800px) {
+    border: none;
+
+    background: #fee2e2;
+
+    color: #991b1b;
+
+    padding: 8px 11px;
+
+    border-radius: 7px;
+
+    cursor: pointer;
+
+    font-weight: 700;
+
+}
+
+
+.unassign-btn:hover {
+
+    background: #fecaca;
+
+}
+
+
+/* =====================================================
+   EMPTY
+===================================================== */
+
+.empty {
+
+    text-align: center;
+
+    padding: 60px 20px;
+
+    color: #64748b;
+
+}
+
+
+.empty-icon {
+
+    font-size: 45px;
+
+    margin-bottom: 10px;
+
+}
+
+
+.empty h3 {
+
+    color: #334155;
+
+    margin: 10px 0;
+
+}
+
+
+/* =====================================================
+   RESPONSIVE
+===================================================== */
+
+@media(max-width: 1100px) {
+
+    .filters {
+
+        grid-template-columns:
+            1fr 1fr;
+
+    }
+
+}
+
+
+@media(max-width: 850px) {
 
     .sidebar {
 
@@ -616,6 +1600,7 @@ tr:hover {
         width: 100%;
 
         height: auto;
+
     }
 
 
@@ -624,21 +1609,36 @@ tr:hover {
         margin-left: 0;
 
         padding: 15px;
+
     }
 
 
-    .assign-form {
+    .stats {
+
+        grid-template-columns: 1fr;
+
+    }
+
+
+    .top-header {
 
         flex-direction: column;
 
-        align-items: stretch;
+        align-items: flex-start;
+
+        gap: 15px;
+
     }
 
+}
 
-    .assign-form select,
-    .assign-form button {
 
-        width: 100%;
+@media(max-width: 600px) {
+
+    .filters {
+
+        grid-template-columns: 1fr;
+
     }
 
 }
@@ -651,103 +1651,169 @@ tr:hover {
 <body>
 
 
-<!-- =========================================
+<!-- =====================================================
      SIDEBAR
-========================================= -->
+===================================================== -->
 
-<div class="sidebar">
+<aside class="sidebar">
+
 
     <div class="logo">
 
         NISEL<br>
         ONLINE EDUCATION
 
+        <small>
+            ADMINISTRATION
+        </small>
+
     </div>
 
 
-    <div class="menu">
+    <nav class="menu">
+
 
         <a href="dashboard.php">
-            🏠 Dashboard
+
+            🏠
+            Dashboard
+
         </a>
 
 
         <a href="students.php">
-            👨‍🎓 Students
+
+            🎓
+            Students
+
         </a>
 
 
         <a href="teachers.php">
-            👨‍🏫 Teachers
+
+            👨‍🏫
+            Teachers
+
         </a>
 
 
-        <a href="assign_teachers.php"
-           class="active">
+        <a
+            href="teacher_applications.php"
+        >
 
-            👨‍🏫 Assign Teachers
+            📋
+            Teacher Applications
+
+        </a>
+
+
+        <a
+            href="assign_teachers.php"
+            class="active"
+        >
+
+            👨‍🏫
+            Assign Teachers
 
         </a>
 
 
         <a href="bookings.php">
-            📚 Bookings
+
+            📚
+            Bookings
+
         </a>
 
 
         <a href="payments.php">
-            💳 Payments
+
+            💳
+            Payments
+
         </a>
 
 
-        <a href="teacher_applications.php">
-            📝 Teacher Applications
+        <a href="reports.php">
+
+            📊
+            Reports
+
+        </a>
+
+
+        <a href="schedules.php">
+
+            📅
+            Schedules
+
         </a>
 
 
         <a href="logout.php">
-            🚪 Logout
+
+            🚪
+            Logout
+
         </a>
 
-    </div>
 
-</div>
+    </nav>
+
+</aside>
 
 
 
-<!-- =========================================
+<!-- =====================================================
      MAIN
-========================================= -->
+===================================================== -->
 
-<div class="main">
-
-
-    <div class="header">
-
-        <h1>
-            👨‍🏫 Assign Teachers
-        </h1>
-
-        <p>
-            Assign an available teacher to each
-            student booking.
-        </p>
-
-    </div>
+<main class="main">
 
 
+    <!-- HEADER -->
 
-    <?php if ($message !== ""): ?>
+    <section class="top-header">
 
-        <div class="message
+        <div>
+
+            <h1>
+                👨‍🏫 Assign Teachers
+            </h1>
+
+            <p>
+                Assign and manage teachers for
+                student bookings.
+            </p>
+
+        </div>
+
+
+        <div class="admin-badge">
+
+            🔐 Administrator
+
+        </div>
+
+    </section>
+
+
+
+    <!-- MESSAGE -->
+
+    <?php if (!empty($message)): ?>
+
+        <div
+            class="alert
             <?php
-            echo $message_type === "success"
-                ? "success"
-                : "error";
-            ?>">
+                echo $message_type === "success"
+                    ? "success"
+                    : "error";
+            ?>"
+        >
 
             <?php
-            echo $message;
+            echo h($message);
             ?>
 
         </div>
@@ -756,16 +1822,277 @@ tr:hover {
 
 
 
-    <div class="card">
+    <!-- STATISTICS -->
 
-        <h2>
-            Student Bookings
-        </h2>
+    <section class="stats">
+
+
+        <div class="stat-card total">
+
+            <div class="stat-title">
+                Total Bookings
+            </div>
+
+            <div class="stat-number">
+                <?php
+                echo $totalBookings;
+                ?>
+            </div>
+
+        </div>
+
+
+        <div class="stat-card assigned">
+
+            <div class="stat-title">
+                Assigned
+            </div>
+
+            <div class="stat-number">
+                <?php
+                echo $assignedCount;
+                ?>
+            </div>
+
+        </div>
+
+
+        <div class="stat-card unassigned">
+
+            <div class="stat-title">
+                Awaiting Assignment
+            </div>
+
+            <div class="stat-number">
+                <?php
+                echo $unassignedCount;
+                ?>
+            </div>
+
+        </div>
+
+
+    </section>
+
+
+
+    <!-- FILTERS -->
+
+    <section class="filter-card">
+
+
+        <div class="filter-title">
+
+            🔎 Find Bookings
+
+        </div>
+
+
+        <form
+            method="GET"
+            class="filters"
+        >
+
+
+            <input
+                type="text"
+                name="search"
+                placeholder="Search student, email, booking reference..."
+                value="<?php
+                    echo h($search);
+                ?>"
+            >
+
+
+            <select name="curriculum">
+
+                <option value="">
+                    All Curricula
+                </option>
+
+                <option
+                    value="Cambridge"
+                    <?php
+                    echo $curriculum === "Cambridge"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    Cambridge
+                </option>
+
+                <option
+                    value="IB"
+                    <?php
+                    echo $curriculum === "IB"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    IB
+                </option>
+
+                <option
+                    value="GES"
+                    <?php
+                    echo $curriculum === "GES"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    GES
+                </option>
+
+                <option
+                    value="SAT"
+                    <?php
+                    echo $curriculum === "SAT"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    SAT
+                </option>
+
+            </select>
+
+
+            <select name="payment">
+
+                <option value="">
+                    All Payments
+                </option>
+
+                <option
+                    value="Paid"
+                    <?php
+                    echo $payment === "Paid"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    Paid
+                </option>
+
+                <option
+                    value="Pending"
+                    <?php
+                    echo $payment === "Pending"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    Pending
+                </option>
+
+            </select>
+
+
+            <select name="assignment">
+
+                <option value="">
+                    All Assignments
+                </option>
+
+                <option
+                    value="assigned"
+                    <?php
+                    echo $assignment === "assigned"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    Assigned
+                </option>
+
+                <option
+                    value="unassigned"
+                    <?php
+                    echo $assignment === "unassigned"
+                        ? "selected"
+                        : "";
+                    ?>
+                >
+                    Unassigned
+                </option>
+
+            </select>
+
+
+            <button
+                type="submit"
+                class="filter-btn"
+            >
+
+                Filter
+
+            </button>
+
+
+        </form>
+
+
+        <?php if (
+            $search !== "" ||
+            $curriculum !== "" ||
+            $payment !== "" ||
+            $assignment !== ""
+        ): ?>
+
+            <div
+                style="
+                    margin-top:12px;
+                "
+            >
+
+                <a
+                    href="assign_teachers.php"
+                    class="clear-btn"
+                >
+
+                    ✕ Clear Filters
+
+                </a>
+
+            </div>
+
+        <?php endif; ?>
+
+
+    </section>
+
+
+
+    <!-- BOOKINGS -->
+
+    <section class="table-card">
+
+
+        <div class="table-header">
+
+            <h2>
+                📚 Student Bookings
+            </h2>
+
+
+            <div class="result-count">
+
+                <?php
+                echo $totalBookings;
+                ?>
+                result(s)
+
+            </div>
+
+        </div>
+
 
 
         <div class="table-wrapper">
 
+
             <table>
+
 
                 <thead>
 
@@ -776,15 +2103,11 @@ tr:hover {
                         </th>
 
                         <th>
-                            Subject
-                        </th>
-
-                        <th>
                             Curriculum
                         </th>
 
                         <th>
-                            Class / Year
+                            Subject
                         </th>
 
                         <th>
@@ -796,7 +2119,7 @@ tr:hover {
                         </th>
 
                         <th>
-                            Assign Teacher
+                            Assignment
                         </th>
 
                     </tr>
@@ -804,13 +2127,21 @@ tr:hover {
                 </thead>
 
 
+
                 <tbody>
 
 
-                <?php if (count($bookings) > 0): ?>
+                <?php if (
+                    count($bookings) > 0
+                ): ?>
 
 
-                    <?php foreach ($bookings as $booking): ?>
+                    <?php
+                    foreach (
+                        $bookings
+                        as $booking
+                    ):
+                    ?>
 
 
                     <tr>
@@ -823,8 +2154,10 @@ tr:hover {
                             <div class="student-name">
 
                                 <?php
-                                echo htmlspecialchars(
-                                    $booking["student_name"]
+                                echo h(
+                                    $booking[
+                                        "student_name"
+                                    ]
                                 );
                                 ?>
 
@@ -833,32 +2166,37 @@ tr:hover {
 
                             <div class="reference">
 
+                                Ref:
                                 <?php
-                                echo htmlspecialchars(
-                                    $booking["booking_reference"]
+                                echo h(
+                                    $booking[
+                                        "booking_reference"
+                                    ]
                                 );
                                 ?>
 
                             </div>
 
-                        </td>
 
+                            <?php if (
+                                !empty(
+                                    $booking["email"]
+                                )
+                            ): ?>
 
+                                <div class="contact">
 
-                        <!-- SUBJECT -->
+                                    📧
+                                    <?php
+                                    echo h(
+                                        $booking["email"]
+                                    );
+                                    ?>
 
-                        <td>
+                                </div>
 
-                            <span class="subject">
+                            <?php endif; ?>
 
-                                <?php
-                                echo htmlspecialchars(
-                                    $booking["subjects"]
-                                    ?? ""
-                                );
-                                ?>
-
-                            </span>
 
                         </td>
 
@@ -868,27 +2206,39 @@ tr:hover {
 
                         <td>
 
-                            <?php
-                            echo htmlspecialchars(
-                                $booking["curriculum"]
-                                ?? ""
-                            );
-                            ?>
+                            <span class="curriculum">
+
+                                <?php
+                                echo h(
+                                    $booking[
+                                        "curriculum"
+                                    ] ??
+                                    "Not specified"
+                                );
+                                ?>
+
+                            </span>
 
                         </td>
 
 
 
-                        <!-- CLASS -->
+                        <!-- SUBJECT -->
 
                         <td>
 
-                            <?php
-                            echo htmlspecialchars(
-                                $booking["class_year"]
-                                ?? ""
-                            );
-                            ?>
+                            <div class="subject">
+
+                                <?php
+                                echo h(
+                                    $booking[
+                                        "subjects"
+                                    ] ??
+                                    "Not specified"
+                                );
+                                ?>
+
+                            </div>
 
                         </td>
 
@@ -900,7 +2250,7 @@ tr:hover {
 
                             <?php
 
-                            $payment =
+                            $paymentStatus =
                                 strtolower(
                                     trim(
                                         $booking[
@@ -909,27 +2259,42 @@ tr:hover {
                                     )
                                 );
 
+
                             if (
-                                $payment === "paid"
-                                ||
-                                $payment === "success"
-                            ) {
-
-                                echo
-                                '<span class="badge paid">
-                                    PAID
-                                </span>';
-
-                            } else {
-
-                                echo
-                                '<span class="badge pending">
-                                    PENDING
-                                </span>';
-
-                            }
+                                $paymentStatus === "paid" ||
+                                $paymentStatus === "success"
+                            ):
 
                             ?>
+
+                                <span
+                                    class="badge paid"
+                                >
+
+                                    ✓ PAID
+
+                                </span>
+
+                            <?php else: ?>
+
+                                <span
+                                    class="badge pending"
+                                >
+
+                                    ! <?php
+                                    echo h(
+                                        strtoupper(
+                                            $booking[
+                                                "payment_status"
+                                            ] ??
+                                            "PENDING"
+                                        )
+                                    );
+                                    ?>
+
+                                </span>
+
+                            <?php endif; ?>
 
                         </td>
 
@@ -939,9 +2304,34 @@ tr:hover {
 
                         <td>
 
+
                             <?php
 
+                            /*
+                            --------------------------------------------------
+                            IMPORTANT:
+                            Use real teacher record first.
+                            If it does not exist, fall back to booking name.
+                            --------------------------------------------------
+                            */
+
+                            $displayTeacherName = "";
+
+
                             if (
+                                !empty(
+                                    $booking[
+                                        "real_teacher_name"
+                                    ]
+                                )
+                            ) {
+
+                                $displayTeacherName =
+                                    $booking[
+                                        "real_teacher_name"
+                                    ];
+
+                            } elseif (
                                 !empty(
                                     $booking[
                                         "teacher_name"
@@ -949,33 +2339,100 @@ tr:hover {
                                 )
                             ) {
 
-                                echo
-                                '<span class="badge assigned">'
-                                .
-                                htmlspecialchars(
+                                $displayTeacherName =
                                     $booking[
                                         "teacher_name"
-                                    ]
-                                )
-                                .
-                                '</span>';
-
-                            } else {
-
-                                echo
-                                '<span class="badge not-assigned">
-                                    Not Assigned
-                                </span>';
+                                    ];
 
                             }
 
+
                             ?>
+
+
+                            <?php if (
+                                !empty(
+                                    $displayTeacherName
+                                )
+                            ): ?>
+
+
+                                <div
+                                    class="current-teacher"
+                                >
+
+
+                                    <div
+                                        class="teacher-avatar"
+                                    >
+
+                                        <?php
+
+                                        echo strtoupper(
+                                            substr(
+                                                $displayTeacherName,
+                                                0,
+                                                1
+                                            )
+                                        );
+
+                                        ?>
+
+                                    </div>
+
+
+                                    <div>
+
+                                        <div
+                                            class="teacher-name"
+                                        >
+
+                                            <?php
+                                            echo h(
+                                                $displayTeacherName
+                                            );
+                                            ?>
+
+                                        </div>
+
+
+                                        <span
+                                            class="
+                                                badge
+                                                assigned
+                                            "
+                                        >
+
+                                            Assigned
+
+                                        </span>
+
+                                    </div>
+
+
+                                </div>
+
+
+                            <?php else: ?>
+
+
+                                <span
+                                    class="badge unassigned"
+                                >
+
+                                    Not Assigned
+
+                                </span>
+
+
+                            <?php endif; ?>
+
 
                         </td>
 
 
 
-                        <!-- ASSIGN -->
+                        <!-- ASSIGN TEACHER -->
 
                         <td>
 
@@ -1003,7 +2460,7 @@ tr:hover {
 
                                     <option value="">
 
-                                        -- Select Teacher --
+                                        Select Teacher
 
                                     </option>
 
@@ -1015,18 +2472,23 @@ tr:hover {
                                     ):
                                     ?>
 
+
                                         <option
                                             value="<?php
-                                            echo htmlspecialchars(
+                                            echo h(
                                                 $teacher[
                                                     "teacher_id"
                                                 ]
                                             );
                                             ?>"
-
                                             <?php
 
                                             if (
+                                                !empty(
+                                                    $booking[
+                                                        "teacher_id"
+                                                    ]
+                                                ) &&
                                                 $booking[
                                                     "teacher_id"
                                                 ]
@@ -1044,7 +2506,7 @@ tr:hover {
                                         >
 
                                             <?php
-                                            echo htmlspecialchars(
+                                            echo h(
                                                 $teacher[
                                                     "teacher_name"
                                                 ]
@@ -1053,25 +2515,98 @@ tr:hover {
 
                                         </option>
 
+
                                     <?php
                                     endforeach;
                                     ?>
 
+
                                 </select>
+
 
 
                                 <button
                                     type="submit"
                                     name="assign_teacher"
                                     value="1"
+                                    class="assign-btn"
                                 >
 
-                                    Assign
+                                    <?php
+
+                                    if (
+                                        !empty(
+                                            $booking[
+                                                "teacher_id"
+                                            ]
+                                        )
+                                    ) {
+
+                                        echo "Update";
+
+                                    } else {
+
+                                        echo "Assign";
+
+                                    }
+
+                                    ?>
 
                                 </button>
 
 
                             </form>
+
+
+
+                            <?php if (
+                                !empty(
+                                    $booking[
+                                        "teacher_id"
+                                    ]
+                                )
+                            ): ?>
+
+
+                                <form
+                                    method="POST"
+                                    style="
+                                        margin-top:7px;
+                                    "
+                                >
+
+
+                                    <input
+                                        type="hidden"
+                                        name="booking_id"
+                                        value="<?php
+                                        echo (int)
+                                            $booking["id"];
+                                        ?>"
+                                    >
+
+
+                                    <button
+                                        type="submit"
+                                        name="unassign_teacher"
+                                        value="1"
+                                        class="unassign-btn"
+                                        onclick="
+                                            return confirm(
+                                                'Remove this teacher assignment?'
+                                            );
+                                        "
+                                    >
+
+                                        Remove Assignment
+
+                                    </button>
+
+
+                                </form>
+
+
+                            <?php endif; ?>
 
 
                         </td>
@@ -1089,15 +2624,26 @@ tr:hover {
                     <tr>
 
                         <td
-                            colspan="7"
-                            style="
-                                text-align:center;
-                                padding:40px;
-                            "
+                            colspan="6"
+                            class="empty"
                         >
 
-                            No student bookings
-                            available for assignment.
+                            <div
+                                class="empty-icon"
+                            >
+                                👨‍🏫
+                            </div>
+
+
+                            <h3>
+                                No bookings found
+                            </h3>
+
+
+                            <p>
+                                There are no bookings
+                                matching your filters.
+                            </p>
 
                         </td>
 
@@ -1109,13 +2655,17 @@ tr:hover {
 
                 </tbody>
 
+
             </table>
+
 
         </div>
 
-    </div>
 
-</div>
+    </section>
+
+
+</main>
 
 
 </body>
