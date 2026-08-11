@@ -2733,8 +2733,6 @@ img {
 
 
 <!-- TEACHER 1 -->
-
-<div class="teacher-grid">
     
 <div class="teacher-card">
 
@@ -2784,8 +2782,10 @@ img {
 </div>
   </div>
 
-<!-- TEACHER 2 -->
+    
 <div class="teacher-grid">
+<!-- TEACHER 2 -->
+
     
 <div class="teacher-card">
 
@@ -2834,8 +2834,9 @@ img {
 </div>
   </div>
 
-<!-- TEACHER 3 -->
+    
 <div class="teacher-grid">
+<!-- TEACHER 3 -->
     
 <div class="teacher-card">
 
@@ -2884,9 +2885,10 @@ img {
 
 </div>
   </div>
-
-<!-- TEACHER 4 -->
+    
 <div class="teacher-grid">
+<!-- TEACHER 4 -->
+
     
 <div class="teacher-card">
 
