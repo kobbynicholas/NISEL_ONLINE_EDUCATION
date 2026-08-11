@@ -7,20 +7,23 @@ $message = "";
 $message_type = "";
 
 /*
+/*
 =========================================================
 ASSIGN TEACHER
 =========================================================
 */
 
-if ($_SERVER["REQUEST_METHOD"] === "POST"
-    && isset($_POST["assign_teacher"])) {
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    && isset($_POST["assign_teacher"])
+) {
 
     $booking_id = (int)($_POST["booking_id"] ?? 0);
     $teacher_id = trim($_POST["teacher_id"] ?? "");
 
-    if ($booking_id <= 0 || $teacher_id === "") {
+    if ($booking_id <= 0 || empty($teacher_id)) {
 
-        $message = "Please select a valid teacher.";
+        $message = "Please select a teacher.";
         $message_type = "error";
 
     } else {
@@ -28,17 +31,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST"
         try {
 
             /*
-            -------------------------------------------------
-            GET TEACHER
-            -------------------------------------------------
+            ==============================================
+            GET TEACHER INFORMATION
+            ==============================================
             */
 
             $teacherStmt = $pdo->prepare("
                 SELECT
                     teacher_id,
-                    teacher_name,
-                    email,
-                    phone
+                    teacher_name
                 FROM teachers
                 WHERE teacher_id = ?
                 AND status = 'Active'
@@ -49,59 +50,24 @@ if ($_SERVER["REQUEST_METHOD"] === "POST"
                 $teacher_id
             ]);
 
-            $teacher = $teacherStmt->fetch(PDO::FETCH_ASSOC);
+            $teacher = $teacherStmt->fetch(
+                PDO::FETCH_ASSOC
+            );
 
 
             if (!$teacher) {
 
                 throw new Exception(
-                    "Selected teacher was not found or is not active."
+                    "Teacher account not found."
                 );
 
             }
 
 
             /*
-            -------------------------------------------------
-            CHECK BOOKING
-            -------------------------------------------------
-            */
-
-            $bookingStmt = $pdo->prepare("
-                SELECT
-                    id,
-                    booking_reference,
-                    student_name,
-                    email,
-                    subjects,
-                    curriculum,
-                    class_year,
-                    payment_status
-                FROM bookings
-                WHERE id = ?
-                LIMIT 1
-            ");
-
-            $bookingStmt->execute([
-                $booking_id
-            ]);
-
-            $booking = $bookingStmt->fetch(PDO::FETCH_ASSOC);
-
-
-            if (!$booking) {
-
-                throw new Exception(
-                    "Booking was not found."
-                );
-
-            }
-
-
-            /*
-            -------------------------------------------------
-            ASSIGN TEACHER
-            -------------------------------------------------
+            ==============================================
+            UPDATE BOOKING
+            ==============================================
             */
 
             $updateStmt = $pdo->prepare("
@@ -114,18 +80,57 @@ if ($_SERVER["REQUEST_METHOD"] === "POST"
             ");
 
             $updateStmt->execute([
+
                 $teacher["teacher_id"],
+
                 $teacher["teacher_name"],
+
+                $booking_id
+
+            ]);
+
+
+            /*
+            ==============================================
+            VERIFY UPDATE
+            ==============================================
+            */
+
+            $verifyStmt = $pdo->prepare("
+                SELECT
+                    teacher_id,
+                    teacher_name,
+                    assignment_status
+                FROM bookings
+                WHERE id = ?
+                LIMIT 1
+            ");
+
+            $verifyStmt->execute([
                 $booking_id
             ]);
+
+            $updatedBooking =
+                $verifyStmt->fetch(
+                    PDO::FETCH_ASSOC
+                );
+
+
+            if (!$updatedBooking) {
+
+                throw new Exception(
+                    "Booking could not be verified."
+                );
+
+            }
 
 
             $message =
                 "Teacher "
-                . htmlspecialchars($teacher["teacher_name"])
-                . " has been assigned successfully to "
-                . htmlspecialchars($booking["student_name"])
-                . ".";
+                . htmlspecialchars(
+                    $updatedBooking["teacher_name"]
+                )
+                . " assigned successfully.";
 
             $message_type = "success";
 
@@ -133,12 +138,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST"
         } catch (Exception $e) {
 
             $message =
-                "Unable to assign teacher: "
-                . $e->getMessage();
+                "Assignment failed: "
+                . htmlspecialchars(
+                    $e->getMessage()
+                );
 
             $message_type = "error";
 
         }
+
     }
 }
 
