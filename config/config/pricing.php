@@ -19,6 +19,8 @@ $curriculumPrices = [
 
     'IB' => 1200,
 
+    'GES' => 850,
+
     'GES' => 800
 
 ];
