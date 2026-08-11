@@ -6,12 +6,12 @@ require "../config/db.php";
 
 
 /* =========================================================
-   STUDENT AUTHENTICATION
+   CHECK STUDENT LOGIN
 ========================================================= */
 
 if (
-    !isset($_SESSION['student_id']) ||
-    empty($_SESSION['student_id'])
+    !isset($_SESSION['student_logged_in']) ||
+    $_SESSION['student_logged_in'] !== true
 ) {
     header("Location: login.php");
     exit;
@@ -20,9 +20,11 @@ if (
 
 $studentId = $_SESSION['student_id'];
 
-$success = "";
-$error = "";
+$studentName =
+    $_SESSION['student_name'] ?? "Student";
 
+$studentEmail =
+    $_SESSION['student_email'] ?? "";
 
 /* =========================================================
    HELPER
@@ -44,12 +46,12 @@ function h($value)
 
 try {
 
-    $stmt = $pdo->prepare("
-        SELECT *
-        FROM students
-        WHERE student_id = ?
-        LIMIT 1
-    ");
+   $stmt = $pdo->prepare("
+    SELECT *
+    FROM students
+    WHERE id = ?
+    LIMIT 1
+");
 
     $stmt->execute([
         $studentId
