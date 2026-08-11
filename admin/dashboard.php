@@ -158,10 +158,10 @@ try {
     */
 
     $stmt = $pdo->query("
-        SELECT COUNT(*)
-        FROM teacher_applications
-        WHERE LOWER(status) = 'pending'
-    ");
+    SELECT COUNT(*)
+    FROM teacher_applications
+    WHERE LOWER(application_status) = 'pending'
+");
 
     $pendingApplications =
         (int)$stmt->fetchColumn();
