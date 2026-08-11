@@ -924,14 +924,14 @@ student portal.
 
 </div>
 
-        <a
+      <div><a
             href="book_lesson.php"
             class="booking-button"
         >
 
             ➕ Book a Lesson
 
-        </a>
+        </a></div>
 
     </div>
 
