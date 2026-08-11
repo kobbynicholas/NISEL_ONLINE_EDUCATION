@@ -16,15 +16,12 @@ session_start();
 | DATABASE CONNECTION
 |--------------------------------------------------------------------------
 |
-| admin_login.php is located in:
+| This file is:
+| C:\xampp\htdocs\online\admin_login.php
 |
-| C:\xampp\htdocs\online\
+| Database file:
+| C:\xampp\htdocs\online\config\db.php
 |
-| db.php is located in:
-|
-| C:\xampp\htdocs\online\config\
-|
-|--------------------------------------------------------------------------
 */
 
 require "config/db.php";
@@ -43,7 +40,7 @@ $email = "";
 
 /*
 |--------------------------------------------------------------------------
-| CHECK IF ADMIN IS ALREADY LOGGED IN
+| IF ALREADY LOGGED IN
 |--------------------------------------------------------------------------
 */
 
@@ -57,7 +54,6 @@ if (
     );
 
     exit;
-
 }
 
 
@@ -71,7 +67,6 @@ if (
     $_SERVER['REQUEST_METHOD'] === 'POST'
 ) {
 
-
     /*
     |--------------------------------------------------------------------------
     | GET FORM DATA
@@ -82,7 +77,6 @@ if (
         trim(
             $_POST['email'] ?? ''
         );
-
 
     $password =
         $_POST['password'] ?? '';
@@ -100,10 +94,9 @@ if (
     ) {
 
         $error =
-            "Please enter your email and password.";
+            "Please enter your email address and password.";
 
     }
-
 
     elseif (
         !filter_var(
@@ -117,41 +110,31 @@ if (
 
     }
 
-
     else {
 
         try {
 
-
             /*
             |--------------------------------------------------------------------------
-            | FIND ADMIN ACCOUNT
+            | FIND ADMIN
             |--------------------------------------------------------------------------
             */
 
             $stmt = $pdo->prepare("
-
                 SELECT *
-
                 FROM admins
-
                 WHERE email = ?
-
                 LIMIT 1
-
             ");
 
-
             $stmt->execute([
-
                 $email
-
             ]);
 
 
             /*
             |--------------------------------------------------------------------------
-            | FETCH ADMIN
+            | GET ADMIN RECORD
             |--------------------------------------------------------------------------
             */
 
@@ -167,23 +150,21 @@ if (
             |--------------------------------------------------------------------------
             */
 
-            if (
-                !$admin
-            ) {
+            if (!$admin) {
 
                 $error =
                     "Admin account not found.";
 
             }
 
-
             /*
             |--------------------------------------------------------------------------
-            | VERIFY PASSWORD
+            | PASSWORD CHECK
             |--------------------------------------------------------------------------
             */
 
             elseif (
+                empty($admin['password']) ||
                 !password_verify(
                     $password,
                     $admin['password']
@@ -195,7 +176,6 @@ if (
 
             }
 
-
             /*
             |--------------------------------------------------------------------------
             | LOGIN SUCCESSFUL
@@ -204,21 +184,18 @@ if (
 
             else {
 
-
                 /*
                 |--------------------------------------------------------------------------
-                | REGENERATE SESSION ID
+                | CREATE NEW SESSION ID
                 |--------------------------------------------------------------------------
                 */
 
-                session_regenerate_id(
-                    true
-                );
+                session_regenerate_id(true);
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | CREATE ADMIN SESSION
+                | STORE ADMIN SESSION
                 |--------------------------------------------------------------------------
                 */
 
@@ -236,14 +213,13 @@ if (
                     $admin['email'];
 
 
-                $_SESSION[
-                    'admin_logged_in'
-                ] = true;
+                $_SESSION['admin_logged_in'] =
+                    true;
 
 
                 /*
                 |--------------------------------------------------------------------------
-                | REDIRECT TO ADMIN DASHBOARD
+                | REDIRECT
                 |--------------------------------------------------------------------------
                 */
 
@@ -252,14 +228,12 @@ if (
                 );
 
                 exit;
-
             }
 
 
         } catch (
             PDOException $e
         ) {
-
 
             /*
             |--------------------------------------------------------------------------
@@ -270,7 +244,20 @@ if (
             $error =
                 "Unable to process your login. "
                 .
-                "Please try again.";
+                "Please check your database connection.";
+
+            /*
+            |--------------------------------------------------------------------------
+            | DEVELOPMENT
+            |--------------------------------------------------------------------------
+            |
+            | If you need to see the actual database
+            | error while developing, temporarily use:
+            |
+            | $error = $e->getMessage();
+            |
+            |--------------------------------------------------------------------------
+            */
 
         }
 
@@ -295,9 +282,7 @@ if (
 >
 
 <title>
-
-    NISEL | Administrator Login
-
+    NISEL | Admin Login
 </title>
 
 
@@ -350,19 +335,19 @@ body {
         center;
 
     padding:
-        25px;
-
-    overflow:
-        hidden;
+        20px;
 
     position:
         relative;
+
+    overflow:
+        hidden;
 
 }
 
 
 /* =====================================================
-   BACKGROUND CIRCLES
+   BACKGROUND DECORATION
 ===================================================== */
 
 body::before {
@@ -391,7 +376,7 @@ body::before {
         );
 
     top:
-        -200px;
+        -220px;
 
     right:
         -150px;
@@ -425,7 +410,7 @@ body::after {
         );
 
     bottom:
-        -170px;
+        -180px;
 
     left:
         -130px;
@@ -434,7 +419,7 @@ body::after {
 
 
 /* =====================================================
-   WRAPPER
+   LOGIN WRAPPER
 ===================================================== */
 
 .login-wrapper {
@@ -443,7 +428,7 @@ body::after {
         100%;
 
     max-width:
-        450px;
+        440px;
 
     position:
         relative;
@@ -455,7 +440,7 @@ body::after {
 
 
 /* =====================================================
-   CARD
+   LOGIN CARD
 ===================================================== */
 
 .login-card {
@@ -639,7 +624,7 @@ body::after {
         flex;
 
     align-items:
-        center;
+        flex-start;
 
     gap:
         10px;
@@ -672,8 +657,16 @@ body::after {
 }
 
 
+.error-icon {
+
+    flex:
+        0 0 auto;
+
+}
+
+
 /* =====================================================
-   FORM
+   FORM GROUP
 ===================================================== */
 
 .form-group {
@@ -743,7 +736,7 @@ body::after {
 
 
 /* =====================================================
-   INPUTS
+   INPUT
 ===================================================== */
 
 .form-control {
@@ -765,7 +758,7 @@ body::after {
         10px;
 
     background:
-        white;
+        #ffffff;
 
     color:
         #172b4d;
@@ -803,6 +796,53 @@ body::after {
             183,
             .10
         );
+
+}
+
+
+/* =====================================================
+   PASSWORD TOGGLE
+===================================================== */
+
+.password-toggle {
+
+    position:
+        absolute;
+
+    right:
+        12px;
+
+    top:
+        50%;
+
+    transform:
+        translateY(-50%);
+
+    border:
+        none;
+
+    background:
+        transparent;
+
+    color:
+        #98a2b3;
+
+    cursor:
+        pointer;
+
+    font-size:
+        16px;
+
+    padding:
+        5px;
+
+}
+
+
+.password-toggle:hover {
+
+    color:
+        #003366;
 
 }
 
@@ -915,14 +955,14 @@ body::after {
         center;
 
     margin-top:
-        22px;
+        20px;
 
     color:
         rgba(
             255,
             255,
             255,
-            .8
+            .80
         );
 
     font-size:
@@ -938,7 +978,7 @@ body::after {
    MOBILE
 ===================================================== */
 
-@media(
+@media (
     max-width: 500px
 ) {
 
@@ -1007,7 +1047,7 @@ body::after {
 
 
         <!-- =================================================
-             LOGO
+             NISEL LOGO
         ================================================== -->
 
         <div class="logo">
@@ -1054,7 +1094,7 @@ body::after {
             <p>
 
                 Welcome back. Sign in to manage
-                your NISEL platform.
+                the NISEL Online Education platform.
 
             </p>
 
@@ -1072,7 +1112,7 @@ body::after {
 
             <div class="error">
 
-                <span>
+                <span class="error-icon">
 
                     ⚠️
 
@@ -1184,6 +1224,18 @@ body::after {
                     >
 
 
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        id="togglePassword"
+                        aria-label="Show password"
+                    >
+
+                        👁️
+
+                    </button>
+
+
                 </div>
 
 
@@ -1191,7 +1243,7 @@ body::after {
 
 
 
-            <!-- LOGIN -->
+            <!-- LOGIN BUTTON -->
 
             <button
                 type="submit"
@@ -1199,7 +1251,7 @@ body::after {
                 class="login-button"
             >
 
-                🔐 &nbsp; Sign In
+                🔐 &nbsp; Sign In to Admin Portal
 
             </button>
 
@@ -1237,6 +1289,68 @@ body::after {
 
 
 </div>
+
+
+
+<script>
+
+/*
+|--------------------------------------------------------------------------
+| SHOW / HIDE PASSWORD
+|--------------------------------------------------------------------------
+*/
+
+const password =
+    document.getElementById(
+        "password"
+    );
+
+
+const togglePassword =
+    document.getElementById(
+        "togglePassword"
+    );
+
+
+togglePassword.addEventListener(
+    "click",
+    function () {
+
+        if (
+            password.type ===
+            "password"
+        ) {
+
+            password.type =
+                "text";
+
+            togglePassword.textContent =
+                "🙈";
+
+            togglePassword.setAttribute(
+                "aria-label",
+                "Hide password"
+            );
+
+        } else {
+
+            password.type =
+                "password";
+
+            togglePassword.textContent =
+                "👁️";
+
+            togglePassword.setAttribute(
+                "aria-label",
+                "Show password"
+            );
+
+        }
+
+    }
+);
+
+</script>
 
 
 </body>
