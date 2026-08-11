@@ -2281,7 +2281,7 @@ img {
 <div class="curriculum-card">
 
     <img
-        src="assets/images/cambridge.jpg"
+        src="assets/images/curriculum/cambridge.jpg"
         class="curriculum-bg"
         alt="Cambridge"
         onerror="
@@ -2325,7 +2325,7 @@ img {
 <div class="curriculum-card">
 
     <img
-        src="assets/images/ib.jpg"
+        src="assets/images/curriculum/ib.jpg"
         class="curriculum-bg"
         alt="IB Curriculum"
         onerror="
@@ -2369,7 +2369,7 @@ img {
 <div class="curriculum-card">
 
     <img
-        src="assets/images/ges.jpg"
+        src="assets/images/curriculum/ges.jpg"
         class="curriculum-bg"
         alt="GES Curriculum"
         onerror="
