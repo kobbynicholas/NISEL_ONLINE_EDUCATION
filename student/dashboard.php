@@ -899,30 +899,7 @@ student portal.
             Choose a subject and create your
             monthly lesson package.
         </p>
-
-       <div class="pricing-list">
-
-    <div>
-        <strong>Cambridge</strong>
-        <span>GHS 1,000</span>
-    </div>
-
-    <div>
-        <strong>IB</strong>
-        <span>GHS 1,200</span>
-    </div>
-
-    <div>
-        <strong>SAT</strong>
-        <span>GHS 850</span>
-    </div>
-
-    <div>
-        <strong>GES</strong>
-        <span>GHS 800</span>
-    </div>
-
-</div>
+       
 
       <div><a
             href="book_lesson.php"
