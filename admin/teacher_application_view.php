@@ -3,19 +3,414 @@
 require "../admin_auth.php";
 require "../config/db.php";
 
+$message = "";
+
+$message_type = "";
+
 
 /* =========================================================
-   HELPER
+   SEND TEACHER APPROVAL EMAIL
 ========================================================= */
 
-function h($value)
-{
-    return htmlspecialchars(
-        (string)$value,
-        ENT_QUOTES,
-        'UTF-8'
-    );
+function sendTeacherApprovalEmail(
+    string $recipientEmail,
+    string $teacherName,
+    string $teacherId,
+    string $temporaryPassword
+): array {
+
+    $subject =
+        "NISEL Online Education - Teacher Account Approved";
+
+    $safeName =
+        htmlspecialchars(
+            $teacherName,
+            ENT_QUOTES,
+            "UTF-8"
+        );
+
+    $safeId =
+        htmlspecialchars(
+            $teacherId,
+            ENT_QUOTES,
+            "UTF-8"
+        );
+
+    $safePassword =
+        htmlspecialchars(
+            $temporaryPassword,
+            ENT_QUOTES,
+            "UTF-8"
+        );
+
+
+    /*
+     * ---------------------------------------------------------
+     * PHPMailer
+     * ---------------------------------------------------------
+     * If PHPMailer is installed at:
+     *
+     * C:\xampp\htdocs\online\vendor\autoload.php
+     *
+     * it will be used automatically.
+     *
+     * IMPORTANT:
+     * Replace the SMTP settings below with the email account
+     * you want NISEL to send from.
+     * ---------------------------------------------------------
+     */
+
+    $autoload =
+        dirname(__DIR__) .
+        DIRECTORY_SEPARATOR .
+        "vendor" .
+        DIRECTORY_SEPARATOR .
+        "autoload.php";
+
+
+    if (file_exists($autoload)) {
+
+        require_once $autoload;
+
+
+        if (
+            class_exists(
+                "\\PHPMailer\\PHPMailer\\PHPMailer"
+            )
+        ) {
+
+            try {
+
+                $mail =
+                    new \PHPMailer\PHPMailer\PHPMailer(
+                        true
+                    );
+
+
+                $mail->isSMTP();
+
+                /*
+                 * CHANGE THESE SETTINGS
+                 * to your actual SMTP provider.
+                 */
+                $mail->Host =
+                    "smtp.gmail.com";
+
+                $mail->SMTPAuth =
+                    true;
+
+                $mail->Username =
+                    "info@niseleducation.online";
+
+                $mail->Password =
+                    "YOUR_GMAIL_APP_PASSWORD";
+
+                $mail->SMTPSecure =
+                    \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+
+                $mail->Port =
+                    587;
+
+
+                $mail->setFrom(
+                    "info@niseleducation.online",
+                    "NISEL ONLINE EDUCATION"
+                );
+
+                $mail->addAddress(
+                    $recipientEmail,
+                    $teacherName
+                );
+
+
+                $mail->isHTML(true);
+
+                $mail->Subject =
+                    $subject;
+
+
+                $mail->Body = "
+                    <div style=\"
+                        font-family:Arial,sans-serif;
+                        background:#f4f8fc;
+                        padding:30px;
+                    \">
+
+                        <div style=\"
+                            max-width:600px;
+                            margin:auto;
+                            background:#ffffff;
+                            border-radius:16px;
+                            overflow:hidden;
+                            box-shadow:0 8px 30px rgba(0,0,0,.08);
+                        \">
+
+                            <div style=\"
+                                background:#003366;
+                                color:#ffffff;
+                                padding:28px;
+                                text-align:center;
+                            \">
+
+                                <h1 style=\"
+                                    margin:0;
+                                    font-size:24px;
+                                \">
+                                    NISEL ONLINE EDUCATION
+                                </h1>
+
+                                <p style=\"
+                                    margin:8px 0 0;
+                                    color:#d9efff;
+                                \">
+                                    Teacher Portal
+                                </p>
+
+                            </div>
+
+                            <div style=\"padding:30px;\">
+
+                                <h2 style=\"color:#003366;\">
+                                    Congratulations, {$safeName}!
+                                </h2>
+
+                                <p style=\"
+                                    color:#4b5d70;
+                                    line-height:1.7;
+                                \">
+                                    Your application to become a teacher
+                                    with NISEL ONLINE EDUCATION has been
+                                    approved.
+                                </p>
+
+                                <p style=\"
+                                    color:#4b5d70;
+                                    line-height:1.7;
+                                \">
+                                    Your teacher account has now been
+                                    created. Please use the login details
+                                    below to access your teacher portal.
+                                </p>
+
+                                <div style=\"
+                                    background:#eef7fc;
+                                    border:1px solid #cfe7f5;
+                                    border-radius:12px;
+                                    padding:20px;
+                                    margin:22px 0;
+                                \">
+
+                                    <p style=\"margin:7px 0;\">
+                                        <strong>Teacher ID:</strong>
+                                        {$safeId}
+                                    </p>
+
+                                    <p style=\"margin:7px 0;\">
+                                        <strong>Email:</strong>
+                                        {$recipientEmail}
+                                    </p>
+
+                                    <p style=\"margin:7px 0;\">
+                                        <strong>Temporary Password:</strong>
+                                        {$safePassword}
+                                    </p>
+
+                                </div>
+
+                                <p style=\"
+                                    color:#b42318;
+                                    background:#fff4f4;
+                                    border-radius:10px;
+                                    padding:13px;
+                                    line-height:1.6;
+                                \">
+                                    For security, please change your
+                                    temporary password after your first
+                                    successful login.
+                                </p>
+
+                                <div style=\"text-align:center;margin:25px 0;\">
+
+                                    <a
+                                        href=\"http://localhost/online/teacher/login.php\"
+                                        style=\"
+                                            display:inline-block;
+                                            background:#003366;
+                                            color:#ffffff;
+                                            padding:13px 22px;
+                                            border-radius:9px;
+                                            text-decoration:none;
+                                            font-weight:bold;
+                                        \"
+                                    >
+                                        Login to Teacher Portal
+                                    </a>
+
+                                </div>
+
+                                <p style=\"
+                                    color:#7a8796;
+                                    font-size:12px;
+                                    line-height:1.6;
+                                \">
+                                    If you did not expect this message,
+                                    please contact NISEL ONLINE EDUCATION
+                                    administration.
+                                </p>
+
+                            </div>
+
+                            <div style=\"
+                                background:#f7f9fb;
+                                padding:18px;
+                                text-align:center;
+                                color:#8996a4;
+                                font-size:11px;
+                            \">
+                                © " . date("Y") . "
+                                NISEL ONLINE EDUCATION.
+                                All Rights Reserved.
+                            </div>
+
+                        </div>
+
+                    </div>
+                ";
+
+
+                $mail->AltBody =
+                    "Congratulations {$teacherName}.\n\n" .
+                    "Your NISEL teacher application has been approved.\n\n" .
+                    "Teacher ID: {$teacherId}\n" .
+                    "Email: {$recipientEmail}\n" .
+                    "Temporary Password: {$temporaryPassword}\n\n" .
+                    "Please change your temporary password after your first login.";
+
+
+                $mail->send();
+
+
+                return [
+                    "success" => true,
+                    "message" =>
+                        "Approval email sent successfully."
+                ];
+
+            } catch (
+                \PHPMailer\PHPMailer\Exception $e
+            ) {
+
+                return [
+                    "success" => false,
+                    "message" =>
+                        "Teacher account was created, but the approval email could not be sent. " .
+                        $e->getMessage()
+                ];
+            }
+        }
+    }
+
+
+    /*
+     * ---------------------------------------------------------
+     * FALLBACK
+     * ---------------------------------------------------------
+     * If PHPMailer is not installed, use PHP mail().
+     *
+     * On XAMPP this normally requires mail/SMTP configuration
+     * in php.ini or sendmail.
+     * ---------------------------------------------------------
+     */
+
+    $headers = [];
+
+    $headers[] =
+        "MIME-Version: 1.0";
+
+    $headers[] =
+        "Content-Type: text/html; charset=UTF-8";
+
+    $headers[] =
+        "From: NISEL ONLINE EDUCATION <noreply@niseleducation.online>";
+
+
+    $body = "
+        <html>
+        <body style=\"font-family:Arial,sans-serif;\">
+
+            <h2 style=\"color:#003366;\">
+                NISEL ONLINE EDUCATION
+            </h2>
+
+            <p>
+                Dear {$safeName},
+            </p>
+
+            <p>
+                Congratulations. Your teacher application has
+                been approved.
+            </p>
+
+            <p>
+                <strong>Teacher ID:</strong>
+                {$safeId}
+            </p>
+
+            <p>
+                <strong>Email:</strong>
+                {$recipientEmail}
+            </p>
+
+            <p>
+                <strong>Temporary Password:</strong>
+                {$safePassword}
+            </p>
+
+            <p>
+                Please change your temporary password after
+                your first login.
+            </p>
+
+            <p>
+                NISEL ONLINE EDUCATION
+            </p>
+
+        </body>
+        </html>
+    ";
+
+
+    $sent =
+        mail(
+            $recipientEmail,
+            $subject,
+            $body,
+            implode(
+                "\r\n",
+                $headers
+            )
+        );
+
+
+    if ($sent) {
+
+        return [
+            "success" => true,
+            "message" =>
+                "Approval email sent successfully."
+        ];
+
+    }
+
+
+    return [
+        "success" => false,
+        "message" =>
+            "Teacher account was created, but the email could not be sent. " .
+            "Configure PHPMailer SMTP or XAMPP mail settings."
+    ];
 }
+
 
 
 /* =========================================================
@@ -26,11 +421,11 @@ $application_id = 0;
 
 if (isset($_GET['id'])) {
 
-    $application_id = (int)$_GET['id'];
+    $application_id = (int) $_GET['id'];
 
 } elseif (isset($_POST['application_id'])) {
 
-    $application_id = (int)$_POST['application_id'];
+    $application_id = (int) $_POST['application_id'];
 
 }
 
@@ -42,26 +437,23 @@ if ($application_id <= 0) {
 }
 
 
-$message = "";
-$message_type = "";
-
-$temporary_password = "";
-$new_teacher_id = "";
-
-
 /* =========================================================
    APPROVE APPLICATION
 ========================================================= */
 
 if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
+    $_SERVER["REQUEST_METHOD"] === "POST"
     &&
     isset($_POST['action'])
     &&
-    $_POST['action'] === 'approve'
+    $_POST['action'] === "approve"
 ) {
 
     try {
+
+        /* ================================================
+           GET APPLICATION
+        ================================================= */
 
         $stmt = $pdo->prepare("
             SELECT *
@@ -74,179 +466,143 @@ if (
             $application_id
         ]);
 
-        $application =
-            $stmt->fetch(PDO::FETCH_ASSOC);
+        $application = $stmt->fetch();
 
 
         if (!$application) {
 
             throw new Exception(
-                "Teacher application not found."
+                "Teacher application was not found."
             );
 
         }
 
 
-        $status =
+        /* ================================================
+           CHECK APPLICATION STATUS
+        ================================================= */
+
+        if (
             strtolower(
                 trim(
                     $application['application_status']
-                    ?? ''
                 )
-            );
-
-
-        if ($status === 'approved') {
+            ) === "approved"
+        ) {
 
             throw new Exception(
-                "This teacher application has already been approved."
+                "This application has already been approved."
             );
 
         }
 
 
-        /* =================================================
-           APPLICATION INFORMATION
+        /* ================================================
+           GET APPLICATION DATA
         ================================================= */
 
         $teacher_name =
             trim(
                 $application['full_name']
-                ?? ''
             );
 
         $phone =
             trim(
                 $application['phone']
-                ?? ''
             );
 
         $email =
             trim(
                 $application['email']
-                ?? ''
             );
 
         $qualification =
             trim(
                 $application['qualification']
-                ?? ''
             );
 
         $subjects =
             trim(
                 $application['subjects']
-                ?? ''
             );
+
+        /*
+         * IMPORTANT:
+         * Application table uses "curricula"
+         * Teachers table uses "curriculum"
+         */
 
         $curriculum =
             trim(
                 $application['curricula']
-                ?? ''
             );
 
         $experience =
             trim(
                 $application['teaching_experience']
-                ?? ''
+                ?? ""
             );
 
         $bio =
             trim(
                 $application['professional_statement']
-                ?? ''
+                ?? ""
+            );
+
+        $photo =
+            trim(
+                $application['photo_filename']
+                ?? ""
             );
 
 
-        /* =================================================
-           PHOTO
-
-           Check both fields.
-        ================================================= */
-
-        $photo = "";
-
-
-        if (
-            isset($application['photo_filename'])
-            &&
-            trim(
-                $application['photo_filename']
-            ) !== ''
-        ) {
-
-            $photo =
-                trim(
-                    $application['photo_filename']
-                );
-
-        } elseif (
-            isset($application['photo'])
-            &&
-            trim(
-                $application['photo']
-            ) !== ''
-        ) {
-
-            $photo =
-                trim(
-                    $application['photo']
-                );
-
-        }
-
-
-        if ($photo !== '') {
-
-            $photo =
-                basename($photo);
-
-        }
-
-
-        /* =================================================
+        /* ================================================
            AVAILABILITY
         ================================================= */
 
         $preferred_days =
             trim(
                 $application['preferred_days']
-                ?? ''
+                ?? ""
             );
 
         $preferred_times =
             trim(
                 $application['preferred_times']
-                ?? ''
+                ?? ""
             );
 
 
         if (
-            $preferred_days !== ''
+            $preferred_days !== ""
             &&
-            $preferred_times !== ''
+            $preferred_times !== ""
         ) {
 
             $availability =
-                $preferred_days
-                . " | "
-                . $preferred_times;
+                $preferred_days .
+                " | " .
+                $preferred_times;
 
-        } elseif ($preferred_days !== '') {
+        } elseif ($preferred_days !== "") {
 
             $availability =
                 $preferred_days;
 
-        } else {
+        } elseif ($preferred_times !== "") {
 
             $availability =
                 $preferred_times;
 
+        } else {
+
+            $availability = "";
+
         }
 
 
-        /* =================================================
-           CHECK EMAIL
+        /* ================================================
+           CHECK EXISTING EMAIL
         ================================================= */
 
         $checkEmail = $pdo->prepare("
@@ -264,32 +620,35 @@ if (
         ]);
 
         $existingTeacher =
-            $checkEmail->fetch(PDO::FETCH_ASSOC);
+            $checkEmail->fetch();
 
 
         if ($existingTeacher) {
 
             throw new Exception(
                 "A teacher account already exists "
-                . "for this email. Teacher ID: "
+                . "with this email. Teacher ID: "
                 . $existingTeacher['teacher_id']
             );
 
         }
 
 
-        /* =================================================
-           GENERATE TEACHER ID
+        /* ================================================
+           GENERATE UNIQUE TEACHER ID
         ================================================= */
 
         do {
 
-            $new_teacher_id =
-                "NISEL-T-"
-                .
+            $teacher_id =
+                "NISEL-T-" .
                 strtoupper(
-                    bin2hex(
-                        random_bytes(4)
+                    substr(
+                        bin2hex(
+                            random_bytes(4)
+                        ),
+                        0,
+                        8
                     )
                 );
 
@@ -302,27 +661,30 @@ if (
             ");
 
             $checkID->execute([
-                $new_teacher_id
+                $teacher_id
             ]);
 
             $teacherExists =
-                $checkID->fetch(PDO::FETCH_ASSOC);
+                $checkID->fetch();
 
         } while ($teacherExists);
 
 
-        /* =================================================
-           PASSWORD
+        /* ================================================
+           GENERATE TEMPORARY PASSWORD
         ================================================= */
 
         $temporary_password =
-            "Nisel@"
-            .
+            "Nisel@" .
             random_int(
                 1000,
                 9999
             );
 
+
+        /* ================================================
+           HASH PASSWORD
+        ================================================= */
 
         $hashed_password =
             password_hash(
@@ -334,24 +696,25 @@ if (
         if (!$hashed_password) {
 
             throw new Exception(
-                "Unable to generate password."
+                "Unable to generate secure password."
             );
 
         }
 
 
-        /* =================================================
-           TRANSACTION
+        /* ================================================
+           START DATABASE TRANSACTION
         ================================================= */
 
         $pdo->beginTransaction();
 
 
-        /* =================================================
+        /* ================================================
            INSERT TEACHER
         ================================================= */
 
         $insertTeacher = $pdo->prepare("
+
             INSERT INTO teachers
             (
                 teacher_id,
@@ -368,6 +731,7 @@ if (
                 password,
                 status
             )
+
             VALUES
             (
                 ?,
@@ -384,12 +748,13 @@ if (
                 ?,
                 ?
             )
+
         ");
 
 
         $insertTeacher->execute([
 
-            $new_teacher_id,
+            $teacher_id,
 
             $teacher_name,
 
@@ -418,60 +783,143 @@ if (
         ]);
 
 
-        /* =================================================
-           VERIFY TEACHER
+        /* ================================================
+           VERIFY TEACHER WAS INSERTED
         ================================================= */
 
-        $verify = $pdo->prepare("
+        $verifyTeacher = $pdo->prepare("
             SELECT id, teacher_id
             FROM teachers
             WHERE teacher_id = ?
             LIMIT 1
         ");
 
-        $verify->execute([
-            $new_teacher_id
+        $verifyTeacher->execute([
+            $teacher_id
         ]);
 
         $createdTeacher =
-            $verify->fetch(PDO::FETCH_ASSOC);
+            $verifyTeacher->fetch();
 
 
         if (!$createdTeacher) {
 
             throw new Exception(
-                "Teacher account was not created."
+                "Teacher account was not found "
+                . "after insertion."
             );
 
         }
 
 
-        /* =================================================
-           APPROVE APPLICATION
+        /* ================================================
+           UPDATE APPLICATION
         ================================================= */
 
-        $update = $pdo->prepare("
+        $updateApplication = $pdo->prepare("
+
             UPDATE teacher_applications
+
             SET application_status = 'Approved'
+
             WHERE id = ?
+
         ");
 
-        $update->execute([
+
+        $updateApplication->execute([
             $application_id
         ]);
 
 
+        /* ================================================
+           VERIFY APPLICATION UPDATE
+        ================================================= */
+
+        if (
+            $updateApplication->rowCount() === 0
+        ) {
+
+            /*
+             * If it was already approved, this can be 0.
+             * But we already checked the status above.
+             */
+
+            throw new Exception(
+                "Teacher was created but "
+                . "application status could not be updated."
+            );
+
+        }
+
+
+        /* ================================================
+           COMMIT
+        ================================================= */
+
         $pdo->commit();
 
 
-        $message_type =
-            "success";
+        /* ================================================
+           SEND APPROVAL EMAIL
+        ================================================= */
+        /*
+         * The database transaction has already been committed.
+         * Therefore an email failure will NOT undo the newly
+         * created teacher account.
+         */
+        $emailResult =
+            sendTeacherApprovalEmail(
+                $email,
+                $teacher_name,
+                $teacher_id,
+                $temporary_password
+            );
 
-        $message =
-            "Teacher approved successfully.";
+
+        /* ================================================
+           SUCCESS MESSAGE
+        ================================================= */
+
+        if ($emailResult["success"]) {
+
+            $message_type =
+                "success";
+
+            $message =
+                "Teacher approved successfully. " .
+                "Teacher ID: " .
+                $teacher_id .
+                ". The teacher's login details have been " .
+                "sent to " .
+                $email .
+                ".";
+
+        } else {
+
+            /*
+             * The teacher account was still created successfully.
+             * Do not display the temporary password on the page
+             * unless the administrator needs it for recovery.
+             */
+            $message_type =
+                "success";
+
+            $message =
+                "Teacher approved successfully. " .
+                "Teacher ID: " .
+                $teacher_id .
+                ". However, the approval email could not be sent. " .
+                $emailResult["message"];
+        }
 
 
     } catch (Exception $e) {
+
+
+        /* ================================================
+           ROLLBACK
+        ================================================= */
 
         if (
             isset($pdo)
@@ -489,8 +937,7 @@ if (
 
         $message =
             "Approval failed: "
-            .
-            $e->getMessage();
+            . $e->getMessage();
 
     }
 
@@ -498,23 +945,27 @@ if (
 
 
 /* =========================================================
-   REJECT
+   REJECT APPLICATION
 ========================================================= */
 
 if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
+    $_SERVER["REQUEST_METHOD"] === "POST"
     &&
     isset($_POST['action'])
     &&
-    $_POST['action'] === 'reject'
+    $_POST['action'] === "reject"
 ) {
 
     try {
 
         $stmt = $pdo->prepare("
+
             UPDATE teacher_applications
+
             SET application_status = 'Rejected'
+
             WHERE id = ?
+
         ");
 
         $stmt->execute([
@@ -533,8 +984,7 @@ if (
 
         $message =
             "Unable to reject application: "
-            .
-            $e->getMessage();
+            . $e->getMessage();
 
         $message_type =
             "error";
@@ -545,61 +995,19 @@ if (
 
 
 /* =========================================================
-   RETURN TO PENDING
-========================================================= */
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST'
-    &&
-    isset($_POST['action'])
-    &&
-    $_POST['action'] === 'pending'
-) {
-
-    try {
-
-        $stmt = $pdo->prepare("
-            UPDATE teacher_applications
-            SET application_status = 'Pending'
-            WHERE id = ?
-        ");
-
-        $stmt->execute([
-            $application_id
-        ]);
-
-
-        $message =
-            "Application returned to Pending.";
-
-        $message_type =
-            "success";
-
-
-    } catch (PDOException $e) {
-
-        $message =
-            "Unable to update application: "
-            .
-            $e->getMessage();
-
-        $message_type =
-            "error";
-
-    }
-
-}
-
-
-/* =========================================================
-   LOAD APPLICATION
+   GET APPLICATION FOR DISPLAY
 ========================================================= */
 
 $stmt = $pdo->prepare("
+
     SELECT *
+
     FROM teacher_applications
+
     WHERE id = ?
+
     LIMIT 1
+
 ");
 
 $stmt->execute([
@@ -607,265 +1015,16 @@ $stmt->execute([
 ]);
 
 $application =
-    $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->fetch();
 
 
 if (!$application) {
 
-    die("Teacher application not found.");
-
-}
-
-
-/* =========================================================
-   STATUS
-========================================================= */
-
-$status =
-    strtolower(
-        trim(
-            $application['application_status']
-            ?? 'pending'
-        )
+    die(
+        "Teacher application not found."
     );
 
-
-$statusClass =
-    'pending';
-
-
-if ($status === 'approved') {
-
-    $statusClass =
-        'approved';
-
-} elseif ($status === 'rejected') {
-
-    $statusClass =
-        'rejected';
-
 }
-
-
-/* =========================================================
-   PHOTO
-========================================================= */
-
-/*
-    VERY IMPORTANT
-
-    The actual photo upload folder is:
-
-    C:\xampp\htdocs\online\teacher\uploads\teachers\
-
-    The browser URL is:
-
-    /online/teacher/uploads/teachers/
-
-    We intentionally use an absolute URL here instead of
-    ../teacher/... because that eliminates the relative-path
-    problem.
-*/
-
-
-$photoFile = "";
-
-
-if (
-    isset($application['photo_filename'])
-    &&
-    trim(
-        $application['photo_filename']
-    ) !== ''
-) {
-
-    $photoFile =
-        trim(
-            $application['photo_filename']
-        );
-
-} elseif (
-    isset($application['photo'])
-    &&
-    trim(
-        $application['photo']
-    ) !== ''
-) {
-
-    $photoFile =
-        trim(
-            $application['photo']
-        );
-
-}
-
-
-$photoFile =
-    basename($photoFile);
-
-
-$photoUrl = "";
-
-$photoExists = false;
-
-
-if ($photoFile !== '') {
-
-
-    /*
-    ---------------------------------------------------------
-    ACTUAL WINDOWS FILE
-    ---------------------------------------------------------
-    */
-
-    $actualPhoto =
-        __DIR__
-        . DIRECTORY_SEPARATOR
-        . ".."
-        . DIRECTORY_SEPARATOR
-        . "teacher"
-        . DIRECTORY_SEPARATOR
-        . "uploads"
-        . DIRECTORY_SEPARATOR
-        . "teachers"
-        . DIRECTORY_SEPARATOR
-        . $photoFile;
-
-
-    if (is_file($actualPhoto)) {
-
-        $photoExists = true;
-
-
-        /*
-        -----------------------------------------------------
-        ABSOLUTE BROWSER URL
-        -----------------------------------------------------
-        */
-
-        $photoUrl =
-            "/online/teacher/uploads/teachers/"
-            .
-            rawurlencode(
-                $photoFile
-            );
-
-    }
-
-
-    /*
-    ---------------------------------------------------------
-    FALLBACK OLD LOCATION
-    ---------------------------------------------------------
-    */
-
-    if (!$photoExists) {
-
-        $oldPhoto =
-            __DIR__
-            . DIRECTORY_SEPARATOR
-            . ".."
-            . DIRECTORY_SEPARATOR
-            . "uploads"
-            . DIRECTORY_SEPARATOR
-            . "teachers"
-            . DIRECTORY_SEPARATOR
-            . "photos"
-            . DIRECTORY_SEPARATOR
-            . $photoFile;
-
-
-        if (is_file($oldPhoto)) {
-
-            $photoExists = true;
-
-
-            $photoUrl =
-                "/online/uploads/teachers/photos/"
-                .
-                rawurlencode(
-                    $photoFile
-                );
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   CV
-========================================================= */
-
-$cvFile =
-    trim(
-        $application['cv_filename']
-        ?? ''
-    );
-
-
-$cvUrl = "";
-
-
-if ($cvFile !== '') {
-
-    $cvFile =
-        basename($cvFile);
-
-
-    $possibleCV = [
-
-        __DIR__
-        . "/../teacher/uploads/teachers/cv/"
-        . $cvFile,
-
-        __DIR__
-        . "/../uploads/teachers/cv/"
-        . $cvFile
-
-    ];
-
-
-    $possibleCVUrls = [
-
-        "/online/teacher/uploads/teachers/cv/"
-        . rawurlencode($cvFile),
-
-        "/online/uploads/teachers/cv/"
-        . rawurlencode($cvFile)
-
-    ];
-
-
-    foreach (
-        $possibleCV
-        as $key => $path
-    ) {
-
-        if (is_file($path)) {
-
-            $cvUrl =
-                $possibleCVUrls[$key];
-
-            break;
-
-        }
-
-    }
-
-}
-
-
-/* =========================================================
-   SUBJECTS
-========================================================= */
-
-$subjects =
-    preg_split(
-        '/[,;]+/',
-        $application['subjects'] ?? ''
-    );
 
 ?>
 
@@ -878,896 +1037,230 @@ $subjects =
 <meta charset="UTF-8">
 
 <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
+name="viewport"
+content="width=device-width, initial-scale=1.0"
 >
 
 <title>
-Teacher Application |
-NISEL ONLINE EDUCATION
+Teacher Application | NISEL ONLINE EDUCATION
 </title>
 
 
 <style>
 
-/* =====================================================
-   GENERAL
-===================================================== */
-
-* {
-    box-sizing: border-box;
+*{
+    box-sizing:border-box;
 }
 
-body {
+body{
 
-    margin: 0;
+    margin:0;
 
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
+    font-family:Arial,sans-serif;
 
-    background: #f3f6fa;
+    background:#eef3f8;
 
-    color: #1e293b;
+    color:#333;
 
 }
 
+.container{
 
-/* =====================================================
-   SIDEBAR
-===================================================== */
+    width:95%;
 
-.sidebar {
+    max-width:1000px;
 
-    position: fixed;
-
-    left: 0;
-
-    top: 0;
-
-    width: 245px;
-
-    height: 100vh;
-
-    background:
-        linear-gradient(
-            180deg,
-            #003366,
-            #00254d
-        );
-
-    color: white;
-
-    padding: 25px 15px;
+    margin:30px auto;
 
 }
 
+.card{
 
-.logo {
+    background:white;
 
-    text-align: center;
+    padding:30px;
 
-    font-size: 20px;
+    border-radius:12px;
 
-    font-weight: 800;
+    box-shadow:
+        0 5px 20px rgba(0,0,0,.1);
 
-    line-height: 1.5;
+}
 
-    padding-bottom: 25px;
+h1{
+
+    color:#003366;
+
+    margin-top:0;
+
+}
+
+h2{
+
+    color:#003366;
 
     border-bottom:
-        1px solid
-        rgba(255,255,255,.15);
+        1px solid #ddd;
 
-    margin-bottom: 25px;
-
-}
-
-
-.menu a {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    color: white;
-
-    text-decoration: none;
-
-    padding: 13px 15px;
-
-    margin-bottom: 6px;
-
-    border-radius: 9px;
+    padding-bottom:10px;
 
 }
 
+.message{
 
-.menu a:hover {
+    padding:15px;
 
-    background:
-        rgba(255,255,255,.12);
+    border-radius:7px;
 
-}
-
-
-.menu a.active {
-
-    background: #0b6fbd;
+    margin-bottom:20px;
 
 }
 
+.success{
 
-/* =====================================================
-   MAIN
-===================================================== */
+    background:#d4edda;
 
-.main {
-
-    margin-left: 245px;
-
-    padding: 30px;
-
-    min-height: 100vh;
+    color:#155724;
 
 }
 
+.error{
 
-/* =====================================================
-   TOPBAR
-===================================================== */
+    background:#f8d7da;
 
-.topbar {
-
-    background: white;
-
-    border-radius: 14px;
-
-    padding: 18px 22px;
-
-    margin-bottom: 20px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    box-shadow:
-        0 5px 20px
-        rgba(0,0,0,.06);
+    color:#721c24;
 
 }
 
+.grid{
 
-.topbar h2 {
-
-    margin: 0;
-
-    color: #003366;
-
-}
-
-
-.admin-name {
-
-    color: #64748b;
-
-    font-size: 14px;
-
-}
-
-
-/* =====================================================
-   BACK
-===================================================== */
-
-.back {
-
-    display: inline-block;
-
-    margin-bottom: 20px;
-
-    color: #005a9c;
-
-    text-decoration: none;
-
-    font-weight: 700;
-
-}
-
-
-/* =====================================================
-   PROFILE HEADER
-===================================================== */
-
-.profile-header {
-
-    background:
-        linear-gradient(
-            135deg,
-            #003366,
-            #08639d
-        );
-
-    color: white;
-
-    border-radius: 16px;
-
-    padding: 28px;
-
-    display: flex;
-
-    justify-content: space-between;
-
-    align-items: center;
-
-    gap: 20px;
-
-    margin-bottom: 22px;
-
-    box-shadow:
-        0 10px 30px
-        rgba(0,51,102,.15);
-
-}
-
-
-.profile-left {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 20px;
-
-}
-
-
-.header-photo {
-
-    width: 95px;
-
-    height: 95px;
-
-    object-fit: cover;
-
-    border-radius: 50%;
-
-    border:
-        4px solid
-        rgba(255,255,255,.8);
-
-}
-
-
-.header-placeholder {
-
-    width: 95px;
-
-    height: 95px;
-
-    border-radius: 50%;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    background:
-        rgba(255,255,255,.15);
-
-    font-size: 42px;
-
-}
-
-
-.profile-header h1 {
-
-    margin: 0 0 8px;
-
-    font-size: 27px;
-
-}
-
-
-.reference {
-
-    font-size: 13px;
-
-    opacity: .85;
-
-}
-
-
-/* =====================================================
-   STATUS
-===================================================== */
-
-.status {
-
-    display: inline-flex;
-
-    padding: 9px 16px;
-
-    border-radius: 30px;
-
-    font-size: 13px;
-
-    font-weight: 800;
-
-    text-transform: uppercase;
-
-}
-
-
-.status.pending {
-
-    background: #fff3cd;
-
-    color: #856404;
-
-}
-
-
-.status.approved {
-
-    background: #d1fae5;
-
-    color: #065f46;
-
-}
-
-
-.status.rejected {
-
-    background: #fee2e2;
-
-    color: #991b1b;
-
-}
-
-
-/* =====================================================
-   MESSAGE
-===================================================== */
-
-.message {
-
-    padding: 16px 18px;
-
-    border-radius: 10px;
-
-    margin-bottom: 22px;
-
-    font-weight: 600;
-
-}
-
-
-.message.success {
-
-    background: #d1fae5;
-
-    color: #065f46;
-
-}
-
-
-.message.error {
-
-    background: #fee2e2;
-
-    color: #991b1b;
-
-}
-
-
-/* =====================================================
-   GRID
-===================================================== */
-
-.content-grid {
-
-    display: grid;
+    display:grid;
 
     grid-template-columns:
-        minmax(0, 2fr)
-        minmax(280px, 1fr);
+        repeat(2,1fr);
 
-    gap: 22px;
-
-}
-
-
-.card {
-
-    background: white;
-
-    border-radius: 14px;
-
-    padding: 24px;
-
-    margin-bottom: 22px;
-
-    box-shadow:
-        0 5px 20px
-        rgba(0,0,0,.06);
+    gap:20px;
 
 }
 
+.field{
 
-.card-title {
+    background:#f8f9fa;
 
-    margin: 0 0 20px;
+    padding:15px;
 
-    color: #003366;
-
-    font-size: 18px;
-
-}
-
-
-/* =====================================================
-   INFO
-===================================================== */
-
-.info-grid {
-
-    display: grid;
-
-    grid-template-columns:
-        repeat(2,minmax(0,1fr));
-
-    gap: 14px;
+    border-radius:7px;
 
 }
 
+.field strong{
 
-.info {
+    display:block;
 
-    background: #f8fafc;
+    color:#003366;
 
-    border:
-        1px solid
-        #e2e8f0;
-
-    border-radius: 10px;
-
-    padding: 15px;
+    margin-bottom:6px;
 
 }
 
+.full{
 
-.info.full {
-
-    grid-column: 1 / -1;
-
-}
-
-
-.info-label {
-
-    display: block;
-
-    color: #64748b;
-
-    font-size: 11px;
-
-    font-weight: 800;
-
-    text-transform: uppercase;
-
-    margin-bottom: 7px;
+    grid-column:
+        1 / -1;
 
 }
 
+.actions{
 
-.info-value {
+    display:flex;
 
-    font-weight: 600;
+    gap:10px;
 
-    line-height: 1.5;
+    margin-top:30px;
 
-    word-break: break-word;
-
-}
-
-
-/* =====================================================
-   SUBJECT TAGS
-===================================================== */
-
-.tags {
-
-    display: flex;
-
-    flex-wrap: wrap;
-
-    gap: 8px;
+    flex-wrap:wrap;
 
 }
 
+button{
 
-.tag {
+    border:none;
 
-    background: #e8f2fb;
+    padding:12px 22px;
 
-    color: #075a94;
+    border-radius:6px;
 
-    padding: 7px 12px;
+    color:white;
 
-    border-radius: 20px;
+    cursor:pointer;
 
-    font-size: 13px;
-
-    font-weight: 700;
-
-}
-
-
-/* =====================================================
-   STATEMENT
-===================================================== */
-
-.statement {
-
-    background: #f8fafc;
-
-    border-left:
-        4px solid
-        #0b6fbd;
-
-    padding: 18px;
-
-    border-radius: 8px;
-
-    line-height: 1.8;
-
-    color: #475569;
+    font-size:15px;
 
 }
 
+.approve{
 
-/* =====================================================
-   PHOTO
-===================================================== */
-
-.photo-card {
-
-    text-align: center;
+    background:#198754;
 
 }
 
+.reject{
 
-.large-photo {
-
-    width: 100%;
-
-    max-width: 300px;
-
-    height: 330px;
-
-    object-fit: cover;
-
-    border-radius: 14px;
-
-    border:
-        1px solid
-        #dbe2ea;
+    background:#dc3545;
 
 }
 
+.pending{
 
-.no-photo {
-
-    width: 100%;
-
-    max-width: 300px;
-
-    height: 250px;
-
-    margin: auto;
-
-    border-radius: 14px;
-
-    background: #f1f5f9;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 65px;
-
-    color: #94a3b8;
+    background:#f0ad4e;
 
 }
 
+.back{
 
-.photo-warning {
+    display:inline-block;
 
-    margin-top: 12px;
+    margin-bottom:20px;
 
-    background: #fff3cd;
+    text-decoration:none;
 
-    color: #856404;
+    color:#003366;
 
-    padding: 12px;
-
-    border-radius: 8px;
-
-    font-size: 12px;
-
-    line-height: 1.5;
-
-    word-break: break-word;
+    font-weight:bold;
 
 }
 
+.photo{
 
-/* =====================================================
-   DOCUMENT
-===================================================== */
+    width:150px;
 
-.document {
+    height:150px;
 
-    display: block;
+    object-fit:cover;
 
-    padding: 15px;
+    border-radius:10px;
 
-    background: #f8fafc;
-
-    border:
-        1px solid
-        #e2e8f0;
-
-    border-radius: 10px;
-
-    color: #075a94;
-
-    text-decoration: none;
-
-    font-weight: 700;
+    border:1px solid #ddd;
 
 }
 
+.status{
 
-/* =====================================================
-   ZOOM
-===================================================== */
+    display:inline-block;
 
-.zoom {
+    padding:6px 12px;
 
-    display: block;
+    border-radius:20px;
 
-    background: #eff6ff;
-
-    border:
-        1px solid
-        #bfdbfe;
-
-    color: #075a94;
-
-    padding: 15px;
-
-    border-radius: 10px;
-
-    text-decoration: none;
-
-    word-break: break-all;
+    background:#eee;
 
 }
 
+@media(max-width:700px){
 
-/* =====================================================
-   ACTIONS
-===================================================== */
+    .grid{
 
-.action-card {
-
-    position: sticky;
-
-    top: 20px;
-
-}
-
-
-.action-button {
-
-    width: 100%;
-
-    border: none;
-
-    border-radius: 9px;
-
-    padding: 14px;
-
-    color: white;
-
-    font-size: 15px;
-
-    font-weight: 800;
-
-    cursor: pointer;
-
-    margin-bottom: 10px;
-
-}
-
-
-.approve {
-
-    background: #198754;
-
-}
-
-
-.reject {
-
-    background: #dc3545;
-
-}
-
-
-.pending-button {
-
-    background: #d99400;
-
-}
-
-
-/* =====================================================
-   CREDENTIALS
-===================================================== */
-
-.credentials {
-
-    margin-top: 18px;
-
-    padding: 18px;
-
-    border-radius: 12px;
-
-    background: #ecfdf5;
-
-    border:
-        1px solid
-        #a7f3d0;
-
-}
-
-
-.credentials h4 {
-
-    margin-top: 0;
-
-    color: #065f46;
-
-}
-
-
-.credential {
-
-    display: flex;
-
-    justify-content: space-between;
-
-    gap: 10px;
-
-    padding: 8px 0;
-
-    border-bottom:
-        1px solid
-        #d1fae5;
-
-}
-
-
-.credential-value {
-
-    font-weight: 800;
-
-    color: #064e3b;
-
-    word-break: break-word;
-
-}
-
-
-.no-data {
-
-    color: #94a3b8;
-
-    font-size: 14px;
-
-}
-
-
-/* =====================================================
-   FOOTER
-===================================================== */
-
-.footer {
-
-    text-align: center;
-
-    color: #94a3b8;
-
-    padding: 20px;
-
-    font-size: 13px;
-
-}
-
-
-/* =====================================================
-   RESPONSIVE
-===================================================== */
-
-@media(max-width:1000px) {
-
-    .content-grid {
-
-        grid-template-columns: 1fr;
-
-    }
-
-    .action-card {
-
-        position: static;
-
-    }
-
-}
-
-
-@media(max-width:750px) {
-
-    .sidebar {
-
-        position: relative;
-
-        width: 100%;
-
-        height: auto;
-
-    }
-
-
-    .main {
-
-        margin-left: 0;
-
-        padding: 15px;
-
-    }
-
-
-    .profile-header {
-
-        flex-direction: column;
-
-        align-items: flex-start;
-
-    }
-
-
-    .info-grid {
-
-        grid-template-columns: 1fr;
-
-    }
-
-
-    .info.full {
-
-        grid-column: auto;
+        grid-template-columns:1fr;
 
     }
 
@@ -1781,1040 +1274,565 @@ body {
 <body>
 
 
-<!-- =====================================================
-     SIDEBAR
-===================================================== -->
-
-<div class="sidebar">
-
-    <div class="logo">
-
-        NISEL<br>
-        ONLINE EDUCATION
-
-    </div>
+<div class="container">
 
 
-    <div class="menu">
+<a
+href="teacher_applications.php"
+class="back"
+>
+← Back to Teacher Applications
+</a>
 
-        <a href="dashboard.php">
-            🏠 Dashboard
-        </a>
 
-        <a href="students.php">
-            👨‍🎓 Students
-        </a>
+<div class="card">
 
-        <a href="teachers.php">
-            👨‍🏫 Teachers
-        </a>
 
-        <a
-            href="teacher_applications.php"
-            class="active"
-        >
-            📋 Applications
-        </a>
+<h1>
+NISEL ONLINE EDUCATION
+</h1>
 
-        <a href="bookings.php">
-            📅 Bookings
-        </a>
+<p>
+Teacher Application Details
+</p>
 
-        <a href="payments.php">
-            💳 Payments
-        </a>
 
-        <a href="reports.php">
-            📊 Reports
-        </a>
+<?php if ($message !== ""): ?>
 
-        <a href="settings.php">
-            ⚙️ Settings
-        </a>
+<div
+class="message
+<?php echo $message_type === 'success'
+    ? 'success'
+    : 'error'; ?>"
+>
 
-        <a href="logout.php">
-            🚪 Logout
-        </a>
+<?php
 
-    </div>
+echo htmlspecialchars(
+    $message
+);
+
+?>
+
+</div>
+
+<?php endif; ?>
+
+
+<h2>
+Applicant Information
+</h2>
+
+
+<div class="grid">
+
+
+<div class="field">
+
+<strong>
+Application Reference
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['application_reference']
+);
+?>
 
 </div>
 
 
-<!-- =====================================================
-     MAIN
-===================================================== -->
+<div class="field">
 
-<div class="main">
+<strong>
+Application Status
+</strong>
 
+<span class="status">
 
-    <div class="topbar">
+<?php
+echo htmlspecialchars(
+    $application['application_status']
+);
+?>
 
-        <h2>
-            📋 Teacher Application
-        </h2>
+</span>
 
-        <div class="admin-name">
-            NISEL Administrator
-        </div>
-
-    </div>
-
-
-    <a
-        href="teacher_applications.php"
-        class="back"
-    >
-
-        ← Back to Teacher Applications
-
-    </a>
+</div>
 
 
-    <!-- =================================================
-         PROFILE HEADER
-    ================================================== -->
+<div class="field">
 
-    <div class="profile-header">
+<strong>
+Full Name
+</strong>
 
+<?php
+echo htmlspecialchars(
+    $application['full_name']
+);
+?>
 
-        <div class="profile-left">
-
-
-            <?php if ($photoExists): ?>
-
-                <img
-                    src="<?= h($photoUrl) ?>"
-                    class="header-photo"
-                    alt="Teacher Photo"
-                >
-
-            <?php else: ?>
-
-                <div class="header-placeholder">
-                    👤
-                </div>
-
-            <?php endif; ?>
+</div>
 
 
-            <div>
+<div class="field">
 
-                <h1>
+<strong>
+Date of Birth
+</strong>
 
-                    <?= h(
-                        $application['full_name']
-                        ?? ''
-                    ) ?>
+<?php
+echo htmlspecialchars(
+    $application['dob']
+);
+?>
 
-                </h1>
-
-
-                <div class="reference">
-
-                    Application Reference:
-
-                    <?= h(
-                        $application[
-                            'application_reference'
-                        ]
-                        ??
-                        'N/A'
-                    ) ?>
-
-                </div>
-
-            </div>
-
-        </div>
+</div>
 
 
-        <div>
+<div class="field">
 
-            <span
-                class="status <?= h($statusClass) ?>"
+<strong>
+Gender
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['gender']
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Phone
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['phone']
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Email
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['email']
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Location
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['location'] ?? ""
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Institution
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['institution'] ?? ""
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Qualification
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['qualification']
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Teaching Experience
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['teaching_experience'] ?? ""
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Curriculum
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['curricula']
+);
+?>
+
+</div>
+
+
+<div class="field full">
+
+<strong>
+Subjects
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['subjects']
+);
+?>
+
+</div>
+
+
+<div class="field full">
+
+<strong>
+Classes Taught
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['classes_taught']
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Preferred Days
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['preferred_days'] ?? ""
+);
+?>
+
+</div>
+
+
+<div class="field">
+
+<strong>
+Preferred Times
+</strong>
+
+<?php
+echo htmlspecialchars(
+    $application['preferred_times'] ?? ""
+);
+?>
+
+</div>
+
+
+<div class="field full">
+
+<strong>
+Professional Statement
+</strong>
+
+<?php
+echo nl2br(
+    htmlspecialchars(
+        $application['professional_statement']
+    )
+);
+?>
+
+</div>
+
+
+<div class="field full">
+
+<strong>
+CV
+
+</strong>
+
+<?php
+
+if (
+    !empty(
+        $application['cv_filename']
+    )
+) {
+
+?>
+
+<a
+href="../uploads/teachers/cv/<?php
+echo rawurlencode(
+    $application['cv_filename']
+);
+?>"
+target="_blank"
+>
+
+View CV
+
+</a>
+
+<?php
+
+} else {
+
+echo "No CV uploaded.";
+
+}
+
+?>
+
+</div>
+
+
+<div class="field full">
+
+<strong>
+Photo
+</strong>
+
+<?php
+
+if (
+    !empty(
+        $application['photo_filename']
+    )
+) {
+
+?>
+
+<br>
+
+<img
+src="../uploads/teachers/photos/<?php
+echo rawurlencode(
+    $application['photo_filename']
+);
+?>"
+class="photo"
+alt="Teacher Photo"
+>
+
+<?php
+
+} else {
+
+echo "No photo uploaded.";
+
+}
+
+?>
+
+</div>
+
+
+</div>
+
+
+
+
+<div class="detail-item">
+
+    <strong>
+        Zoom Meeting Link
+    </strong>
+
+    <p>
+
+        <?php if (!empty($application['zoom_link'])): ?>
+
+            <a
+                href="<?php
+                    echo htmlspecialchars(
+                        $application['zoom_link']
+                    );
+                ?>"
+                target="_blank"
+                rel="noopener noreferrer"
             >
 
-                <?= h(
-                    ucfirst($status)
-                ) ?>
+                🎥 Open Zoom Link
 
+            </a>
+
+        <?php else: ?>
+
+            <span>
+                No Zoom link provided
             </span>
 
-        </div>
+        <?php endif; ?>
 
+    </p>
 
-    </div>
+</div>
 
 
-    <!-- =================================================
-         MESSAGE
-    ================================================== -->
 
-    <?php if ($message !== ''): ?>
 
-        <div
-            class="
-                message
-                <?= $message_type === 'success'
-                    ? 'success'
-                    : 'error'
-                ?>
-            "
-        >
+   
+<!-- =====================================================
+     ACTION BUTTONS
+===================================================== -->
 
-            <?= h($message) ?>
+<?php
 
-            <?php if (
-                $new_teacher_id !== ''
-            ): ?>
+if (
+    strtolower(
+        trim(
+            $application['application_status']
+        )
+    ) !== "approved"
+) {
 
-                <br><br>
+?>
 
-                <strong>
-                    Teacher ID:
-                </strong>
+<div class="actions">
 
-                <?= h(
-                    $new_teacher_id
-                ) ?>
 
-                <br>
+<form method="POST">
 
-                <strong>
-                    Temporary Password:
-                </strong>
+    <input
+        type="hidden"
+        name="application_id"
+        value="<?php echo $application_id; ?>"
+    >
 
-                <?= h(
-                    $temporary_password
-                ) ?>
+    <button
+        type="submit"
+        name="action"
+        value="approve"
+        class="approve"
+    >
+        ✓ Approve Application
+    </button>
 
-            <?php endif; ?>
+</form>
 
-        </div>
 
-    <?php endif; ?>
+<form method="POST">
 
+<input
+type="hidden"
+name="application_id"
+value="<?php
+echo $application_id;
+?>"
+>
 
-    <div class="content-grid">
+<button
+type="submit"
+name="action"
+value="reject"
+class="reject"
+onclick="
+return confirm(
+'Are you sure you want to reject this application?'
+);
+"
+>
 
+✕ Reject Application
 
-        <!-- =================================================
-             LEFT
-        ================================================== -->
+</button>
 
-        <div>
+</form>
 
 
-            <!-- PERSONAL -->
+<?php
 
-            <div class="card">
+}
 
-                <h3 class="card-title">
+if (
+    strtolower(
+        trim(
+            $application['application_status']
+        )
+    ) === "rejected"
+) {
 
-                    👤 Personal Information
+?>
 
-                </h3>
+<form method="POST">
 
+<input
+type="hidden"
+name="application_id"
+value="<?php
+echo $application_id;
+?>"
+>
 
-                <div class="info-grid">
+<button
+type="submit"
+name="action"
+value="pending"
+class="pending"
+>
 
+Return to Pending
 
-                    <div class="info">
+</button>
 
-                        <span class="info-label">
-                            Full Name
-                        </span>
+</form>
 
-                        <div class="info-value">
+<?php
 
-                            <?= h(
-                                $application[
-                                    'full_name'
-                                ]
-                                ?? ''
-                            ) ?>
+}
 
-                        </div>
+?>
 
-                    </div>
 
+</div>
 
-                    <div class="info">
 
-                        <span class="info-label">
-                            Gender
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'gender'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Date of Birth
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'dob'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Phone
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'phone'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Email
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'email'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Location
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'location'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info full">
-
-                        <span class="info-label">
-                            Institution
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'institution'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                </div>
-
-            </div>
-
-
-            <!-- PROFESSIONAL -->
-
-            <div class="card">
-
-                <h3 class="card-title">
-
-                    🎓 Professional Information
-
-                </h3>
-
-
-                <div class="info-grid">
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Qualification
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'qualification'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Teaching Experience
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'teaching_experience'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Curriculum
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'curricula'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Classes Taught
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'classes_taught'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info full">
-
-                        <span class="info-label">
-                            Subjects
-                        </span>
-
-
-                        <div class="tags">
-
-                            <?php foreach (
-                                $subjects
-                                as $subject
-                            ): ?>
-
-                                <?php
-
-                                $subject =
-                                    trim($subject);
-
-                                if (
-                                    $subject === ''
-                                ) {
-                                    continue;
-                                }
-
-                                ?>
-
-                                <span class="tag">
-
-                                    <?= h(
-                                        $subject
-                                    ) ?>
-
-                                </span>
-
-                            <?php endforeach; ?>
-
-                        </div>
-
-                    </div>
-
-
-                </div>
-
-            </div>
-
-
-            <!-- AVAILABILITY -->
-
-            <div class="card">
-
-                <h3 class="card-title">
-
-                    🕐 Teaching Availability
-
-                </h3>
-
-
-                <div class="info-grid">
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Preferred Days
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'preferred_days'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="info">
-
-                        <span class="info-label">
-                            Preferred Times
-                        </span>
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $application[
-                                    'preferred_times'
-                                ]
-                                ?? 'Not provided'
-                            ) ?>
-
-                        </div>
-
-                    </div>
-
-
-                </div>
-
-            </div>
-
-
-            <!-- STATEMENT -->
-
-            <div class="card">
-
-                <h3 class="card-title">
-
-                    📝 Professional Statement
-
-                </h3>
-
-
-                <div class="statement">
-
-                    <?= nl2br(
-                        h(
-                            $application[
-                                'professional_statement'
-                            ]
-                            ?? 'No statement provided.'
-                        )
-                    ) ?>
-
-                </div>
-
-            </div>
-
-
-            <!-- ZOOM -->
-
-            <div class="card">
-
-                <h3 class="card-title">
-
-                    🎥 Zoom Meeting
-
-                </h3>
-
-
-                <?php if (
-                    !empty(
-                        $application['zoom_link']
-                    )
-                ): ?>
-
-                    <a
-                        href="<?= h(
-                            $application['zoom_link']
-                        ) ?>"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="zoom"
-                    >
-
-                        🎥 Open Zoom Meeting
-
-                        <br><br>
-
-                        <?= h(
-                            $application['zoom_link']
-                        ) ?>
-
-                    </a>
-
-                <?php else: ?>
-
-                    <div class="no-data">
-
-                        No Zoom link was provided.
-
-                    </div>
-
-                <?php endif; ?>
-
-            </div>
-
-
-        </div>
-
-
-        <!-- =================================================
-             RIGHT
-        ================================================== -->
-
-        <div>
-
-
-            <!-- PHOTO -->
-
-            <div class="card photo-card">
-
-                <h3 class="card-title">
-
-                    📷 Applicant Photo
-
-                </h3>
-
-
-                <?php if ($photoExists): ?>
-
-                    <img
-                        src="<?= h($photoUrl) ?>"
-                        class="large-photo"
-                        alt="Teacher Applicant Photo"
-                    >
-
-                <?php else: ?>
-
-                    <div class="no-photo">
-                        👤
-                    </div>
-
-
-                    <div class="photo-warning">
-
-                        <strong>
-                            Photo not found
-                        </strong>
-
-                        <br><br>
-
-                        <?php if (
-                            $photoFile !== ''
-                        ): ?>
-
-                            The database contains:
-
-                            <br>
-
-                            <strong>
-                                <?= h(
-                                    $photoFile
-                                ) ?>
-                            </strong>
-
-                            <br><br>
-
-                            but the image file could not
-                            be found in:
-
-                            <br>
-
-                            <code>
-                                teacher/uploads/teachers/
-                            </code>
-
-                        <?php else: ?>
-
-                            No photo filename is stored
-                            for this application.
-
-                        <?php endif; ?>
-
-                    </div>
-
-                <?php endif; ?>
-
-            </div>
-
-
-            <!-- CV -->
-
-            <div class="card">
-
-                <h3 class="card-title">
-
-                    📄 Curriculum Vitae
-
-                </h3>
-
-
-                <?php if ($cvUrl !== ''): ?>
-
-                    <a
-                        href="<?= h($cvUrl) ?>"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="document"
-                    >
-
-                        📄 View / Open CV
-
-                    </a>
-
-                <?php else: ?>
-
-                    <div class="no-data">
-
-                        No CV file was found.
-
-                    </div>
-
-                <?php endif; ?>
-
-            </div>
-
-
-            <!-- APPLICATION DETAILS -->
-
-            <div class="card">
-
-                <h3 class="card-title">
-
-                    📋 Application Details
-
-                </h3>
-
-
-                <div class="info">
-
-                    <span class="info-label">
-
-                        Application ID
-
-                    </span>
-
-                    <div class="info-value">
-
-                        #<?= h(
-                            $application_id
-                        ) ?>
-
-                    </div>
-
-                </div>
-
-
-                <br>
-
-
-                <div class="info">
-
-                    <span class="info-label">
-
-                        Reference
-
-                    </span>
-
-                    <div class="info-value">
-
-                        <?= h(
-                            $application[
-                                'application_reference'
-                            ]
-                            ?? 'N/A'
-                        ) ?>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- ACTIONS -->
-
-            <div class="card action-card">
-
-                <h3 class="card-title">
-
-                    ⚡ Application Actions
-
-                </h3>
-
-
-                <?php if (
-                    $status !== 'approved'
-                ): ?>
-
-
-                    <form
-                        method="POST"
-                        onsubmit="
-                            return confirm(
-                                'Are you sure you want to approve this teacher application?'
-                            );
-                        "
-                    >
-
-                        <input
-                            type="hidden"
-                            name="application_id"
-                            value="<?= h(
-                                $application_id
-                            ) ?>"
-                        >
-
-
-                        <button
-                            type="submit"
-                            name="action"
-                            value="approve"
-                            class="
-                                action-button
-                                approve
-                            "
-                        >
-
-                            ✓ Approve Application
-
-                        </button>
-
-                    </form>
-
-
-                    <form
-                        method="POST"
-                        onsubmit="
-                            return confirm(
-                                'Are you sure you want to reject this application?'
-                            );
-                        "
-                    >
-
-                        <input
-                            type="hidden"
-                            name="application_id"
-                            value="<?= h(
-                                $application_id
-                            ) ?>"
-                        >
-
-
-                        <button
-                            type="submit"
-                            name="action"
-                            value="reject"
-                            class="
-                                action-button
-                                reject
-                            "
-                        >
-
-                            ✕ Reject Application
-
-                        </button>
-
-                    </form>
-
-
-                <?php endif; ?>
-
-
-                <?php if (
-                    $status === 'rejected'
-                ): ?>
-
-                    <form method="POST">
-
-                        <input
-                            type="hidden"
-                            name="application_id"
-                            value="<?= h(
-                                $application_id
-                            ) ?>"
-                        >
-
-
-                        <button
-                            type="submit"
-                            name="action"
-                            value="pending"
-                            class="
-                                action-button
-                                pending-button
-                            "
-                        >
-
-                            ↻ Return to Pending
-
-                        </button>
-
-                    </form>
-
-                <?php endif; ?>
-
-
-                <?php if (
-                    $new_teacher_id !== ''
-                ): ?>
-
-                    <div class="credentials">
-
-                        <h4>
-
-                            🎉 Teacher Account Created
-
-                        </h4>
-
-
-                        <div class="credential">
-
-                            <span>
-                                Teacher ID
-                            </span>
-
-                            <span
-                                class="credential-value"
-                            >
-
-                                <?= h(
-                                    $new_teacher_id
-                                ) ?>
-
-                            </span>
-
-                        </div>
-
-
-                        <div class="credential">
-
-                            <span>
-                                Temporary Password
-                            </span>
-
-                            <span
-                                class="credential-value"
-                            >
-
-                                <?= h(
-                                    $temporary_password
-                                ) ?>
-
-                            </span>
-
-                        </div>
-
-                    </div>
-
-                <?php endif; ?>
-
-
-            </div>
-
-
-        </div>
-
-
-    </div>
-
-
-    <div class="footer">
-
-        © <?= date('Y') ?>
-
-        NISEL ONLINE EDUCATION
-
-        • Teacher Application Management
-
-    </div>
-
+</div>
 
 </div>
 
