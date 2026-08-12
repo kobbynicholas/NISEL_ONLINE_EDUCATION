@@ -3366,17 +3366,11 @@ img {
     <img
         src="assets/images/teachers/admin.jpg"
         alt="NISEL Teacher"
-        onerror="
-            this.style.display='none';
-            this.parentElement.innerHTML='👩‍🏫';
-        "
     >
 
 </div>
 
-<h3>
-    NISEL ONLINE EDUCATION
-</h3>
+<h3>NISEL ONLINE EDUCATION</h3>
 
 <p>
     Providing flexible and personalised online
