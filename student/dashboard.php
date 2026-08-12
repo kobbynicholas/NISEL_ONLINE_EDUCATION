@@ -2408,6 +2408,17 @@ tbody tr:hover {
         </a>
 
 
+<a href="dashboard_phase9.php">
+
+            <span class="menu-icon">
+                💳
+            </span>
+
+            Virtual Classroom
+
+        </a>
+       
+
         <a
             href="logout.php"
             class="logout"
