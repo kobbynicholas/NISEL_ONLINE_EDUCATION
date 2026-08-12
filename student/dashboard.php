@@ -2411,7 +2411,7 @@ tbody tr:hover {
 <a href="classroom.php">
 
             <span class="menu-icon">
-             Classroom
+             
             </span>
 
             Virtual Classroom
