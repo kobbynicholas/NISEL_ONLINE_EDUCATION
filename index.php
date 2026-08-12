@@ -3363,27 +3363,26 @@ img {
         
         <div class="teacher-photo">
 
-        <img
-            src="assets/images/teachers/admin.jpg"
-            alt="NISEL Teacher"
-            onerror="
-                this.style.display='none';
-                this.parentElement.innerHTML='👩‍🏫';
-            "
-        >
-    </div>
-    
-     <h3>
-        NISEL ONLINE EDUCATION
-    </h3>
-        
-        Providing flexible and personalised online
-        education for students following Cambridge,
-        IB and GES curricula.
-
-    </p>
+    <img
+        src="assets/images/teachers/admin.jpg"
+        alt="NISEL Teacher"
+        onerror="
+            this.style.display='none';
+            this.parentElement.innerHTML='👩‍🏫';
+        "
+    >
 
 </div>
+
+<h3>
+    NISEL ONLINE EDUCATION
+</h3>
+
+<p>
+    Providing flexible and personalised online
+    education for students following Cambridge,
+    IB and GES curricula.
+</p>
 
 
 <div>
