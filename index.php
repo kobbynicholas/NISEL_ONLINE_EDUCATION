@@ -3116,7 +3116,7 @@ img {
         </p>
 
         <span class="teacher-tag">
-            Masters in Public Administration
+            MSc. Public Administration
         </span>
 
         <span class="teacher-tag">
