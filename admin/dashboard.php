@@ -1935,7 +1935,22 @@ tbody tr:hover td {
     </a>
 
 
+ <a href="dashboard_phase9.php">
 
+        <span class="menu-icon">
+            Virtual Class
+        </span>
+
+        <span class="text">
+            Schedules
+        </span>
+
+    </a>
+
+
+
+
+    
     <a href="settings.php">
 
         <span class="menu-icon">
