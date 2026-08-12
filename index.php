@@ -3114,13 +3114,11 @@ img {
 
 <div class="footer-brand">
 
-   
+ 
 
     <p>
-
-
-
-<div class="teacher-photo">
+        
+        <div class="teacher-photo">
 
         <img
             src="assets/images/teachers/admin.jpg"
@@ -3130,9 +3128,9 @@ img {
                 this.parentElement.innerHTML='👩‍🏫';
             "
         >
-
     </div>
- <h3>
+    
+     <h3>
         NISEL ONLINE EDUCATION
     </h3>
         
