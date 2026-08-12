@@ -1979,7 +1979,7 @@ img {
     </li>
 
     <li>
-        <a href="teacher/teacher_apply.php">
+        <a href="teacher_apply.php">
             Become a Teacher
         </a>
     </li>
@@ -3176,7 +3176,7 @@ img {
     <div class="teacher-apply-action">
 
         <a
-            href="teacher/teacher_apply.php"
+            href="teacher_apply.php"
             class="btn teacher-apply-button"
         >
             📝 Apply to Become a Teacher
