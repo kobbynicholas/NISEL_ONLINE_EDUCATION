@@ -1448,7 +1448,7 @@ img {
 
 
 /* =========================================================
-   FEATURED TEACHERS - HORIZONTAL LAYOUT
+   FEATURED TEACHERS
 ========================================================= */
 
 .teacher-grid {
@@ -1471,26 +1471,30 @@ img {
 }
 
 .teacher-card:hover {
-    transform: translateY(-7px);
+    transform: translateY(-6px);
     box-shadow: 0 18px 40px rgba(15,23,42,.12);
 }
 
+/*
+ * The teacher image itself is NOT resized or cropped.
+ * The image keeps its natural aspect ratio and resolution.
+ */
 .teacher-photo {
     width: 100%;
-    height: 245px;
-    background: linear-gradient(135deg,#e8f5ff,#dbeafe);
+    min-height: 230px;
+    background: #eef7fc;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    color: var(--primary);
-    font-size: 70px;
 }
 
 .teacher-photo img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
     display: block;
 }
 
@@ -1692,7 +1696,7 @@ img {
     }
 
     .teacher-photo {
-        height: 220px;
+        min-height: 220px;
     }
 
 
@@ -1809,7 +1813,6 @@ img {
         gap: 16px;
         padding: 5px 3px 15px;
         scroll-snap-type: x mandatory;
-        scrollbar-width: thin;
     }
 
     .teacher-card {
@@ -1819,7 +1822,7 @@ img {
     }
 
     .teacher-photo {
-        height: 230px;
+        min-height: 230px;
     }
 
     .teacher-apply-card {
@@ -1976,7 +1979,7 @@ img {
     </li>
 
     <li>
-        <a href="teacher/teacher_apply.php">
+        <a href="teacher_apply.php">
             Become a Teacher
         </a>
     </li>
@@ -2923,1321 +2926,6 @@ img {
 
 <div class="container">
 
-    <div class="section-heading">
-
-        <div class="eyebrow">
-            Meet Our Teachers
-        </div>
-
-        <h2>
-            Learn From Experienced Teachers
-        </h2>
-
-        <p>
-            Connect with dedicated teachers who are ready
-            to guide you through your academic journey.
-        </p>
-
-    </div>
-
-
-    <!-- HORIZONTAL TEACHER CARDS -->
-
-    <div class="teacher-grid">
-
-        <!-- TEACHER 1 -->
-
-        <div class="teacher-card">
-
-            <div class="teacher-photo">
-
-                <img
-                    src="assets/images/teachers/teacher1.jpg"
-                    alt="Mr. Samuel Nyamekye"
-                    onerror="
-                        this.style.display='none';
-                        this.parentElement.innerHTML='👨‍🏫';
-                    "
-                >
-
-            </div>
-
-            <div class="teacher-info">
-
-                <h3>
-                    Mr. Samuel Nyamekye
-                </h3>
-
-                <p class="teacher-role">
-                    Biology &amp; Science
-                </p>
-
-                <span class="teacher-tag">
-                    PhD in Molecular Biology
-                </span>
-
-                <span class="teacher-tag">
-                    (IB, IGCSE, AS/A Level)
-                </span>
-
-                <p class="teacher-description">
-                    Experienced online educator helping students
-                    develop strong understanding and confidence
-                    in Biology and Science.
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <!-- TEACHER 2 -->
-
-        <div class="teacher-card">
-
-            <div class="teacher-photo">
-
-                <img
-                    src="assets/images/teachers/teacher2.jpg"
-                    alt="Mrs. Mavis Agbakli"
-                    onerror="
-                        this.style.display='none';
-                        this.parentElement.innerHTML='👩‍🏫';
-                    "
-                >
-
-            </div>
-
-            <div class="teacher-info">
-
-                <h3>
-                    Mrs. Mavis Agbakli
-                </h3>
-
-                <p class="teacher-role">
-                    English
-                </p>
-
-                <span class="teacher-tag">
-                    MPhil in English
-                </span>
-
-                <span class="teacher-tag">
-                    (Cambridge AS/A Level, IGCSE, IB, GES)
-                </span>
-
-                <p class="teacher-description">
-                    Helping learners improve their communication,
-                    comprehension, writing and examination skills.
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <!-- TEACHER 3 -->
-
-        <div class="teacher-card">
-
-            <div class="teacher-photo">
-
-                <img
-                    src="assets/images/teachers/teacher3.jpg"
-                    alt="Mr. Samuel Tenkorang"
-                    onerror="
-                        this.style.display='none';
-                        this.parentElement.innerHTML='👨‍🏫';
-                    "
-                >
-
-            </div>
-
-            <div class="teacher-info">
-
-                <h3>
-                    Mr. Samuel Tenkorang
-                </h3>
-
-                <p class="teacher-role">
-                    Physics &amp; Science
-                </p>
-
-                <span class="teacher-tag">
-                    BSc. Physics
-                </span>
-
-                <span class="teacher-tag">
-                    (Cambridge AS/A Level, IGCSE, IB)
-                </span>
-
-                <p class="teacher-description">
-                    Supporting students with clear explanations,
-                    practical understanding and examination
-                    preparation.
-                </p>
-
-            </div>
-
-        </div>
-
-
-        <!-- TEACHER 4 -->
-
-        <div class="teacher-card">
-
-            <div class="teacher-photo">
-
-                <img
-                    src="assets/images/teachers/teacher4.jpg"
-                    alt="Miss. Linda Adu Mensah"
-                    onerror="
-                        this.style.display='none';
-                        this.parentElement.innerHTML='👩‍🏫';
-                    "
-                >
-
-            </div>
-
-            <div class="teacher-info">
-
-                <h3>
-                    Miss. Linda Adu Mensah
-                </h3>
-
-                <p class="teacher-role">
-                    Economics &amp; Business
-                </p>
-
-                <span class="teacher-tag">
-                    Masters in Public Administration
-                </span>
-
-                <span class="teacher-tag">
-                    (Cambridge AS/A Level, IB)
-                </span>
-
-                <p class="teacher-description">
-                    Guiding students through concepts, problem
-                    solving and examination-focused preparation.
-                </p>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- =====================================================
-         BECOME A TEACHER
-    ===================================================== -->
-
-    <div class="teacher-apply-card">
-
-        <div class="teacher-apply-icon">
-            👨‍🏫
-        </div>
-
-        <div class="teacher-apply-content">
-
-            <div class="teacher-apply-eyebrow">
-                JOIN NISEL
-            </div>
-
-            <h2>
-                Become a NISEL Teacher
-            </h2>
-
-            <p>
-                Are you a qualified and passionate teacher?
-                Join NISEL ONLINE EDUCATION and help students
-                succeed through flexible online teaching.
-            </p>
-
-            <div class="teacher-apply-points">
-
-                <span>✓ Teach students online</span>
-                <span>✓ Share your expertise</span>
-                <span>✓ Flexible teaching opportunities</span>
-                <span>✓ Support Cambridge, IB &amp; GES learners</span>
-
-            </div>
-
-        </div>
-
-        <div class="teacher-apply-action">
-
-            <a
-                href="teacher/teacher_apply.php"
-                class="btn teacher-apply-button"
-            >
-                📝 Apply to Become a Teacher
-            </a>
-
-        </div>
-
-    </div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-     TOP BAR
-========================================================= -->
-
-<div class="top-bar">
-
-    <div class="top-bar-left">
-
-        <span>
-            📞 +233599363266 | +233540587025
-        </span>
-
-        <span>
-            ✉️ info@niseleducation.online
-        </span>
-
-    </div>
-
-
-    <div class="top-bar-right">
-
-        <a href="#">
-            Facebook
-        </a>
-
-        <a href="#">
-            Instagram
-        </a>
-
-        <a href="#">
-            YouTube
-        </a>
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
-     NAVIGATION
-========================================================= -->
-
-<nav class="navbar">
-
-<div class="nav-container">
-
-
-<a
-    href="index.php"
-    class="logo"
->
-
-    <div class="logo-icon">
-        N
-    </div>
-
-
-    <div class="logo-text">
-
-        NISEL
-
-        <span>
-            ONLINE EDUCATION
-        </span>
-
-    </div>
-
-</a>
-
-
-<ul
-    class="nav-links"
-    id="navLinks"
->
-
-    <li>
-        <a href="#home">
-            Home
-        </a>
-    </li>
-
-    <li>
-        <a href="#about">
-            About
-        </a>
-    </li>
-
-    <li>
-        <a href="#curricula">
-            Curricula
-        </a>
-    </li>
-
-    <li>
-        <a href="#subjects">
-            Subjects
-        </a>
-    </li>
-
-    <li>
-        <a href="#login">
-            Login
-        </a>
-    </li>
-
-    <li>
-        <a href="#teachers">
-            Teachers
-        </a>
-    </li>
-
-   
-
-</ul>
-
-
-<!-- LOGIN BUTTONS -->
-
-<div class="nav-buttons">
-
-    <a
-        href="student/login.php"
-        class="btn btn-outline"
-    >
-
-        👨‍🎓 Student Login
-
-    </a>
-
-
-    <a
-        href="teacher/login.php"
-        class="btn btn-primary"
-    >
-
-        👨‍🏫 Teacher Login
-
-    </a>
-
-</div>
-
-
-<button
-    class="menu-toggle"
-    id="menuToggle"
->
-
-    ☰
-
-</button>
-
-
-</div>
-
-</nav>
-
-
-<!-- =========================================================
-     HERO
-========================================================= -->
-
-<section
-    class="hero"
-    id="home"
->
-
-
-<!-- SLIDE 1 -->
-
-<div class="slide active">
-
-    <img
-        src="assets/images/slide1.jpg"
-        class="slide-image"
-        alt="Online Education"
-        onerror="
-            this.style.display='none';
-            this.parentElement.style.background='linear-gradient(135deg,#003b70,#0877c9)';
-        "
-    >
-
-    <div class="slide-overlay"></div>
-
-
-    <div class="slide-content">
-
-        <span class="slide-badge">
-
-            🎓 QUALITY ONLINE EDUCATION
-
-        </span>
-
-
-        <h1>
-
-            Learn Without
-            <span>
-                Limits.
-            </span>
-
-        </h1>
-
-
-        <p>
-
-            Connect with experienced teachers and
-            receive personalised online lessons designed
-            to help you achieve your academic goals.
-
-        </p>
-
-
-        <div class="hero-buttons">
-
-            <a
-                href="student/register.php"
-                class="
-                    btn
-                    btn-hero
-                    btn-hero-primary
-                "
-            >
-
-                🚀 Start Learning
-
-            </a>
-
-
-            <a
-                href="#curricula"
-                class="
-                    btn
-                    btn-hero
-                    btn-hero-secondary
-            "
-            >
-
-                Explore Curricula
-
-            </a>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- SLIDE 2 -->
-
-<div class="slide">
-
-    <img
-        src="assets/images/slide2.jpg"
-        class="slide-image"
-        alt="Online Teacher"
-        onerror="
-            this.style.display='none';
-            this.parentElement.style.background='linear-gradient(135deg,#064e3b,#0ea5a5)';
-        "
-    >
-
-    <div class="slide-overlay"></div>
-
-
-    <div class="slide-content">
-
-        <span class="slide-badge">
-
-            👨‍🏫 EXPERIENCED TEACHERS
-
-        </span>
-
-
-        <h1>
-
-            Learn From
-            <span>
-                The Best.
-            </span>
-
-        </h1>
-
-
-        <p>
-
-            Get access to dedicated teachers who
-            understand your curriculum and are ready
-            to guide you through every lesson.
-
-        </p>
-
-
-        <div class="hero-buttons">
-
-            <a
-                href="#teachers"
-                class="
-                    btn
-                    btn-hero
-                    btn-hero-primary
-                "
-            >
-
-                Find Your Teacher
-
-            </a>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<!-- SLIDE 3 -->
-
-<div class="slide">
-
-    <img
-        src="assets/images/slide3.jpg"
-        class="slide-image"
-        alt="Online Classes"
-        onerror="
-            this.style.display='none';
-            this.parentElement.style.background='linear-gradient(135deg,#581c87,#9333ea)';
-        "
-    >
-
-    <div class="slide-overlay"></div>
-
-
-    <div class="slide-content">
-
-        <span class="slide-badge">
-
-            🌍 CAMBRIDGE • IB • GES 
-
-        </span>
-
-
-        <h1>
-
-            Your Education.
-            <span>
-                Your Future.
-            </span>
-
-        </h1>
-
-
-        <p>
-
-            Whether you follow Cambridge, IB or GES,
-            NISEL provides flexible online learning
-            built around your academic needs.
-
-        </p>
-
-
-        <div class="hero-buttons">
-
-            <a
-                href="student/register.php"
-                class="
-                    btn
-                    btn-hero
-                    btn-hero-primary
-                "
-            >
-
-                Create Student Account
-
-            </a>
-
-        </div>
-
-    </div>
-
-</div>
-
-
-<button
-    class="slider-arrow prev"
-    id="prevSlide"
->
-
-    ‹
-
-</button>
-
-
-<button
-    class="slider-arrow next"
-    id="nextSlide"
->
-
-    ›
-
-</button>
-
-
-<div class="slider-dots">
-
-    <button
-        class="dot active"
-        data-slide="0"
-    ></button>
-
-    <button
-        class="dot"
-        data-slide="1"
-    ></button>
-
-    <button
-        class="dot"
-        data-slide="2"
-    ></button>
-
-</div>
-
-
-</section>
-
-
-<!-- =========================================================
-     STATS
-========================================================= -->
-
-<div class="stats">
-
-    <div class="stat">
-
-        <h3>
-            500+
-        </h3>
-
-        <p>
-            Students
-        </p>
-
-    </div>
-
-
-    <div class="stat">
-
-        <h3>
-            50+
-        </h3>
-
-        <p>
-            Qualified Teachers
-        </p>
-
-    </div>
-
-
-    <div class="stat">
-
-        <h3>
-            3
-        </h3>
-
-        <p>
-            Major Curricula
-        </p>
-
-    </div>
-
-
-    <div class="stat">
-
-        <h3>
-            8×
-        </h3>
-
-        <p>
-            Lessons Per Month
-        </p>
-
-    </div>
-
-</div>
-
-
-<!-- =========================================================
-     ABOUT
-========================================================= -->
-
-<section
-    class="section"
-    id="about"
->
-
-<div class="container">
-
-
-<div class="section-heading">
-
-    <div class="eyebrow">
-        About NISEL
-    </div>
-
-    <h2>
-        Education Designed Around You
-    </h2>
-
-    <p>
-
-        NISEL ONLINE EDUCATION connects students
-        with qualified teachers for convenient,
-        personalised online learning.
-
-    </p>
-
-</div>
-
-
-<div class="features-grid">
-
-
-<div class="feature">
-
-    <div class="feature-icon">
-        👨‍🏫
-    </div>
-
-    <h3>
-        Qualified Teachers
-    </h3>
-
-    <p>
-
-        Learn from teachers with experience in
-        Cambridge, IB and GES curricula.
-
-    </p>
-
-</div>
-
-
-<div class="feature">
-
-    <div class="feature-icon">
-        💻
-    </div>
-
-    <h3>
-        Online Learning
-    </h3>
-
-    <p>
-
-        Attend your lessons online from wherever
-        you are using convenient virtual classes.
-
-    </p>
-
-</div>
-
-
-<div class="feature">
-
-    <div class="feature-icon">
-        📅
-    </div>
-
-    <h3>
-        Flexible Scheduling
-    </h3>
-
-    <p>
-
-        Students can schedule their subjects around
-        their available days and times.
-
-    </p>
-
-</div>
-
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-     CURRICULA
-========================================================= -->
-
-<section
-    class="section"
-    id="curricula"
-    style="background:#f1f7fb;"
->
-
-<div class="container">
-
-
-<div class="section-heading">
-
-    <div class="eyebrow">
-        Our Curricula
-    </div>
-
-    <h2>
-        Choose Your Curriculum
-    </h2>
-
-    <p>
-
-        We support major international and Ghanaian
-        educational pathways.
-
-    </p>
-
-</div>
-
-
-<div class="curriculum-grid">
-
-
-<div class="curriculum-card">
-
-    <img
-        src="assets/images/curriculum/cambridge.jpg"
-        class="curriculum-bg"
-        alt="Cambridge"
-        onerror="
-            this.style.display='none';
-            this.parentElement.style.background='linear-gradient(135deg,#003b70,#0877c9)';
-        "
-    >
-
-    <div class="curriculum-content">
-
-        <h3>
-            Cambridge
-        </h3>
-
-        <p>
-
-            Cambridge Primary, Lower Secondary,
-            IGCSE and AS/A Level.
-
-        </p>
-
-
-        <a
-            href="student/register.php"
-            class="
-                btn
-                btn-hero-primary
-            "
-        >
-
-            Explore Cambridge →
-
-        </a>
-
-    </div>
-
-</div>
-
-
-<div class="curriculum-card">
-
-    <img
-        src="assets/images/curriculum/ib.jpg"
-        class="curriculum-bg"
-        alt="IB Curriculum"
-        onerror="
-            this.style.display='none';
-            this.parentElement.style.background='linear-gradient(135deg,#7c2d12,#ea580c)';
-        "
-    >
-
-
-    <div class="curriculum-content">
-
-        <h3>
-            IB Curriculum
-        </h3>
-
-        <p>
-
-            International Baccalaureate learning
-            support from primary to secondary.
-
-        </p>
-
-
-        <a
-            href="student/register.php"
-            class="
-                btn
-                btn-hero-primary
-            "
-        >
-
-            Explore IB →
-
-        </a>
-
-    </div>
-
-</div>
-
-
-<div class="curriculum-card">
-
-    <img
-        src="assets/images/curriculum/ges.jpg"
-        class="curriculum-bg"
-        alt="GES Curriculum"
-        onerror="
-            this.style.display='none';
-            this.parentElement.style.background='linear-gradient(135deg,#14532d,#16a34a)';
-        "
-    >
-
-
-    <div class="curriculum-content">
-
-        <h3>
-            GES Curriculum
-        </h3>
-
-        <p>
-
-            Ghana Education Service curriculum
-            support for learners across basic
-            and secondary levels.
-
-        </p>
-
-
-        <a
-            href="student/register.php"
-            class="
-                btn
-                btn-hero-primary
-            "
-        >
-
-            Explore GES →
-
-        </a>
-
-    </div>
-
-</div>
-
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-     LOGIN PORTAL
-========================================================= -->
-
-<section
-    class="section login-section"
-    id="login"
->
-
-<div class="container">
-
-
-<div class="section-heading">
-
-    <div class="eyebrow">
-        NISEL PORTAL
-    </div>
-
-    <h2>
-        Welcome Back
-    </h2>
-
-    <p>
-
-        Select your account type to continue
-        to your NISEL Online Education portal.
-
-    </p>
-
-</div>
-
-
-<div class="login-grid">
-
-
-<!-- STUDENT -->
-
-<div class="login-card">
-
-    <div class="login-icon">
-        👨‍🎓
-    </div>
-
-    <h3>
-        Student Portal
-    </h3>
-
-    <p>
-
-        Login to book lessons, view your schedule,
-        make payments and join your online classes.
-
-    </p>
-
-
-    <a
-        href="student/login.php"
-        class="btn btn-primary"
-    >
-
-        Student Login →
-
-    </a>
-
-</div>
-
-
-<!-- TEACHER -->
-
-<div class="login-card">
-
-    <div class="login-icon">
-        👨‍🏫
-    </div>
-
-    <h3>
-        Teacher Portal
-    </h3>
-
-    <p>
-
-        Login to view your students, manage your
-        schedule and conduct your online lessons.
-
-    </p>
-
-
-    <a
-        href="teacher/login.php"
-        class="btn btn-primary"
-    >
-
-        Teacher Login →
-
-    </a>
-
-</div>
-
-
-<!-- NEW STUDENT -->
-
-<div class="login-card">
-
-    <div class="login-icon">
-        🚀
-    </div>
-
-    <h3>
-        New Student?
-    </h3>
-
-    <p>
-
-        Create your NISEL student account and
-        start booking your subjects.
-
-    </p>
-
-
-    <a
-        href="student/register.php"
-        class="btn btn-primary"
-    >
-
-        Create Account →
-
-    </a>
-
-</div>
-
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-     SUBJECTS
-========================================================= -->
-
-<section
-    class="section"
-    id="subjects"
->
-
-<div class="container">
-
-
-<div class="section-heading">
-
-    <div class="eyebrow">
-        Popular Subjects
-    </div>
-
-    <h2>
-        Learn What Matters
-    </h2>
-
-    <p>
-
-        Choose from a wide range of academic subjects.
-
-    </p>
-
-</div>
-
-
-<div class="subject-grid">
-
-
-<div class="subject">
-    📐 Mathematics
-</div>
-
-<div class="subject">
-    ⚛️ Physics
-</div>
-
-<div class="subject">
-    🧪 Chemistry
-</div>
-
-<div class="subject">
-    🧬 Biology
-</div>
-
-<div class="subject">
-    📚 English
-</div>
-
-<div class="subject">
-    💻 Computer Science
-</div>
-
-<div class="subject">
-    🌍 Geography
-</div>
-
-<div class="subject">
-    💰 Economics
-</div>
-
-<div class="subject">
-    📊 Accounting
-</div>
-
-<div class="subject">
-    🏛️ Government
-</div>
-
-<div class="subject">
-    📖 Literature
-</div>
-
-<div class="subject">
-    🧠 Psychology
-</div>
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-     CTA
-========================================================= -->
-
-<section class="cta">
-
-<div class="container">
-
-<div class="cta-inner">
-
-
-<div>
-
-<h2>
-    Ready to Start Learning?
-</h2>
-
-<p>
-
-    Create your account and book your first
-    subject with a qualified NISEL teacher.
-
-</p>
-
-</div>
-
-
-<div>
-
-<a
-    href="student/register.php"
-    class="
-        btn
-        btn-hero
-        btn-hero-secondary
-    "
->
-
-    🚀 Create Student Account
-
-</a>
-
-</div>
-
-
-</div>
-
-</div>
-
-</section>
-
-
-<!-- =========================================================
-     FEATURED TEACHERS
-========================================================= -->
-
-<section
-    class="section"
-    id="teachers"
->
-
-<div class="container">
-
-
 <div class="section-heading">
 
     <div class="eyebrow">
@@ -4249,27 +2937,29 @@ img {
     </h2>
 
     <p>
-
         Connect with dedicated teachers who are ready
         to guide you through your academic journey.
-
     </p>
 
 </div>
 
 
+<!-- =====================================================
+     TEACHERS - HORIZONTAL
+===================================================== -->
+
 <div class="teacher-grid">
 
 
 <!-- TEACHER 1 -->
-    
+
 <div class="teacher-card">
 
     <div class="teacher-photo">
 
         <img
             src="assets/images/teachers/teacher1.jpg"
-            alt="NISEL Teacher"
+            alt="Mr. Samuel Nyamekye"
             onerror="
                 this.style.display='none';
                 this.parentElement.innerHTML='👨‍🏫';
@@ -4278,7 +2968,6 @@ img {
 
     </div>
 
-
     <div class="teacher-info">
 
         <h3>
@@ -4286,7 +2975,7 @@ img {
         </h3>
 
         <p class="teacher-role">
-            Biology & Science
+            Biology &amp; Science
         </p>
 
         <span class="teacher-tag">
@@ -4294,35 +2983,29 @@ img {
         </span>
 
         <span class="teacher-tag">
-            (IB, IGCSE, AS/A level)
+            (IB, IGCSE, AS/A Level)
         </span>
 
         <p class="teacher-description">
-
             Experienced online educator helping students
             develop strong understanding and confidence
             in Biology and Science.
-
         </p>
-
 
     </div>
 
 </div>
-  </div>
 
-    
-<div class="teacher-grid">
+
 <!-- TEACHER 2 -->
 
-    
 <div class="teacher-card">
 
     <div class="teacher-photo">
 
         <img
             src="assets/images/teachers/teacher2.jpg"
-            alt="NISEL Teacher"
+            alt="Mrs. Mavis Agbakli"
             onerror="
                 this.style.display='none';
                 this.parentElement.innerHTML='👩‍🏫';
@@ -4330,7 +3013,6 @@ img {
         >
 
     </div>
-
 
     <div class="teacher-info">
 
@@ -4343,37 +3025,32 @@ img {
         </p>
 
         <span class="teacher-tag">
-           MPhil in English 
+            MPhil in English
         </span>
 
         <span class="teacher-tag">
-            (Cambridge AS/A Level, IGCSE, IB, GES) 
+            (Cambridge AS/A Level, IGCSE, IB, GES)
         </span>
 
         <p class="teacher-description">
-
             Helping learners improve their communication,
             comprehension, writing and examination skills.
-
         </p>
-
 
     </div>
 
 </div>
-  </div>
 
-    
-<div class="teacher-grid">
+
 <!-- TEACHER 3 -->
-    
+
 <div class="teacher-card">
 
     <div class="teacher-photo">
 
         <img
             src="assets/images/teachers/teacher3.jpg"
-            alt="NISEL Teacher"
+            alt="Mr. Samuel Tenkorang"
             onerror="
                 this.style.display='none';
                 this.parentElement.innerHTML='👨‍🏫';
@@ -4382,7 +3059,6 @@ img {
 
     </div>
 
-
     <div class="teacher-info">
 
         <h3>
@@ -4390,42 +3066,37 @@ img {
         </h3>
 
         <p class="teacher-role">
-            Physics & Science
+            Physics &amp; Science
         </p>
 
         <span class="teacher-tag">
-           BSc. Physics
+            BSc. Physics
         </span>
 
         <span class="teacher-tag">
-             (Cambridge AS/A Level, IGCSE, IB)
+            (Cambridge AS/A Level, IGCSE, IB)
         </span>
 
         <p class="teacher-description">
-
             Supporting students with clear explanations,
             practical understanding and examination
             preparation.
-            
         </p>
-        
 
     </div>
 
 </div>
-  </div>
-    
-<div class="teacher-grid">
+
+
 <!-- TEACHER 4 -->
 
-    
 <div class="teacher-card">
 
     <div class="teacher-photo">
 
         <img
             src="assets/images/teachers/teacher4.jpg"
-            alt="NISEL Teacher"
+            alt="Miss. Linda Adu Mensah"
             onerror="
                 this.style.display='none';
                 this.parentElement.innerHTML='👩‍🏫';
@@ -4434,7 +3105,6 @@ img {
 
     </div>
 
-
     <div class="teacher-info">
 
         <h3>
@@ -4442,7 +3112,7 @@ img {
         </h3>
 
         <p class="teacher-role">
-            Economics & Business
+            Economics &amp; Business
         </p>
 
         <span class="teacher-tag">
@@ -4454,10 +3124,8 @@ img {
         </span>
 
         <p class="teacher-description">
-
             Guiding students through concepts, problem
             solving and examination-focused preparation.
-
         </p>
 
     </div>
@@ -4467,7 +3135,56 @@ img {
 
 </div>
 
-  </div>
+
+<!-- =====================================================
+     BECOME A TEACHER
+===================================================== -->
+
+<div class="teacher-apply-card">
+
+    <div class="teacher-apply-icon">
+        👨‍🏫
+    </div>
+
+    <div class="teacher-apply-content">
+
+        <div class="teacher-apply-eyebrow">
+            JOIN NISEL
+        </div>
+
+        <h2>
+            Become a NISEL Teacher
+        </h2>
+
+        <p>
+            Are you a qualified and passionate teacher?
+            Join NISEL ONLINE EDUCATION and help students
+            succeed through flexible online teaching.
+        </p>
+
+        <div class="teacher-apply-points">
+
+            <span>✓ Teach students online</span>
+            <span>✓ Share your expertise</span>
+            <span>✓ Flexible teaching opportunities</span>
+            <span>✓ Support Cambridge, IB &amp; GES learners</span>
+
+        </div>
+
+    </div>
+
+    <div class="teacher-apply-action">
+
+        <a
+            href="teacher_apply.php"
+            class="btn teacher-apply-button"
+        >
+            📝 Apply to Become a Teacher
+        </a>
+
+    </div>
+
+</div>
 
 </div>
 
@@ -4636,16 +3353,12 @@ img {
     id="contact"
 >
 
-<div class="container">
-
-
 <div class="footer-grid">
 
 
 <div class="footer-brand">
 
  
-
     <p>
         
         <div class="teacher-photo">
@@ -5044,4 +3757,4 @@ document
 
 </body>
 
-</html>
+</html
