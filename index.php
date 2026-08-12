@@ -1979,7 +1979,7 @@ img {
     </li>
 
     <li>
-        <a href="teacher_apply.php">
+        <a href="teacher/teacher_apply.php">
             Become a Teacher
         </a>
     </li>
@@ -3116,7 +3116,7 @@ img {
         </p>
 
         <span class="teacher-tag">
-            MSc. Public Administration
+            Masters in Public Administration
         </span>
 
         <span class="teacher-tag">
@@ -3176,7 +3176,7 @@ img {
     <div class="teacher-apply-action">
 
         <a
-            href="teacher_apply.php"
+            href="teacher/teacher_apply.php"
             class="btn teacher-apply-button"
         >
             📝 Apply to Become a Teacher
@@ -3353,30 +3353,41 @@ img {
     id="contact"
 >
 
+<div class="container">
+
+
 <div class="footer-grid">
 
 
 <div class="footer-brand">
 
  
+
     <p>
         
         <div class="teacher-photo">
 
-    <img
-        src="assets/images/teachers/admin.jpg"
-        alt="NISEL Teacher"
-    >
+        <img
+            src="assets/images/teachers/admin.jpg"
+            alt="NISEL Teacher"
+            onerror="
+                this.style.display='none';
+                this.parentElement.innerHTML='👩‍🏫';
+            "
+        >
+    </div>
+    
+     <h3>
+        NISEL ONLINE EDUCATION
+    </h3>
+        
+        Providing flexible and personalised online
+        education for students following Cambridge,
+        IB and GES curricula.
+
+    </p>
 
 </div>
-
-<h3>NISEL ONLINE EDUCATION</h3>
-
-<p>
-    Providing flexible and personalised online
-    education for students following Cambridge,
-    IB and GES curricula.
-</p>
 
 
 <div>
@@ -3750,4 +3761,4 @@ document
 
 </body>
 
-</html
+</html>
