@@ -2037,18 +2037,7 @@ tbody tr:hover {
         </a>
 
 
-        <a
-            href="teacher_application.php"
-            class="active"
-        >
-
-            <span class="menu-icon">
-                📄
-            </span>
-
-            Teacher Applications
-
-        </a>
+      
 
 
         <a href="bookings.php">
