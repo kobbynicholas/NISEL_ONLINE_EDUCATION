@@ -100,7 +100,7 @@ function sendTeacherApprovalEmail(
                     true;
 
                 $mail->Username =
-                    "info@niseleducation.online";
+                    "YOUR_NISEL_EMAIL@gmail.com";
 
                 $mail->Password =
                     "YOUR_GMAIL_APP_PASSWORD";
@@ -113,7 +113,7 @@ function sendTeacherApprovalEmail(
 
 
                 $mail->setFrom(
-                    "info@niseleducation.online",
+                    "YOUR_NISEL_EMAIL@gmail.com",
                     "NISEL ONLINE EDUCATION"
                 );
 
