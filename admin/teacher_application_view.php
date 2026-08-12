@@ -413,6 +413,68 @@ function sendTeacherApprovalEmail(
 
 
 
+
+/* =========================================================
+   APPLICATION PHOTO HELPER
+========================================================= */
+
+function getApplicationPhotoUrl(string $filename): string
+{
+    $filename = basename(trim($filename));
+
+    if ($filename === "") {
+        return "";
+    }
+
+    /*
+     * Primary location used by teacher/_apply.php
+     */
+    $primaryDisk =
+        dirname(__DIR__) .
+        DIRECTORY_SEPARATOR .
+        "teacher" .
+        DIRECTORY_SEPARATOR .
+        "uploads" .
+        DIRECTORY_SEPARATOR .
+        "teacher_applications" .
+        DIRECTORY_SEPARATOR .
+        "photos" .
+        DIRECTORY_SEPARATOR .
+        $filename;
+
+    if (is_file($primaryDisk)) {
+
+        return
+            "../teacher/uploads/teacher_applications/photos/" .
+            rawurlencode($filename);
+    }
+
+    /*
+     * Fallback for teachers whose photo was copied into
+     * the normal teacher uploads directory.
+     */
+    $fallbackDisk =
+        dirname(__DIR__) .
+        DIRECTORY_SEPARATOR .
+        "teacher" .
+        DIRECTORY_SEPARATOR .
+        "uploads" .
+        DIRECTORY_SEPARATOR .
+        "teachers" .
+        DIRECTORY_SEPARATOR .
+        $filename;
+
+    if (is_file($fallbackDisk)) {
+
+        return
+            "../teacher/uploads/teachers/" .
+            rawurlencode($filename);
+    }
+
+    return "";
+}
+
+
 /* =========================================================
    APPLICATION ID
 ========================================================= */
@@ -836,21 +898,14 @@ if (
            VERIFY APPLICATION UPDATE
         ================================================= */
 
-        if (
-            $updateApplication->rowCount() === 0
-        ) {
-
-            /*
-             * If it was already approved, this can be 0.
-             * But we already checked the status above.
-             */
-
-            throw new Exception(
-                "Teacher was created but "
-                . "application status could not be updated."
-            );
-
-        }
+        /*
+         * Do not use rowCount() as the success test here.
+         * MySQL may report 0 affected rows when the stored
+         * value is already the requested value.
+         *
+         * The account creation and transaction state are the
+         * authoritative success checks.
+         */
 
 
         /* ================================================
@@ -991,6 +1046,172 @@ if (
 
     }
 
+}
+
+
+
+/* =========================================================
+   SET APPLICATION TO PENDING
+========================================================= */
+
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    &&
+    isset($_POST['action'])
+    &&
+    $_POST['action'] === "pending"
+) {
+
+    try {
+
+        $stmt = $pdo->prepare("
+            UPDATE teacher_applications
+            SET application_status = 'Pending'
+            WHERE id = ?
+        ");
+
+        $stmt->execute([
+            $application_id
+        ]);
+
+        $message =
+            "Teacher application returned to Pending.";
+
+        $message_type =
+            "success";
+
+    } catch (PDOException $e) {
+
+        $message =
+            "Unable to change application status: " .
+            $e->getMessage();
+
+        $message_type =
+            "error";
+    }
+}
+
+
+/* =========================================================
+   DELETE APPLICATION
+========================================================= */
+
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    &&
+    isset($_POST['action'])
+    &&
+    $_POST['action'] === "delete"
+) {
+
+    try {
+
+        /*
+         * Get the application first so uploaded files can
+         * also be removed after the database row is deleted.
+         */
+        $findDelete = $pdo->prepare("
+            SELECT
+                photo_filename,
+                cv_filename
+            FROM teacher_applications
+            WHERE id = ?
+            LIMIT 1
+        ");
+
+        $findDelete->execute([
+            $application_id
+        ]);
+
+        $deleteApplication =
+            $findDelete->fetch(PDO::FETCH_ASSOC);
+
+        if (!$deleteApplication) {
+
+            throw new Exception(
+                "Teacher application was not found."
+            );
+        }
+
+
+        $deleteStmt = $pdo->prepare("
+            DELETE FROM teacher_applications
+            WHERE id = ?
+        ");
+
+        $deleteStmt->execute([
+            $application_id
+        ]);
+
+
+        /*
+         * Delete uploaded application files.
+         * This does NOT delete an existing teacher account.
+         */
+        if ($deleteApplication['photo_filename'] ?? '') {
+
+            $photoFile =
+                dirname(__DIR__) .
+                DIRECTORY_SEPARATOR .
+                "teacher" .
+                DIRECTORY_SEPARATOR .
+                "uploads" .
+                DIRECTORY_SEPARATOR .
+                "teacher_applications" .
+                DIRECTORY_SEPARATOR .
+                "photos" .
+                DIRECTORY_SEPARATOR .
+                basename(
+                    $deleteApplication['photo_filename']
+                );
+
+            if (is_file($photoFile)) {
+                @unlink($photoFile);
+            }
+        }
+
+
+        if ($deleteApplication['cv_filename'] ?? '') {
+
+            $cvFile =
+                dirname(__DIR__) .
+                DIRECTORY_SEPARATOR .
+                "teacher" .
+                DIRECTORY_SEPARATOR .
+                "uploads" .
+                DIRECTORY_SEPARATOR .
+                "teacher_applications" .
+                DIRECTORY_SEPARATOR .
+                "cv" .
+                DIRECTORY_SEPARATOR .
+                basename(
+                    $deleteApplication['cv_filename']
+                );
+
+            if (is_file($cvFile)) {
+                @unlink($cvFile);
+            }
+        }
+
+
+        /*
+         * Return to the applications list after deletion.
+         */
+        header(
+            "Location: teacher_applications.php?deleted=1"
+        );
+
+        exit;
+
+    } catch (Throwable $e) {
+
+        $message =
+            "Unable to delete application: " .
+            $e->getMessage();
+
+        $message_type =
+            "error";
+    }
 }
 
 
@@ -1478,8 +1699,24 @@ button{
     object-fit:cover;
 }
 
+.profile-photo{
+    position:relative;
+}
+
+.profile-photo::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    border-radius:20px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);
+}
+
 .profile-placeholder{
     font-size:38px;
+    width:100%;
+    height:100%;
+    place-items:center;
 }
 
 .profile-body h2{
@@ -1781,6 +2018,18 @@ button{
     background:#fff0ef;
     color:#a22f26;
     border:1px solid #f3d0cc;
+}
+
+.btn-warning{
+    background:#fff7e6;
+    color:#9a6715;
+    border:1px solid #f2dfb4;
+}
+
+.btn-delete{
+    background:#fff1f1;
+    color:#b42318;
+    border:1px solid #f2c8c4;
 }
 
 .btn-neutral{
@@ -2319,8 +2568,7 @@ button{
                             if ($photo !== '') {
 
                                 $photoUrl =
-                                    "../teacher/uploads/teacher_applications/photos/" .
-                                    rawurlencode($photo);
+                                    getApplicationPhotoUrl($photo);
                             }
                             ?>
 
@@ -2980,57 +3228,48 @@ button{
                     </section>
 
 
-                    <!-- ACTION -->
+                    <!-- ACTIONS -->
 
-                    <?php if (
-                        strtolower(
-                            trim(
-                                $application['application_status']
-                                ?? ''
-                            )
-                        ) !== 'approved'
-                        &&
-                        strtolower(
-                            trim(
-                                $application['application_status']
-                                ?? ''
-                            )
-                        ) !== 'rejected'
-                    ): ?>
+                    <section class="card action-card">
 
-                        <section class="card action-card">
+                        <div class="action-copy">
 
-                            <div class="action-copy">
-
-                                <h3>
-                                    Ready to make a decision?
-                                </h3>
-
-                                <p>
-                                    Approving creates the teacher account
-                                    and sends the login credentials by email.
-                                </p>
-
+                            <div class="eyebrow">
+                                APPLICATION CONTROL
                             </div>
 
+                            <h3>
+                                Manage this application
+                            </h3>
 
-                            <div class="actions">
+                            <p>
+                                Approve the applicant to create the teacher
+                                account and email the login credentials.
+                                You can also return the application to
+                                Pending, reject it, or permanently delete
+                                the application record.
+                            </p>
 
-                                <button
-                                    type="button"
-                                    class="btn btn-danger"
-                                    onclick="openRejectModal()"
-                                >
-                                    ✕ Reject Application
-                                </button>
+                        </div>
 
+
+                        <div class="actions">
+
+                            <?php if (
+                                strtolower(
+                                    trim(
+                                        $application['application_status']
+                                        ?? ''
+                                    )
+                                ) !== 'approved'
+                            ): ?>
 
                                 <form
                                     method="POST"
                                     style="display:inline;"
                                     onsubmit="
                                         return confirm(
-                                            'Approve this teacher application? A teacher account will be created and login credentials will be emailed to the applicant.'
+                                            'Approve this teacher application? A teacher account will be created and the login credentials will be emailed to the applicant.'
                                         );
                                     "
                                 >
@@ -3051,50 +3290,96 @@ button{
                                         type="submit"
                                         class="btn btn-primary"
                                     >
-                                        ✓ Approve & Email Credentials
+                                        ✓ Approve & Email
                                     </button>
 
                                 </form>
 
-                            </div>
+                            <?php endif; ?>
 
-                        </section>
 
-                    <?php else: ?>
+                            <?php if (
+                                strtolower(
+                                    trim(
+                                        $application['application_status']
+                                        ?? ''
+                                    )
+                                ) !== 'pending'
+                            ): ?>
 
-                        <section class="card action-card">
-
-                            <div class="action-copy">
-
-                                <h3>
-                                    Application decision completed
-                                </h3>
-
-                                <p>
-                                    This application has already been
-                                    <?= htmlspecialchars(
-                                        strtolower($status),
-                                        ENT_QUOTES,
-                                        'UTF-8'
-                                    ) ?>.
-                                </p>
-
-                            </div>
-
-                            <div class="actions">
-
-                                <a
-                                    href="teacher_applications.php"
-                                    class="btn btn-neutral"
+                                <form
+                                    method="POST"
+                                    style="display:inline;"
+                                    onsubmit="
+                                        return confirm(
+                                            'Return this application to Pending?'
+                                        );
+                                    "
                                 >
-                                    ← Back to Applications
-                                </a>
 
-                            </div>
+                                    <input
+                                        type="hidden"
+                                        name="application_id"
+                                        value="<?= (int)$application_id ?>"
+                                    >
 
-                        </section>
+                                    <input
+                                        type="hidden"
+                                        name="action"
+                                        value="pending"
+                                    >
 
-                    <?php endif; ?>
+                                    <button
+                                        type="submit"
+                                        class="btn btn-warning"
+                                    >
+                                        ↺ Pending
+                                    </button>
+
+                                </form>
+
+                            <?php endif; ?>
+
+
+                            <?php if (
+                                strtolower(
+                                    trim(
+                                        $application['application_status']
+                                        ?? ''
+                                    )
+                                ) !== 'rejected'
+                            ): ?>
+
+                                <button
+                                    type="button"
+                                    class="btn btn-danger"
+                                    onclick="openRejectModal()"
+                                >
+                                    ✕ Reject
+                                </button>
+
+                            <?php endif; ?>
+
+
+                            <button
+                                type="button"
+                                class="btn btn-delete"
+                                onclick="openDeleteModal()"
+                            >
+                                🗑 Delete
+                            </button>
+
+
+                            <a
+                                href="teacher_applications.php"
+                                class="btn btn-neutral"
+                            >
+                                ← Back
+                            </a>
+
+                        </div>
+
+                    </section>
 
                 </div>
 
@@ -3127,9 +3412,8 @@ button{
         </h3>
 
         <p>
-            This will mark the application as rejected.
-            The applicant will not receive teacher login
-            credentials.
+            This will mark the application as Rejected.
+            No teacher account will be created by this action.
         </p>
 
 
@@ -3174,6 +3458,78 @@ button{
 </div>
 
 
+<!-- =========================================================
+     DELETE MODAL
+========================================================== -->
+
+<div
+    class="modal"
+    id="deleteModal"
+    onclick="closeDeleteModal(event)"
+>
+
+    <div
+        class="modal-card"
+        onclick="event.stopPropagation()"
+    >
+
+        <div class="section-number"
+             style="background:#fff0ef;color:#b42318;margin-bottom:15px;">
+            !
+        </div>
+
+        <h3>
+            Delete Application Permanently?
+        </h3>
+
+        <p>
+            This action permanently removes the application
+            record and its uploaded CV/photo. An existing teacher
+            account is not deleted by this action.
+        </p>
+
+
+        <form method="POST">
+
+            <input
+                type="hidden"
+                name="application_id"
+                value="<?= (int)$application_id ?>"
+            >
+
+            <input
+                type="hidden"
+                name="action"
+                value="delete"
+            >
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="btn btn-neutral"
+                    onclick="closeDeleteModal()"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-delete"
+                >
+                    🗑 Delete Permanently
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
 <script>
 
 function openRejectModal(){
@@ -3192,9 +3548,7 @@ function closeRejectModal(event){
         event.target !==
         document.getElementById("rejectModal")
     ){
-
         return;
-
     }
 
     document
@@ -3204,6 +3558,34 @@ function closeRejectModal(event){
 
 }
 
+
+function openDeleteModal(){
+
+    document
+        .getElementById("deleteModal")
+        .classList
+        .add("open");
+
+}
+
+function closeDeleteModal(event){
+
+    if (
+        event &&
+        event.target !==
+        document.getElementById("deleteModal")
+    ){
+        return;
+    }
+
+    document
+        .getElementById("deleteModal")
+        .classList
+        .remove("open");
+
+}
+
+
 document.addEventListener(
     "keydown",
     function(event){
@@ -3211,6 +3593,7 @@ document.addEventListener(
         if(event.key === "Escape"){
 
             closeRejectModal();
+            closeDeleteModal();
 
         }
 
