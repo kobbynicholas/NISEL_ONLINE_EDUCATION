@@ -2408,10 +2408,10 @@ tbody tr:hover {
         </a>
 
 
-<a href="dashboard_phase9.php">
+<a href="classroom.php">
 
             <span class="menu-icon">
-                💳
+             Classroom
             </span>
 
             Virtual Classroom
