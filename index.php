@@ -3116,7 +3116,7 @@ img {
         </p>
 
         <span class="teacher-tag">
-            Masters in Public Administration
+            MSc. Public Administration
         </span>
 
         <span class="teacher-tag">
@@ -3365,8 +3365,6 @@ img {
 
     <p>
         
-        <div class="teacher-photo">
-
         <img
             src="assets/images/teachers/admin.jpg"
             alt="NISEL Teacher"
@@ -3375,7 +3373,6 @@ img {
                 this.parentElement.innerHTML='👩‍🏫';
             "
         >
-    </div>
     
      <h3>
         NISEL ONLINE EDUCATION
