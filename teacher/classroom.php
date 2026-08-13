@@ -88,7 +88,28 @@ if ($booking_id <= 0) {
 }
 </style>
 
-</head><body><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+<style id="nisel-v13-style">
+.nisel-v13-badge{
+    position:fixed;top:78px;left:18px;z-index:9999;
+    padding:6px 10px;border-radius:999px;
+    background:rgba(11,130,198,.92);color:#fff;
+    font:800 10px/1 Arial,sans-serif;letter-spacing:.5px;
+}
+</style>
+<style id="nisel-v14">
+#remoteVideo{display:block !important;background:#020a12}
+.nisel-v14-badge{
+position:fixed;top:78px;left:18px;z-index:99999;
+padding:6px 10px;border-radius:999px;
+background:rgba(11,130,198,.95);color:#fff;
+font:800 10px/1 Arial,sans-serif;letter-spacing:.5px
+}
+#remoteAudioButton.active{
+background:rgba(11,130,198,.95)!important;
+box-shadow:0 0 0 3px rgba(11,130,198,.2)
+}
+</style>
+</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -104,6 +125,14 @@ display:none;">
     </div>
     <div id="niseLDiagBody">Waiting...</div>
 </div>
+
+
+<audio
+    id="remoteAudio"
+    autoplay
+    playsinline
+    style="display:none"
+></audio>
 
 </body></html>');
 }
@@ -1011,212 +1040,158 @@ function createPeerConnection() {
 
     peerConnection = new RTCPeerConnection(rtcConfig); window.peerConnection = peerConnection;
 
-    // Keep exactly one video and one audio sender.
-    // This is important when a device is unavailable and the teacher
-    // later starts screen sharing.
-    const videoTransceiver =
-        peerConnection.addTransceiver(
-            "video",
-            { direction:"sendrecv" }
-        );
-
-    const audioTransceiver =
-        peerConnection.addTransceiver(
-            "audio",
-            { direction:"sendrecv" }
-        );
-
-    window.niselVideoSender =
-        videoTransceiver.sender;
-
-    window.niselAudioSender =
-        audioTransceiver.sender;
-
-    if (cameraTrack) {
-        videoTransceiver.sender
-            .replaceTrack(cameraTrack)
-            .catch(console.error);
-    }
-
-    if (microphoneTrack) {
-        audioTransceiver.sender
-            .replaceTrack(microphoneTrack)
-            .catch(console.error);
-    }
-
     /*
-     * Store the senders so camera/screen changes always use
-     * the exact negotiated video/audio sender.
+     * IMPORTANT:
+     * Use addTrack(track, localStream) instead of creating a bare
+     * transceiver and later calling replaceTrack().
+     *
+     * Supplying the MediaStream here gives WebRTC an explicit
+     * stream/msid association. That makes the remote ontrack event
+     * reliably carry event.streams[0], including on Chrome.
      */
-    window.niselVideoSender =
-        videoTransceiver.sender;
+    window.niselVideoSender = null;
+    window.niselAudioSender = null;
 
-    window.niselAudioSender =
-        audioTransceiver.sender;
+    if (localStream) {
+
+        if (cameraTrack) {
+            window.niselVideoSender =
+                peerConnection.addTrack(
+                    cameraTrack,
+                    localStream
+                );
+        }
+
+        if (microphoneTrack) {
+            window.niselAudioSender =
+                peerConnection.addTrack(
+                    microphoneTrack,
+                    localStream
+                );
+        }
+    }
 
     peerConnection.ontrack = event => {
-
         console.log(
-            "NISEL v12: remote track received:",
+            "NISEL v14: remote track received:",
             event.track.kind,
-            "stream count:",
+            "streams:",
             event.streams ? event.streams.length : 0
         );
 
-        /*
-         * Always render the student's video track.
-         * Some browsers provide event.streams[0], while others
-         * provide only event.track.
-         */
         let stream =
-            event.streams &&
-            event.streams[0]
+            event.streams && event.streams.length
                 ? event.streams[0]
                 : null;
 
         if (!stream) {
-
-            stream =
-                remoteVideo.srcObject;
-
-            if (
-                !stream ||
-                !(stream instanceof MediaStream)
-            ) {
+            stream = remoteVideo.srcObject;
+            if (!(stream instanceof MediaStream)) {
                 stream = new MediaStream();
             }
-
-            const exists =
-                stream
-                    .getTracks()
-                    .some(
-                        track =>
-                            track.id ===
-                            event.track.id
-                    );
-
-            if (!exists) {
+            if (!stream.getTracks().some(t => t.id === event.track.id)) {
                 stream.addTrack(event.track);
             }
         }
 
-        remoteVideo.srcObject = stream;
+        if (event.track.kind === "video") {
+            remoteVideo.srcObject = stream;
+            remoteVideo.autoplay = true;
+            remoteVideo.playsInline = true;
+            remoteVideo.muted = true;
+            remoteVideo.style.display = "block";
+            remoteVideo.style.visibility = "visible";
+            remoteVideo.classList.add("remote-connected");
 
-        remoteVideo.style.display =
-            "block";
+            if (remotePlaceholder) {
+                remotePlaceholder.style.display = "none";
+            }
 
-        remoteVideo.style.visibility =
-            "visible";
-
-        remoteVideo.classList.add(
-            "remote-connected"
-        );
-
-        remotePlaceholder.style.display =
-            "none";
-
-        /*
-         * Start the student's face/video muted.
-         * This avoids browser autoplay restrictions.
-         */
-        remoteVideo.muted = true;
-
-        remoteVideo
-            .play()
-            .then(() => {
-                console.log(
-                    "NISEL v12: student video is playing."
-                );
-            })
-            .catch(error => {
-                console.warn(
-                    "NISEL v12: remote video autoplay:",
-                    error
-                );
+            remoteVideo.play().catch(function(err) {
+                console.warn("NISEL v14 remote video play:", err);
             });
 
-        event.track.onunmute = () => {
+            event.track.onunmute = function() {
+                remoteVideo.play().catch(function(){});
+            };
+        }
 
-            remoteVideo.muted = true;
+        if (event.track.kind === "audio") {
+            const audio = document.getElementById("remoteAudio");
 
-            remoteVideo
-                .play()
-                .catch(error => {
-                    console.warn(
-                        "NISEL v12: remote play:",
-                        error
-                    );
-                });
-        };
+            if (audio) {
+                /*
+                 * Use a stream containing ONLY the remote audio track.
+                 * This makes the Audio button independent of the video element.
+                 */
+                audio.srcObject = new MediaStream([event.track]);
+                audio.autoplay = true;
+                audio.playsInline = true;
+                audio.muted = true;
 
-        event.track.onended = () => {
+                console.log("NISEL v14: student audio track received.");
+            }
+        }
 
+        event.track.onended = function() {
             console.log(
-                "NISEL v12: student",
+                "NISEL v14: student",
                 event.track.kind,
                 "track ended."
             );
         };
-    };
+    };;
 
     /*
      * Teacher can explicitly enable/disable student audio.
      * The video remains available even when muted.
      */
     const remoteAudioButton =
-        document.getElementById(
-            "remoteAudioButton"
-        );
+        document.getElementById("remoteAudioButton");
 
     if (remoteAudioButton) {
+        remoteAudioButton.addEventListener("click", async function() {
 
-        remoteAudioButton.addEventListener(
-            "click",
-            async () => {
+            const audio =
+                document.getElementById("remoteAudio");
 
-                try {
-
-                    remoteVideo.muted =
-                        !remoteVideo.muted;
-
-                    await remoteVideo.play();
-
-                    remoteAudioButton.classList.toggle(
-                        "active",
-                        !remoteVideo.muted
-                    );
-
-                    remoteAudioButton.innerHTML =
-                        remoteVideo.muted
-                            ? "🔇<span>Audio</span>"
-                            : "🔊<span>Audio</span>";
-
-                    remoteAudioButton.title =
-                        remoteVideo.muted
-                            ? "Enable student audio"
-                            : "Mute student audio";
-
-                } catch (error) {
-
-                    console.warn(
-                        "NISEL v12 audio:",
-                        error
-                    );
-
-                    remoteVideo.muted = true;
-
-                    remoteAudioButton.innerHTML =
-                        "🔇<span>Audio</span>";
-
-                    remoteAudioButton.classList.remove(
-                        "active"
-                    );
-                }
+            if (!audio || !audio.srcObject) {
+                console.warn(
+                    "NISEL v14: student audio has not arrived yet."
+                );
+                return;
             }
-        );
+
+            try {
+                const enable = audio.muted;
+
+                audio.muted = !enable;
+
+                if (enable) {
+                    await audio.play();
+                } else {
+                    audio.pause();
+                }
+
+                remoteAudioButton.classList.toggle("active", enable);
+                remoteAudioButton.innerHTML =
+                    enable
+                        ? "🔊<span>Audio</span>"
+                        : "🔇<span>Audio</span>";
+
+                remoteAudioButton.title =
+                    enable
+                        ? "Mute student audio"
+                        : "Enable student audio";
+
+            } catch (error) {
+                console.error("NISEL v14 audio:", error);
+                audio.muted = true;
+                remoteAudioButton.classList.remove("active");
+                remoteAudioButton.innerHTML = "🔇<span>Audio</span>";
+            }
+        });
     }
-
-
     /*
      * NISEL v8 uses non-trickle ICE.
      * We wait until ICE gathering is complete and send one complete
