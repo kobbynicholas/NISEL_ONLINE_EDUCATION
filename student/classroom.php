@@ -1262,7 +1262,7 @@ body {
         20px;
 
     min-height:
-        620px;
+        720px;
 
     overflow:
         hidden;
@@ -1280,7 +1280,7 @@ body {
 .video-stage {
 
     min-height:
-        620px;
+        720px;
 
     position:
         relative;
@@ -1317,7 +1317,7 @@ body {
         100%;
 
     min-height:
-        620px;
+        720px;
 
     object-fit:
         cover;
@@ -1597,6 +1597,62 @@ body {
 
 }
 
+
+
+/* =========================================================
+   FULLSCREEN CLASSROOM DISPLAY
+========================================================= */
+
+.video-card:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.video-card:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    min-height: 100vh;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.video-card:fullscreen .video-stage,
+.video-card:-webkit-full-screen .video-stage {
+    width: 100%;
+    height: 100vh;
+    min-height: 100vh;
+}
+
+.video-card:fullscreen #remoteVideo,
+.video-card:-webkit-full-screen #remoteVideo {
+    width: 100%;
+    height: 100%;
+    min-height: 100vh;
+    object-fit: contain;
+    background: #000;
+}
+
+.video-card:fullscreen .video-placeholder,
+.video-card:-webkit-full-screen .video-placeholder {
+    max-width: 700px;
+}
+
+.video-card:fullscreen .video-controls,
+.video-card:-webkit-full-screen .video-controls {
+    padding: 22px;
+}
+
+.video-card:fullscreen .control-btn,
+.video-card:-webkit-full-screen .control-btn {
+    width: 54px;
+    height: 54px;
+    font-size: 21px;
+}
 
 /* =========================================================
    SIDE PANEL
@@ -2095,7 +2151,7 @@ body {
     #remoteVideo {
 
         min-height:
-            420px;
+            520px;
 
     }
 
@@ -2433,6 +2489,17 @@ body {
                     title="Share Screen"
                 >
                     🖥️
+                </button>
+
+
+                <button
+                    type="button"
+                    class="control-btn"
+                    id="fullscreenBtn"
+                    title="Full Screen"
+                    aria-label="Full Screen"
+                >
+                    ⛶
                 </button>
 
 
@@ -2878,6 +2945,18 @@ const cameraBtn =
 const screenBtn =
     document.getElementById(
         'screenBtn'
+    );
+
+
+const fullscreenBtn =
+    document.getElementById(
+        'fullscreenBtn'
+    );
+
+
+const videoCard =
+    document.querySelector(
+        '.video-card'
     );
 
 
@@ -3700,6 +3779,107 @@ async function shareScreen() {
     }
 
 }
+
+
+
+/* =========================================================
+   FULLSCREEN CLASSROOM
+========================================================= */
+
+if (fullscreenBtn && videoCard) {
+
+    fullscreenBtn.addEventListener(
+        'click',
+        toggleFullscreen
+    );
+
+}
+
+
+async function toggleFullscreen() {
+
+    try {
+
+        if (
+            !document.fullscreenElement &&
+            !document.webkitFullscreenElement
+        ) {
+
+            if (videoCard.requestFullscreen) {
+
+                await videoCard.requestFullscreen();
+
+            } else if (videoCard.webkitRequestFullscreen) {
+
+                videoCard.webkitRequestFullscreen();
+
+            }
+
+        } else {
+
+            if (document.exitFullscreen) {
+
+                await document.exitFullscreen();
+
+            } else if (document.webkitExitFullscreen) {
+
+                document.webkitExitFullscreen();
+
+            }
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            'Fullscreen error:',
+            error
+        );
+
+    }
+
+}
+
+
+function updateFullscreenButton() {
+
+    const isFullscreen =
+        !!(
+            document.fullscreenElement ||
+            document.webkitFullscreenElement
+        );
+
+    if (fullscreenBtn) {
+
+        fullscreenBtn.textContent =
+            isFullscreen ? '⛶' : '⛶';
+
+        fullscreenBtn.title =
+            isFullscreen
+                ? 'Exit Full Screen'
+                : 'Full Screen';
+
+        fullscreenBtn.setAttribute(
+            'aria-label',
+            isFullscreen
+                ? 'Exit Full Screen'
+                : 'Full Screen'
+        );
+
+    }
+
+}
+
+
+document.addEventListener(
+    'fullscreenchange',
+    updateFullscreenButton
+);
+
+document.addEventListener(
+    'webkitfullscreenchange',
+    updateFullscreenButton
+);
 
 
 /* =========================================================
