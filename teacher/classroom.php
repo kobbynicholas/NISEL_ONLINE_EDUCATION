@@ -167,7 +167,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) 
         if ($action === "send_signal") {
             $signal_type = trim((string)($_POST["signal_type"] ?? ""));
             $signal_data = (string)($_POST["signal_data"] ?? "");
-            $allowed = ["offer", "ice-candidate", "hangup"];
+            $allowed = ["ready", "offer", "ice-candidate", "hangup"];
 
             if (!in_array($signal_type, $allowed, true)) {
                 json_response(["success" => false, "message" => "Invalid signal type."]);
