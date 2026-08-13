@@ -100,9 +100,39 @@ if ($room_code === "") {
     }
 }
 
+
+/* =========================================================
+   CHAT TABLE CHECK
+   Creates classroom_messages only if it does not exist.
+   This does not change the rest of the classroom system.
+========================================================= */
+function ensureClassroomMessagesTable(PDO $pdo) {
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS classroom_messages (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            booking_id INT NOT NULL,
+            room_code VARCHAR(150) NOT NULL,
+            sender_role VARCHAR(30) NOT NULL,
+            sender_name VARCHAR(255) NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY idx_booking_room (booking_id, room_code),
+            KEY idx_created_at (created_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}
+
 /* ========================= API ========================= */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) {
     try {
+
+        /*
+         * Make sure classroom chat storage exists before
+         * send_message/get_messages is used.
+         */
+        ensureClassroomMessagesTable($pdo);
+
         $action = trim((string)$_POST["classroom_action"]);
 
         if ($action === "start_class") {
