@@ -126,6 +126,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) 
                 $room = $room_code;
             }
 
+            /*
+             * Start a clean signaling session for this booking.
+             * Chat messages are NOT deleted.
+             */
+            $clearSignals = $pdo->prepare(
+                "DELETE FROM classroom_signals WHERE booking_id = ? AND room_code = ?"
+            );
+            $clearSignals->execute([
+                $booking_id,
+                $room
+            ]);
+
             $stmt = $pdo->prepare("UPDATE bookings SET live_status = 'live', live_started_at = NOW(), live_ended_at = NULL, live_room_code = ? WHERE id = ? AND teacher_id = ?");
             $stmt->execute([$room, $booking_id, $teacher_id]);
 
@@ -562,13 +574,38 @@ function createPeerConnection() {
 
     peerConnection = new RTCPeerConnection(rtcConfig);
 
-    // Always create video/audio transceivers so the teacher can still
-    // connect when a camera or microphone is unavailable at startup.
-    const videoTransceiver = peerConnection.addTransceiver("video", { direction:"sendrecv" });
-    const audioTransceiver = peerConnection.addTransceiver("audio", { direction:"sendrecv" });
+    // Keep exactly one video and one audio sender.
+    // This is important when a device is unavailable and the teacher
+    // later starts screen sharing.
+    const videoTransceiver =
+        peerConnection.addTransceiver(
+            "video",
+            { direction:"sendrecv" }
+        );
 
-    if (cameraTrack) videoTransceiver.sender.replaceTrack(cameraTrack).catch(console.error);
-    if (microphoneTrack) audioTransceiver.sender.replaceTrack(microphoneTrack).catch(console.error);
+    const audioTransceiver =
+        peerConnection.addTransceiver(
+            "audio",
+            { direction:"sendrecv" }
+        );
+
+    window.niselVideoSender =
+        videoTransceiver.sender;
+
+    window.niselAudioSender =
+        audioTransceiver.sender;
+
+    if (cameraTrack) {
+        videoTransceiver.sender
+            .replaceTrack(cameraTrack)
+            .catch(console.error);
+    }
+
+    if (microphoneTrack) {
+        audioTransceiver.sender
+            .replaceTrack(microphoneTrack)
+            .catch(console.error);
+    }
 
     peerConnection.ontrack = event => {
         if (event.streams && event.streams[0]) {
@@ -833,8 +870,16 @@ async function stopScreenShare() {
         screenStream = null;
     }
 
-    const sender = peerConnection?.getSenders().find(s => s.track && s.track.kind === "video");
-    if (sender) await sender.replaceTrack(cameraTrack || null);
+    const sender =
+        window.niselVideoSender ||
+        peerConnection?.getSenders().find(
+            s => s.track && s.track.kind === "video"
+        );
+
+    if (sender) {
+        window.niselVideoSender = sender;
+        await sender.replaceTrack(cameraTrack || null);
+    }
 
     if (cameraTrack) {
         localVideo.srcObject = localStream;
