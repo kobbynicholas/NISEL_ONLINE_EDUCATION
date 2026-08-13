@@ -3526,30 +3526,45 @@ async function prepareLocalMedia() {
     localVideo.style.display =
         "block";
 
+    localVideo
+        .play()
+        .catch(function() {});
+
     localStream
         .getTracks()
         .forEach(function(track) {
 
-            const sender =
+            /*
+             * Use the sender belonging to the existing
+             * transceiver. Do NOT add a second video/audio
+             * transceiver, otherwise the offer/answer can
+             * contain duplicate media sections.
+             */
+            const transceiver =
                 peerConnection
-                    .getSenders()
+                    .getTransceivers()
                     .find(function(item) {
 
                         return (
-                            item.track &&
-                            item.track.kind ===
+                            item.receiver &&
+                            item.receiver.track &&
+                            item.receiver.track.kind ===
                             track.kind
                         );
                     });
 
-            if (sender) {
+            if (transceiver) {
 
-                sender
+                transceiver.sender
                     .replaceTrack(track)
                     .catch(console.error);
 
             } else {
 
+                /*
+                 * Fallback for browsers that do not expose
+                 * the expected transceiver.
+                 */
                 peerConnection.addTrack(
                     track,
                     localStream
@@ -3843,7 +3858,16 @@ async function joinClassroom() {
 
         await tellTeacherReady();
 
+        /*
+         * Poll several times immediately because the teacher may
+         * create the offer milliseconds after receiving READY.
+         */
         await pollTeacherSignals();
+
+        setTimeout(pollTeacherSignals, 150);
+        setTimeout(pollTeacherSignals, 400);
+        setTimeout(pollTeacherSignals, 800);
+        setTimeout(pollTeacherSignals, 1400);
 
         const stage =
             document.querySelector(
@@ -4811,4 +4835,4 @@ window.addEventListener(
 
 </body>
 
-</html>
+</ht
