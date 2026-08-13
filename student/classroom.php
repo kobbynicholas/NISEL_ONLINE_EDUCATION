@@ -2744,6 +2744,25 @@ body {
                     playsinline
                 ></video>
 
+                <div
+                    id="studentLocalLabel"
+                    style="
+                        position:absolute;
+                        right:30px;
+                        bottom:95px;
+                        z-index:20;
+                        display:none;
+                        background:#000b;
+                        color:#fff;
+                        padding:6px 9px;
+                        border-radius:8px;
+                        font-size:10px;
+                        font-weight:800;
+                    "
+                >
+                    You
+                </div>
+
 
                 <!-- VIDEO PLACEHOLDER -->
 
@@ -3526,6 +3545,16 @@ async function prepareLocalMedia() {
     localVideo.style.display =
         "block";
 
+    const studentLocalLabel =
+        document.getElementById(
+            "studentLocalLabel"
+        );
+
+    if (studentLocalLabel) {
+        studentLocalLabel.style.display =
+            "block";
+    }
+
     localVideo
         .play()
         .catch(function() {});
@@ -3849,6 +3878,10 @@ async function joinClassroom() {
         if (videoControls) {
             videoControls.style.display =
                 "flex";
+            videoControls.style.visibility =
+                "visible";
+            videoControls.style.opacity =
+                "1";
         }
 
         if (videoPlaceholder) {
@@ -3868,6 +3901,8 @@ async function joinClassroom() {
         setTimeout(pollTeacherSignals, 400);
         setTimeout(pollTeacherSignals, 800);
         setTimeout(pollTeacherSignals, 1400);
+        setTimeout(pollTeacherSignals, 2200);
+        setTimeout(pollTeacherSignals, 3500);
 
         const stage =
             document.querySelector(
@@ -4835,4 +4870,4 @@ window.addEventListener(
 
 </body>
 
-</ht
+</html>
