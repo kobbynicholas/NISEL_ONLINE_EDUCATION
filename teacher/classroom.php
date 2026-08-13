@@ -1289,7 +1289,16 @@ async function post(
         );
 
 
-    return response.json();
+    const text = await response.text();
+
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        console.error("Invalid server response:", text);
+        throw new Error(
+            "The classroom server returned an invalid response. Check the PHP error log."
+        );
+    }
 
 }
 
@@ -1304,18 +1313,30 @@ startButton.addEventListener(
     "click",
     async function() {
 
+        if (started) {
+            return;
+        }
+
+        startButton.disabled = true;
+        startButton.textContent = "Starting...";
+
         try {
+
+            /*
+             * Open the teacher camera and microphone FIRST.
+             * The booking is marked LIVE only after the browser
+             * successfully grants media access.
+             */
+            await startMedia();
 
             const result =
                 await post({
-
-                    classroom_action:
-                        "start_class"
-
+                    classroom_action: "start_class"
                 });
 
-
             if (!result.success) {
+
+                stopLocalMedia();
 
                 alert(
                     result.message
@@ -1323,37 +1344,34 @@ startButton.addEventListener(
                     "Unable to start class."
                 );
 
+                startButton.disabled = false;
+                startButton.textContent = "▶ Start Live Class";
                 return;
-
             }
-
-
-            await startMedia();
-
 
             started = true;
 
-            waiting.style.display =
-                "none";
-
-            startButton.style.display =
-                "none";
-
-            endButton.style.display =
-                "inline-block";
+            waiting.style.display = "none";
+            startButton.style.display = "none";
+            endButton.style.display = "inline-block";
 
             pollSignals();
 
         } catch(error) {
 
-            console.error(error);
+            console.error("Classroom start error:", error);
+
+            stopLocalMedia();
+
+            startButton.disabled = false;
+            startButton.textContent = "▶ Start Live Class";
 
             alert(
-                "Unable to start the classroom."
+                error && error.message
+                    ? error.message
+                    : "Unable to start the classroom."
             );
-
         }
-
     }
 );
 
@@ -1367,24 +1385,71 @@ MEDIA
 async function startMedia()
 {
 
-    localStream =
-        await navigator
-            .mediaDevices
-            .getUserMedia({
+    if (
+        !navigator.mediaDevices
+        ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
+        throw new Error(
+            "Camera and microphone access is not available. Use Chrome/Edge on localhost or HTTPS."
+        );
+    }
 
+    try {
+
+        localStream =
+            await navigator.mediaDevices.getUserMedia({
                 video: true,
-
-                audio: true
-
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
             });
 
+    } catch (error) {
 
-    localVideo.srcObject =
-        localStream;
+        console.error("getUserMedia error:", error);
 
+        if (error.name === "NotAllowedError") {
+            throw new Error(
+                "Camera or microphone permission was denied. Click the camera icon in the browser address bar, allow both devices for localhost, then try again."
+            );
+        }
+
+        if (error.name === "NotFoundError") {
+            throw new Error(
+                "No camera or microphone was found on this computer."
+            );
+        }
+
+        if (error.name === "NotReadableError") {
+            throw new Error(
+                "The camera or microphone is already being used by another application."
+            );
+        }
+
+        throw new Error(
+            "Unable to access your camera or microphone."
+        );
+    }
+
+    localVideo.srcObject = localStream;
 
     createPeerConnection();
 
+}
+
+function stopLocalMedia()
+{
+    if (localStream) {
+        localStream.getTracks().forEach(function(track) {
+            track.stop();
+        });
+        localStream = null;
+    }
+
+    localVideo.srcObject = null;
 }
 
 
