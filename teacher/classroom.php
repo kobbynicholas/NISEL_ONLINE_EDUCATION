@@ -110,23 +110,23 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
 }
 </style>
 
-<style id="nisel-recording-style">
+<style id="nisel-recording-v1">
 .recording-indicator{
     position:absolute;
     top:18px;
     left:18px;
-    z-index:1001;
+    z-index:1002;
     display:none;
     align-items:center;
     gap:8px;
-    padding:9px 12px;
+    padding:9px 13px;
     border-radius:999px;
+    background:rgba(185,28,28,.95);
     color:#fff;
-    background:rgba(185,28,28,.94);
     border:1px solid rgba(255,255,255,.18);
-    box-shadow:0 10px 28px rgba(0,0,0,.35);
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
     font:800 11px/1 Arial,sans-serif;
-    letter-spacing:.4px;
+    letter-spacing:.45px;
 }
 .recording-indicator.live{
     display:flex;
@@ -136,9 +136,9 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
     height:9px;
     border-radius:50%;
     background:#fff;
-    animation:niselRecordPulse 1s infinite;
+    animation:niselRecordingPulse 1s infinite;
 }
-@keyframes niselRecordPulse{
+@keyframes niselRecordingPulse{
     0%,100%{opacity:1;transform:scale(1)}
     50%{opacity:.35;transform:scale(.72)}
 }
@@ -150,7 +150,10 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
     background:#b42336 !important;
 }
 @media(max-width:700px){
-    #recordButton span,#stopRecordButton span{display:none}
+    #recordButton span,
+    #stopRecordButton span{
+        display:none;
+    }
 }
 </style>
 
@@ -178,608 +181,6 @@ display:none;">
     playsinline
     style="display:none"
 ></audio>
-
-
-<script>
-/*
- * NISEL Virtual Classroom Recording — Phase 1
- *
- * This records in the teacher's browser. It combines:
- *   - teacher camera
- *   - student remote camera
- *   - teacher microphone
- *   - student remote audio
- *
- * The existing WebRTC signaling is deliberately not modified.
- */
-(function(){
-    const recordButton =
-        document.getElementById("recordButton");
-    const stopRecordButton =
-        document.getElementById("stopRecordButton");
-    const recordingIndicator =
-        document.getElementById("recordingIndicator");
-    const recordingTimer =
-        document.getElementById("recordingTimer");
-    const teacherVideo =
-        document.getElementById("localVideo");
-    const studentVideo =
-        document.getElementById("remoteVideo");
-
-    if (!recordButton || !stopRecordButton ||
-        !teacherVideo || !studentVideo) {
-        return;
-    }
-
-    let recorder = null;
-    let recordingChunks = [];
-    let recordingStartedAt = 0;
-    let recordingTimerId = null;
-    let canvas = null;
-    let canvasContext = null;
-    let canvasStream = null;
-    let audioContext = null;
-    let audioDestination = null;
-    let localAudioSource = null;
-    let remoteAudioSource = null;
-    let drawFrameId = null;
-
-    function formatTime(seconds){
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-
-        return h > 0
-            ? String(h).padStart(2,"0") + ":" +
-              String(m).padStart(2,"0") + ":" +
-              String(s).padStart(2,"0")
-            : String(m).padStart(2,"0") + ":" +
-              String(s).padStart(2,"0");
-    }
-
-    function updateTimer(){
-        if (!recordingStartedAt) return;
-
-        recordingTimer.textContent =
-            formatTime(
-                Math.floor(
-                    (Date.now() - recordingStartedAt) / 1000
-                )
-            );
-    }
-
-    function drawVideo(video, x, y, width, height){
-        if (
-            video &&
-            video.readyState >= 2 &&
-            video.videoWidth > 0 &&
-            video.videoHeight > 0
-        ){
-            const videoRatio =
-                video.videoWidth / video.videoHeight;
-
-            const boxRatio =
-                width / height;
-
-            let drawWidth = width;
-            let drawHeight = height;
-            let drawX = x;
-            let drawY = y;
-
-            if (videoRatio > boxRatio){
-                drawHeight = width / videoRatio;
-                drawY = y + (height - drawHeight) / 2;
-            }else{
-                drawWidth = height * videoRatio;
-                drawX = x + (width - drawWidth) / 2;
-            }
-
-            canvasContext.drawImage(
-                video,
-                drawX,
-                drawY,
-                drawWidth,
-                drawHeight
-            );
-        }else{
-            canvasContext.fillStyle = "#111827";
-            canvasContext.fillRect(
-                x,
-                y,
-                width,
-                height
-            );
-        }
-    }
-
-    function drawRecordingFrame(){
-        if (!canvasContext) return;
-
-        const width = canvas.width;
-        const height = canvas.height;
-
-        canvasContext.fillStyle = "#020711";
-        canvasContext.fillRect(
-            0,
-            0,
-            width,
-            height
-        );
-
-        /*
-         * Main panel: student.
-         */
-        const padding = 24;
-        const gap = 18;
-        const mainWidth =
-            width - padding * 2;
-        const mainHeight =
-            height - padding * 2;
-
-        drawVideo(
-            studentVideo,
-            padding,
-            padding,
-            mainWidth,
-            mainHeight
-        );
-
-        /*
-         * Teacher picture-in-picture.
-         */
-        const pipWidth = 360;
-        const pipHeight = 220;
-        const pipX =
-            width - pipWidth - 40;
-        const pipY =
-            height - pipHeight - 40;
-
-        canvasContext.save();
-        canvasContext.shadowColor =
-            "rgba(0,0,0,.65)";
-        canvasContext.shadowBlur = 24;
-        canvasContext.fillStyle = "#111827";
-        canvasContext.fillRect(
-            pipX,
-            pipY,
-            pipWidth,
-            pipHeight
-        );
-
-        drawVideo(
-            teacherVideo,
-            pipX,
-            pipY,
-            pipWidth,
-            pipHeight
-        );
-
-        canvasContext.restore();
-
-        /*
-         * Labels.
-         */
-        canvasContext.fillStyle =
-            "rgba(0,0,0,.72)";
-        canvasContext.fillRect(
-            padding + 12,
-            padding + 12,
-            115,
-            30
-        );
-
-        canvasContext.fillStyle = "#fff";
-        canvasContext.font =
-            "700 14px Arial";
-        canvasContext.fillText(
-            "Student",
-            padding + 26,
-            padding + 32
-        );
-
-        canvasContext.fillStyle =
-            "rgba(0,0,0,.72)";
-        canvasContext.fillRect(
-            pipX + 12,
-            pipY + 12,
-            100,
-            30
-        );
-
-        canvasContext.fillStyle = "#fff";
-        canvasContext.fillText(
-            "Teacher",
-            pipX + 26,
-            pipY + 32
-        );
-
-        drawFrameId =
-            requestAnimationFrame(
-                drawRecordingFrame
-            );
-    }
-
-    function chooseMimeType(){
-        const candidates = [
-            "video/webm;codecs=vp9,opus",
-            "video/webm;codecs=vp8,opus",
-            "video/webm"
-        ];
-
-        for (const type of candidates){
-            if (
-                window.MediaRecorder &&
-                MediaRecorder.isTypeSupported(type)
-            ){
-                return type;
-            }
-        }
-
-        return "";
-    }
-
-    function stopDrawing(){
-        if (drawFrameId){
-            cancelAnimationFrame(drawFrameId);
-            drawFrameId = null;
-        }
-    }
-
-    function cleanupAudio(){
-        try{
-            if (localAudioSource){
-                localAudioSource.disconnect();
-            }
-        }catch(e){}
-
-        try{
-            if (remoteAudioSource){
-                remoteAudioSource.disconnect();
-            }
-        }catch(e){}
-
-        try{
-            if (audioContext &&
-                audioContext.state !== "closed"){
-                audioContext.close();
-            }
-        }catch(e){}
-
-        localAudioSource = null;
-        remoteAudioSource = null;
-        audioDestination = null;
-        audioContext = null;
-    }
-
-    function buildRecordingStream(){
-        canvas =
-            document.createElement("canvas");
-
-        canvas.width = 1280;
-        canvas.height = 720;
-
-        canvasContext =
-            canvas.getContext("2d", {
-                alpha:false
-            });
-
-        canvasStream =
-            canvas.captureStream(30);
-
-        /*
-         * Mix both audio streams through Web Audio.
-         */
-        audioContext =
-            new (
-                window.AudioContext ||
-                window.webkitAudioContext
-            )();
-
-        audioDestination =
-            audioContext.createMediaStreamDestination();
-
-        if (
-            localStream instanceof MediaStream &&
-            localStream.getAudioTracks().length
-        ){
-            localAudioSource =
-                audioContext.createMediaStreamSource(
-                    localStream
-                );
-
-            localAudioSource.connect(
-                audioDestination
-            );
-        }
-
-        const remoteStream =
-            studentVideo.srcObject;
-
-        if (
-            remoteStream instanceof MediaStream &&
-            remoteStream.getAudioTracks().length
-        ){
-            remoteAudioSource =
-                audioContext.createMediaStreamSource(
-                    remoteStream
-                );
-
-            remoteAudioSource.connect(
-                audioDestination
-            );
-        }
-
-        const combinedStream =
-            new MediaStream();
-
-        canvasStream
-            .getVideoTracks()
-            .forEach(track => {
-                combinedStream.addTrack(track);
-            });
-
-        audioDestination.stream
-            .getAudioTracks()
-            .forEach(track => {
-                combinedStream.addTrack(track);
-            });
-
-        return combinedStream;
-    }
-
-    function downloadRecording(){
-        if (!recordingChunks.length){
-            return;
-        }
-
-        const blob =
-            new Blob(
-                recordingChunks,
-                {
-                    type:
-                        recorder &&
-                        recorder.mimeType
-                            ? recorder.mimeType
-                            : "video/webm"
-                }
-            );
-
-        const now =
-            new Date();
-
-        const stamp =
-            now.getFullYear() + "-" +
-            String(now.getMonth()+1).padStart(2,"0") + "-" +
-            String(now.getDate()).padStart(2,"0") + "_" +
-            String(now.getHours()).padStart(2,"0") + "-" +
-            String(now.getMinutes()).padStart(2,"0");
-
-        const url =
-            URL.createObjectURL(blob);
-
-        const link =
-            document.createElement("a");
-
-        link.href = url;
-        link.download =
-            "NISEL_Live_Class_" +
-            stamp +
-            ".webm";
-
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        setTimeout(function(){
-            URL.revokeObjectURL(url);
-        }, 5000);
-
-        console.log(
-            "NISEL: recording saved locally.",
-            blob.size,
-            "bytes"
-        );
-    }
-
-    function resetRecordingUI(){
-        recordButton.style.display = "flex";
-        stopRecordButton.style.display = "none";
-
-        recordButton.classList.remove(
-            "recording"
-        );
-
-        recordButton.innerHTML =
-            "⏺<span>Record</span>";
-
-        recordingIndicator.classList.remove(
-            "live"
-        );
-
-        recordingStartedAt = 0;
-
-        if (recordingTimerId){
-            clearInterval(
-                recordingTimerId
-            );
-            recordingTimerId = null;
-        }
-
-        recordingTimer.textContent =
-            "00:00";
-    }
-
-    recordButton.addEventListener(
-        "click",
-        async function(){
-
-            if (
-                recorder &&
-                recorder.state === "recording"
-            ){
-                return;
-            }
-
-            if (
-                typeof MediaRecorder ===
-                "undefined"
-            ){
-                alert(
-                    "Your browser does not support classroom recording."
-                );
-                return;
-            }
-
-            try{
-
-                /*
-                 * If AudioContext was suspended, this click is a
-                 * user gesture and is the correct place to resume it.
-                 */
-                const stream =
-                    buildRecordingStream();
-
-                if (
-                    audioContext &&
-                    audioContext.state ===
-                    "suspended"
-                ){
-                    await audioContext.resume();
-                }
-
-                recordingChunks = [];
-
-                const mimeType =
-                    chooseMimeType();
-
-                recorder =
-                    mimeType
-                        ? new MediaRecorder(
-                            stream,
-                            {
-                                mimeType:
-                                    mimeType
-                            }
-                        )
-                        : new MediaRecorder(
-                            stream
-                        );
-
-                recorder.ondataavailable =
-                    function(event){
-                        if (
-                            event.data &&
-                            event.data.size > 0
-                        ){
-                            recordingChunks.push(
-                                event.data
-                            );
-                        }
-                    };
-
-                recorder.onerror =
-                    function(event){
-                        console.error(
-                            "NISEL recording error:",
-                            event.error
-                        );
-
-                        alert(
-                            "The classroom recording encountered an error."
-                        );
-                    };
-
-                recorder.onstop =
-                    function(){
-                        stopDrawing();
-                        cleanupAudio();
-
-                        downloadRecording();
-
-                        resetRecordingUI();
-                    };
-
-                recorder.start(1000);
-
-                recordingStartedAt =
-                    Date.now();
-
-                recordingTimerId =
-                    setInterval(
-                        updateTimer,
-                        1000
-                    );
-
-                recordButton.style.display =
-                    "none";
-
-                stopRecordButton.style.display =
-                    "flex";
-
-                recordButton.classList.add(
-                    "recording"
-                );
-
-                recordingIndicator.classList.add(
-                    "live"
-                );
-
-                drawRecordingFrame();
-
-                console.log(
-                    "NISEL: recording started.",
-                    recorder.mimeType
-                );
-
-            }catch(error){
-
-                console.error(
-                    "NISEL recording start:",
-                    error
-                );
-
-                cleanupAudio();
-                stopDrawing();
-
-                alert(
-                    "Unable to start recording. Please make sure your camera and microphone are active."
-                );
-            }
-        }
-    );
-
-    stopRecordButton.addEventListener(
-        "click",
-        function(){
-
-            if (
-                recorder &&
-                recorder.state !== "inactive"
-            ){
-                recorder.stop();
-            }
-        }
-    );
-
-    /*
-     * Stop recording automatically if the teacher ends/leaves
-     * the classroom, while keeping the existing class logic intact.
-     */
-    window.addEventListener(
-        "beforeunload",
-        function(){
-            if (
-                recorder &&
-                recorder.state !== "inactive"
-            ){
-                try{
-                    recorder.stop();
-                }catch(e){}
-            }
-        }
-    );
-})();
-</script>
 
 </body></html>');
 }
@@ -1386,19 +787,21 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 
 <main class="layout">
 <section class="stage" id="stage">
+    <div
+        id="recordingIndicator"
+        class="recording-indicator"
+        aria-live="polite"
+    >
+        <span class="recording-dot"></span>
+        <span>RECORDING</span>
+        <span id="recordingTimer">00:00</span>
+    </div>
     <div class="remote-wrap">
         <video id="remoteVideo" autoplay playsinline></video>
         <div class="remote-placeholder" id="remotePlaceholder"><div><div class="icon">👨‍🎓</div><h2>Waiting for student</h2><p>The student will appear here when they join the live classroom.</p></div></div>
     </div>
     <video id="localVideo" autoplay muted playsinline></video><div id="localLabel" style="position:absolute;right:30px;bottom:96px;z-index:51;display:none;background:#000b;color:#fff;padding:6px 9px;border-radius:8px;font-size:10px;font-weight:800">You</div>
-    
-<div id="recordingIndicator" class="recording-indicator" aria-live="polite">
-    <span class="recording-dot"></span>
-    <span>RECORDING</span>
-    <span id="recordingTimer">00:00</span>
-</div>
-
-<div class="remote-name">👨‍🎓 <?= e($student_name) ?></div>
+    <div class="remote-name">👨‍🎓 <?= e($student_name) ?></div>
 
     <div class="start-overlay" id="startOverlay">
         <div class="start-card">
@@ -1422,23 +825,23 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 >🔊<span>Audio</span></button>
 
 <button
-    class="control"
-    id="recordButton"
-    type="button"
-    title="Start recording"
-    aria-label="Start recording"
->⏺<span>Record</span></button>
+            class="control"
+            id="recordButton"
+            type="button"
+            title="Start recording"
+            aria-label="Start recording"
+        >⏺<span>Record</span></button>
 
-<button
-    class="control"
-    id="stopRecordButton"
-    type="button"
-    title="Stop recording"
-    aria-label="Stop recording"
-    style="display:none"
->⏹<span>Stop</span></button>
+        <button
+            class="control"
+            id="stopRecordButton"
+            type="button"
+            title="Stop recording"
+            aria-label="Stop recording"
+            style="display:none"
+        >⏹<span>Stop</span></button>
 
-<button class="control" id="fullscreenButton" type="button" title="Fullscreen" aria-label="Fullscreen">⛶<span>Full</span></button>
+        <button class="control" id="fullscreenButton" type="button" title="Fullscreen" aria-label="Fullscreen">⛶<span>Full</span></button>
     </div>
 </section>
 
@@ -2475,6 +1878,828 @@ window.addEventListener("beforeunload", () => {
     },1000);
 
     render();
+})();
+</script>
+
+
+<script>
+/*
+ * NISEL CLASSROOM RECORDING — v1
+ *
+ * This module is intentionally separate from the existing WebRTC
+ * signaling code. It records in the teacher's browser using:
+ *   - MediaRecorder
+ *   - Canvas.captureStream()
+ *   - Web Audio API
+ *
+ * It does NOT modify classroom_signals, chat, offer/answer or ICE.
+ */
+(function(){
+
+    const recordButton =
+        document.getElementById("recordButton");
+
+    const stopRecordButton =
+        document.getElementById("stopRecordButton");
+
+    const recordingIndicator =
+        document.getElementById("recordingIndicator");
+
+    const recordingTimer =
+        document.getElementById("recordingTimer");
+
+    const teacherVideo =
+        document.getElementById("localVideo");
+
+    const studentVideo =
+        document.getElementById("remoteVideo");
+
+    const endButton =
+        document.getElementById("endButton");
+
+    if (
+        !recordButton ||
+        !stopRecordButton ||
+        !recordingIndicator ||
+        !recordingTimer ||
+        !teacherVideo ||
+        !studentVideo
+    ){
+        console.warn(
+            "NISEL recording: required classroom elements are missing."
+        );
+        return;
+    }
+
+    let mediaRecorder = null;
+    let recordingChunks = [];
+    let canvas = null;
+    let canvasContext = null;
+    let canvasStream = null;
+    let audioContext = null;
+    let audioDestination = null;
+    let localAudioSource = null;
+    let remoteAudioSource = null;
+    let animationFrame = null;
+    let timerInterval = null;
+    let recordingStartedAt = 0;
+
+    function formatTime(totalSeconds){
+        const hours =
+            Math.floor(totalSeconds / 3600);
+
+        const minutes =
+            Math.floor(
+                (totalSeconds % 3600) / 60
+            );
+
+        const seconds =
+            totalSeconds % 60;
+
+        if (hours > 0){
+            return (
+                String(hours).padStart(2,"0") +
+                ":" +
+                String(minutes).padStart(2,"0") +
+                ":" +
+                String(seconds).padStart(2,"0")
+            );
+        }
+
+        return (
+            String(minutes).padStart(2,"0") +
+            ":" +
+            String(seconds).padStart(2,"0")
+        );
+    }
+
+    function updateTimer(){
+        if (!recordingStartedAt){
+            return;
+        }
+
+        const seconds =
+            Math.floor(
+                (Date.now() - recordingStartedAt) /
+                1000
+            );
+
+        recordingTimer.textContent =
+            formatTime(seconds);
+    }
+
+    function drawVideoCover(
+        video,
+        x,
+        y,
+        width,
+        height
+    ){
+        if (
+            video &&
+            video.readyState >= 2 &&
+            video.videoWidth > 0 &&
+            video.videoHeight > 0
+        ){
+
+            const videoRatio =
+                video.videoWidth /
+                video.videoHeight;
+
+            const boxRatio =
+                width / height;
+
+            let drawWidth = width;
+            let drawHeight = height;
+            let drawX = x;
+            let drawY = y;
+
+            if (videoRatio > boxRatio){
+
+                drawHeight =
+                    width / videoRatio;
+
+                drawY =
+                    y +
+                    (height - drawHeight) /
+                    2;
+
+            }else{
+
+                drawWidth =
+                    height * videoRatio;
+
+                drawX =
+                    x +
+                    (width - drawWidth) /
+                    2;
+            }
+
+            canvasContext.drawImage(
+                video,
+                drawX,
+                drawY,
+                drawWidth,
+                drawHeight
+            );
+
+        }else{
+
+            canvasContext.fillStyle =
+                "#101923";
+
+            canvasContext.fillRect(
+                x,
+                y,
+                width,
+                height
+            );
+
+            canvasContext.fillStyle =
+                "#8da2b8";
+
+            canvasContext.font =
+                "700 22px Arial";
+
+            canvasContext.textAlign =
+                "center";
+
+            canvasContext.fillText(
+                "Camera not available",
+                x + width / 2,
+                y + height / 2
+            );
+
+            canvasContext.textAlign =
+                "left";
+        }
+    }
+
+    function drawFrame(){
+
+        if (!canvasContext){
+            return;
+        }
+
+        const width =
+            canvas.width;
+
+        const height =
+            canvas.height;
+
+        canvasContext.fillStyle =
+            "#020711";
+
+        canvasContext.fillRect(
+            0,
+            0,
+            width,
+            height
+        );
+
+        const padding = 22;
+
+        /*
+         * Main student video.
+         */
+        drawVideoCover(
+            studentVideo,
+            padding,
+            padding,
+            width - padding * 2,
+            height - padding * 2
+        );
+
+        /*
+         * Teacher picture-in-picture.
+         */
+        const pipWidth = 350;
+        const pipHeight = 220;
+
+        const pipX =
+            width -
+            pipWidth -
+            40;
+
+        const pipY =
+            height -
+            pipHeight -
+            40;
+
+        canvasContext.save();
+
+        canvasContext.shadowColor =
+            "rgba(0,0,0,.65)";
+
+        canvasContext.shadowBlur =
+            25;
+
+        canvasContext.fillStyle =
+            "#111827";
+
+        canvasContext.fillRect(
+            pipX,
+            pipY,
+            pipWidth,
+            pipHeight
+        );
+
+        drawVideoCover(
+            teacherVideo,
+            pipX,
+            pipY,
+            pipWidth,
+            pipHeight
+        );
+
+        canvasContext.restore();
+
+        /*
+         * Student label.
+         */
+        canvasContext.fillStyle =
+            "rgba(0,0,0,.72)";
+
+        canvasContext.fillRect(
+            padding + 12,
+            padding + 12,
+            105,
+            30
+        );
+
+        canvasContext.fillStyle =
+            "#fff";
+
+        canvasContext.font =
+            "700 14px Arial";
+
+        canvasContext.fillText(
+            "Student",
+            padding + 26,
+            padding + 32
+        );
+
+        /*
+         * Teacher label.
+         */
+        canvasContext.fillStyle =
+            "rgba(0,0,0,.72)";
+
+        canvasContext.fillRect(
+            pipX + 12,
+            pipY + 12,
+            100,
+            30
+        );
+
+        canvasContext.fillStyle =
+            "#fff";
+
+        canvasContext.fillText(
+            "Teacher",
+            pipX + 26,
+            pipY + 32
+        );
+
+        animationFrame =
+            requestAnimationFrame(
+                drawFrame
+            );
+    }
+
+    function getSupportedMimeType(){
+
+        if (
+            typeof MediaRecorder ===
+            "undefined"
+        ){
+            return "";
+        }
+
+        const types = [
+            "video/webm;codecs=vp9,opus",
+            "video/webm;codecs=vp8,opus",
+            "video/webm"
+        ];
+
+        for (
+            const type of types
+        ){
+
+            if (
+                MediaRecorder.isTypeSupported(
+                    type
+                )
+            ){
+                return type;
+            }
+        }
+
+        return "";
+    }
+
+    async function createRecordingStream(){
+
+        canvas =
+            document.createElement(
+                "canvas"
+            );
+
+        canvas.width = 1280;
+        canvas.height = 720;
+
+        canvasContext =
+            canvas.getContext(
+                "2d",
+                { alpha:false }
+            );
+
+        canvasStream =
+            canvas.captureStream(30);
+
+        /*
+         * Create a mixed audio output.
+         */
+        audioContext =
+            new (
+                window.AudioContext ||
+                window.webkitAudioContext
+            )();
+
+        audioDestination =
+            audioContext.createMediaStreamDestination();
+
+        /*
+         * Teacher microphone.
+         */
+        if (
+            window.localStream instanceof
+            MediaStream
+        ){
+
+            const localTracks =
+                window.localStream
+                    .getAudioTracks();
+
+            if (localTracks.length){
+
+                localAudioSource =
+                    audioContext
+                        .createMediaStreamSource(
+                            new MediaStream(
+                                localTracks
+                            )
+                        );
+
+                localAudioSource.connect(
+                    audioDestination
+                );
+            }
+        }
+
+        /*
+         * Student remote audio.
+         */
+        if (
+            studentVideo.srcObject instanceof
+            MediaStream
+        ){
+
+            const remoteTracks =
+                studentVideo.srcObject
+                    .getAudioTracks();
+
+            if (remoteTracks.length){
+
+                remoteAudioSource =
+                    audioContext
+                        .createMediaStreamSource(
+                            new MediaStream(
+                                remoteTracks
+                            )
+                        );
+
+                remoteAudioSource.connect(
+                    audioDestination
+                );
+            }
+        }
+
+        if (
+            audioContext.state ===
+            "suspended"
+        ){
+            await audioContext.resume();
+        }
+
+        const recordingStream =
+            new MediaStream();
+
+        canvasStream
+            .getVideoTracks()
+            .forEach(
+                function(track){
+                    recordingStream.addTrack(
+                        track
+                    );
+                }
+            );
+
+        audioDestination.stream
+            .getAudioTracks()
+            .forEach(
+                function(track){
+                    recordingStream.addTrack(
+                        track
+                    );
+                }
+            );
+
+        return recordingStream;
+    }
+
+    function cleanup(){
+
+        if (animationFrame){
+            cancelAnimationFrame(
+                animationFrame
+            );
+            animationFrame = null;
+        }
+
+        if (timerInterval){
+            clearInterval(
+                timerInterval
+            );
+            timerInterval = null;
+        }
+
+        try{
+            if (localAudioSource){
+                localAudioSource.disconnect();
+            }
+        }catch(e){}
+
+        try{
+            if (remoteAudioSource){
+                remoteAudioSource.disconnect();
+            }
+        }catch(e){}
+
+        try{
+            if (
+                audioContext &&
+                audioContext.state !==
+                "closed"
+            ){
+                audioContext.close();
+            }
+        }catch(e){}
+
+        if (canvasStream){
+            canvasStream
+                .getTracks()
+                .forEach(
+                    function(track){
+                        track.stop();
+                    }
+                );
+        }
+
+        canvas = null;
+        canvasContext = null;
+        canvasStream = null;
+        audioContext = null;
+        audioDestination = null;
+        localAudioSource = null;
+        remoteAudioSource = null;
+        recordingStartedAt = 0;
+        recordingTimer.textContent =
+            "00:00";
+    }
+
+    function saveRecording(){
+
+        if (!recordingChunks.length){
+            return;
+        }
+
+        const mimeType =
+            mediaRecorder &&
+            mediaRecorder.mimeType
+                ? mediaRecorder.mimeType
+                : "video/webm";
+
+        const blob =
+            new Blob(
+                recordingChunks,
+                { type:mimeType }
+            );
+
+        const now =
+            new Date();
+
+        const filename =
+            "NISEL_Live_Class_" +
+            now.getFullYear() +
+            "-" +
+            String(
+                now.getMonth() + 1
+            ).padStart(2,"0") +
+            "-" +
+            String(
+                now.getDate()
+            ).padStart(2,"0") +
+            "_" +
+            String(
+                now.getHours()
+            ).padStart(2,"0") +
+            "-" +
+            String(
+                now.getMinutes()
+            ).padStart(2,"0") +
+            "-" +
+            String(
+                now.getSeconds()
+            ).padStart(2,"0") +
+            ".webm";
+
+        const url =
+            URL.createObjectURL(
+                blob
+            );
+
+        const link =
+            document.createElement(
+                "a"
+            );
+
+        link.href = url;
+        link.download = filename;
+
+        document.body.appendChild(
+            link
+        );
+
+        link.click();
+        link.remove();
+
+        setTimeout(
+            function(){
+                URL.revokeObjectURL(
+                    url
+                );
+            },
+            5000
+        );
+
+        console.log(
+            "NISEL recording saved:",
+            filename,
+            blob.size,
+            "bytes"
+        );
+    }
+
+    function resetUI(){
+
+        recordButton.style.display =
+            "flex";
+
+        stopRecordButton.style.display =
+            "none";
+
+        recordButton.classList.remove(
+            "recording"
+        );
+
+        recordButton.innerHTML =
+            "⏺<span>Record</span>";
+
+        recordingIndicator.classList.remove(
+            "live"
+        );
+
+        recordingStartedAt = 0;
+
+        recordingTimer.textContent =
+            "00:00";
+    }
+
+    recordButton.addEventListener(
+        "click",
+        async function(){
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state ===
+                "recording"
+            ){
+                return;
+            }
+
+            if (
+                typeof MediaRecorder ===
+                "undefined"
+            ){
+                alert(
+                    "Recording is not supported by this browser. Please use Google Chrome or Microsoft Edge."
+                );
+                return;
+            }
+
+            try{
+
+                const stream =
+                    await createRecordingStream();
+
+                const mimeType =
+                    getSupportedMimeType();
+
+                mediaRecorder =
+                    mimeType
+                        ? new MediaRecorder(
+                            stream,
+                            {
+                                mimeType:
+                                    mimeType
+                            }
+                        )
+                        : new MediaRecorder(
+                            stream
+                        );
+
+                recordingChunks = [];
+
+                mediaRecorder.ondataavailable =
+                    function(event){
+
+                        if (
+                            event.data &&
+                            event.data.size > 0
+                        ){
+                            recordingChunks.push(
+                                event.data
+                            );
+                        }
+                    };
+
+                mediaRecorder.onerror =
+                    function(event){
+
+                        console.error(
+                            "NISEL recording error:",
+                            event.error
+                        );
+
+                        alert(
+                            "An error occurred while recording the class."
+                        );
+                    };
+
+                mediaRecorder.onstop =
+                    function(){
+
+                        cleanup();
+
+                        saveRecording();
+
+                        resetUI();
+
+                        toastMessage(
+                            "Class recording saved to your computer."
+                        );
+                    };
+
+                mediaRecorder.start(
+                    1000
+                );
+
+                recordingStartedAt =
+                    Date.now();
+
+                timerInterval =
+                    setInterval(
+                        updateTimer,
+                        1000
+                    );
+
+                recordButton.style.display =
+                    "none";
+
+                stopRecordButton.style.display =
+                    "flex";
+
+                recordingIndicator.classList.add(
+                    "live"
+                );
+
+                drawFrame();
+
+                toastMessage(
+                    "Class recording started."
+                );
+
+            }catch(error){
+
+                console.error(
+                    "NISEL recording start error:",
+                    error
+                );
+
+                cleanup();
+
+                alert(
+                    "Unable to start the recording. Make sure the classroom cameras and microphone are available."
+                );
+            }
+        }
+    );
+
+    stopRecordButton.addEventListener(
+        "click",
+        function(){
+
+            if (
+                mediaRecorder &&
+                mediaRecorder.state !==
+                "inactive"
+            ){
+                mediaRecorder.stop();
+            }
+        }
+    );
+
+    /*
+     * If the teacher clicks End Class while recording,
+     * stop the recorder first. The normal v14 end-class
+     * logic remains untouched.
+     */
+    if (endButton){
+
+        endButton.addEventListener(
+            "click",
+            function(){
+
+                if (
+                    mediaRecorder &&
+                    mediaRecorder.state !==
+                    "inactive"
+                ){
+                    try{
+                        mediaRecorder.stop();
+                    }catch(e){
+                        console.warn(
+                            "NISEL recording stop:",
+                            e
+                        );
+                    }
+                }
+            },
+            true
+        );
+    }
+
 })();
 </script>
 
