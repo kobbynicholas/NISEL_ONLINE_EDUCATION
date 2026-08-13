@@ -582,11 +582,102 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 @media(max-width:900px){body{overflow:auto}.layout{height:auto;min-height:calc(100vh - 68px);grid-template-columns:1fr}.stage{height:68vh;min-height:500px}.sidebar{min-height:430px;border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:560px){.topbar{padding:0 12px}.status-pill{display:none}.brand-title{font-size:11px}.back{font-size:10px}.controls{bottom:10px}.control{width:40px;height:40px}.control.share{padding:0 12px}.start-card h1{font-size:23px}#localVideo{width:155px;height:100px;right:12px;bottom:75px}}
 </style>
+
+<style id="niseL-modern-classroom">
+.layout{
+    height:calc(100vh - 68px);
+    height:calc(100dvh - 68px);
+    min-height:0 !important;
+}
+.stage{
+    min-height:0 !important;
+    overflow:hidden;
+    isolation:isolate;
+}
+.remote-wrap{
+    min-height:0 !important;
+    height:100%;
+}
+#remoteVideo{
+    width:100%;
+    height:100%;
+    min-height:0 !important;
+    object-fit:cover;
+}
+.controls{
+    z-index:1000 !important;
+    bottom:18px !important;
+    gap:9px !important;
+    padding:8px !important;
+    border:1px solid rgba(255,255,255,.13) !important;
+    background:rgba(6,17,29,.94) !important;
+    box-shadow:0 18px 45px rgba(0,0,0,.45) !important;
+}
+.control{
+    min-width:48px;
+    height:48px !important;
+    border:1px solid rgba(255,255,255,.12) !important;
+    background:rgba(255,255,255,.08) !important;
+    border-radius:14px !important;
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    font-weight:700;
+    transition:transform .18s ease,background .18s ease,box-shadow .18s ease;
+}
+.control span{
+    font-size:11px;
+    font-weight:800;
+}
+.control:hover{
+    transform:translateY(-2px);
+    background:rgba(255,255,255,.16) !important;
+    box-shadow:0 8px 20px rgba(0,0,0,.22);
+}
+.control.share{
+    padding:0 14px !important;
+    min-width:100px;
+}
+.class-timer{
+    min-width:74px;
+    height:36px;
+    padding:0 12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);
+    color:#fff;
+    font:800 12px/1 Arial,sans-serif;
+    letter-spacing:.7px;
+}
+#localVideo{
+    border:2px solid rgba(255,255,255,.9) !important;
+    box-shadow:0 14px 35px rgba(0,0,0,.45);
+}
+.sidebar{
+    min-height:0;
+    overflow:hidden;
+}
+.messages{
+    min-height:0;
+}
+@media(max-width:700px){
+    .class-timer{display:none}
+    .control{width:44px;min-width:44px;height:44px !important}
+    .control span{display:none}
+    .control.share{min-width:44px;padding:0 10px !important}
+    .controls{bottom:10px !important}
+}
+</style>
+
 </head>
 <body>
 <header class="topbar">
     <div class="brand"><div class="brand-icon">🎓</div><div><div class="brand-title">NISEL ONLINE EDUCATION</div><div class="brand-sub">TEACHER LIVE CLASSROOM</div></div></div>
-    <div class="top-actions"><div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">CLASS NOT STARTED</span></div><a class="back" href="schedule.php">← Schedule</a></div>
+    <div class="top-actions"><div class="class-timer" id="classTimer">00:00</div><div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">CLASS NOT STARTED</span></div><a class="back" href="schedule.php">← Schedule</a></div>
 </header>
 
 <main class="layout">
@@ -608,10 +699,10 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
     </div>
 
     <div class="controls">
-        <button class="control" id="micButton" type="button" title="Microphone">🎤</button>
-        <button class="control" id="cameraButton" type="button" title="Camera">📷</button>
-        <button class="control share" id="shareButton" type="button" title="Share screen">🖥️ Share Screen</button>
-        <button class="control" id="fullscreenButton" type="button" title="Fullscreen">⛶</button>
+        <button class="control" id="micButton" type="button" title="Microphone" aria-label="Microphone">🎤<span>Mic</span></button>
+        <button class="control" id="cameraButton" type="button" title="Camera" aria-label="Camera">📷<span>Camera</span></button>
+        <button class="control share" id="shareButton" type="button" title="Share screen" aria-label="Share screen">🖥️<span>Share</span></button>
+        <button class="control" id="fullscreenButton" type="button" title="Fullscreen" aria-label="Fullscreen">⛶<span>Full</span></button>
     </div>
 </section>
 
@@ -1429,9 +1520,31 @@ async function stopScreenShare() {
 
 fullscreenButton.addEventListener("click", async () => {
     try {
-        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-        else await document.exitFullscreen();
-    } catch (e) { console.warn(e); }
+        if (!document.fullscreenElement) {
+            if (stage.requestFullscreen) {
+                await stage.requestFullscreen();
+            } else if (stage.webkitRequestFullscreen) {
+                stage.webkitRequestFullscreen();
+            } else {
+                throw new Error("Fullscreen is not supported.");
+            }
+        } else {
+            if (document.exitFullscreen) {
+                await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    } catch (e) {
+        console.warn("Fullscreen:", e);
+        toastMessage("Fullscreen is not available in this browser.", true);
+    }
+});
+
+document.addEventListener("fullscreenchange", () => {
+    const active = !!document.fullscreenElement;
+    fullscreenButton.innerHTML =
+        active ? "⛶<span>Exit</span>" : "⛶<span>Full</span>";
 });
 
 chatForm.addEventListener("submit", async event => {
@@ -1491,5 +1604,43 @@ window.addEventListener("beforeunload", () => {
     if (peerConnection) peerConnection.close();
 });
 </script>
+
+<script>
+(function(){
+    const timer = document.getElementById("classTimer");
+    if (!timer) return;
+    let startedAt = null;
+
+    function render(){
+        if (!startedAt){
+            timer.textContent = "00:00";
+            return;
+        }
+        const seconds = Math.max(
+            0,
+            Math.floor((Date.now() - startedAt) / 1000)
+        );
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        timer.textContent = h > 0
+            ? String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")
+            : String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+    }
+
+    setInterval(function(){
+        const status = document.getElementById("statusText");
+        if (status && /LIVE/i.test(status.textContent)){
+            if (!startedAt) startedAt = Date.now();
+        } else {
+            startedAt = null;
+        }
+        render();
+    },1000);
+
+    render();
+})();
+</script>
+
 </body>
 </html>
