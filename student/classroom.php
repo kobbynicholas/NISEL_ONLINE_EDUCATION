@@ -138,9 +138,25 @@ if ($booking_id <= 0) {
 
         </style>
 
-    </head>
+    <style id="nisel-v13-style">
+.nisel-v13-badge{
+    position:fixed;top:18px;left:18px;z-index:9999;
+    padding:6px 10px;border-radius:999px;
+    background:rgba(11,130,198,.92);color:#fff;
+    font:800 10px/1 Arial,sans-serif;letter-spacing:.5px;
+}
+</style>
+<style id="nisel-v14">
+.nisel-v14-badge{
+position:fixed;top:18px;left:18px;z-index:99999;
+padding:6px 10px;border-radius:999px;
+background:rgba(11,130,198,.95);color:#fff;
+font:800 10px/1 Arial,sans-serif;letter-spacing:.5px
+}
+</style>
+</head>
 
-    <body>
+    <body><div class="nisel-v14-badge">NISEL CLASSROOM v14</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div>
 
         <div class="box">
 
@@ -3476,63 +3492,50 @@ function createPeerConnection() {
     peerConnection.ontrack =
         function(event) {
 
+            console.log(
+                "NISEL v14: teacher remote track:",
+                event.track.kind,
+                "streams:",
+                event.streams ? event.streams.length : 0
+            );
+
             let remoteStream =
-                (
-                    event.streams &&
-                    event.streams[0]
-                );
+                event.streams && event.streams.length
+                    ? event.streams[0]
+                    : null;
 
-            /*
-             * Some browsers can deliver a track without
-             * attaching event.streams[0]. Build a stream
-             * explicitly in that case.
-             */
             if (!remoteStream) {
+                remoteStream = remoteVideo.srcObject;
 
-                remoteStream =
-                    remoteVideo.srcObject;
+                if (!(remoteStream instanceof MediaStream)) {
+                    remoteStream = new MediaStream();
+                }
 
                 if (
-                    !remoteStream ||
-                    !(
-                        remoteStream instanceof
-                        MediaStream
-                    )
+                    !remoteStream
+                        .getTracks()
+                        .some(t => t.id === event.track.id)
                 ) {
-                    remoteStream =
-                        new MediaStream();
+                    remoteStream.addTrack(event.track);
                 }
-
-                remoteStream.addTrack(
-                    event.track
-                );
-
-                remoteVideo.srcObject =
-                    remoteStream;
             }
 
-            if (remoteStream) {
+            if (event.track.kind === "video") {
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.autoplay = true;
+                remoteVideo.playsInline = true;
+                remoteVideo.muted = true;
+                remoteVideo.style.display = "block";
+                remoteVideo.style.visibility = "visible";
 
-                remoteVideo.srcObject =
-                    remoteStream;
-
-                remoteVideo.style.display =
-                    "block";
-
-                videoPlaceholder.style.display =
-                    "none";
-
-                if (liveStatus) {
-
-                    liveStatus.innerHTML =
-                        '<span class="live-dot"></span> LIVE CLASS';
-                }
-
-                remoteVideo
-                    .play()
-                    .catch(function() {});
+                remoteVideo.play().catch(function(err) {
+                    console.warn(
+                        "NISEL v14 student remote video:",
+                        err
+                    );
+                });
             }
-        };
+        };;
 
 
     /*
@@ -3612,25 +3615,11 @@ function createPeerConnection() {
         };
 
 
-    try {
-
-        peerConnection.addTransceiver(
-            "video",
-            { direction: "sendrecv" }
-        );
-
-        peerConnection.addTransceiver(
-            "audio",
-            { direction: "sendrecv" }
-        );
-
-    } catch (error) {
-
-        console.warn(
-            "Transceiver setup:",
-            error
-        );
-    }
+    /*
+     * Media senders are added after getUserMedia() succeeds.
+     * Do not create bare transceivers here because addTrack()
+     * will create the correct sender + msid association.
+     */
 
     return peerConnection;
 }
@@ -3725,45 +3714,30 @@ async function prepareLocalMedia() {
         .play()
         .catch(function() {});
 
+    /*
+     * IMPORTANT:
+     * Associate each local track with the actual MediaStream.
+     * This creates the correct msid in the SDP and makes the
+     * remote ontrack event reliably expose event.streams[0].
+     */
     localStream
         .getTracks()
         .forEach(function(track) {
 
-            /*
-             * Use the sender belonging to the existing
-             * transceiver. Do NOT add a second video/audio
-             * transceiver, otherwise the offer/answer can
-             * contain duplicate media sections.
-             */
-            const transceiver =
-                peerConnection
-                    .getTransceivers()
-                    .find(function(item) {
-
-                        return (
-                            item.receiver &&
-                            item.receiver.track &&
-                            item.receiver.track.kind ===
-                            track.kind
-                        );
-                    });
-
-            if (transceiver) {
-
-                transceiver.sender
-                    .replaceTrack(track)
-                    .catch(console.error);
-
-            } else {
-
-                /*
-                 * Fallback for browsers that do not expose
-                 * the expected transceiver.
-                 */
+            const sender =
                 peerConnection.addTrack(
                     track,
                     localStream
                 );
+
+            if (track.kind === "video") {
+                window.niselVideoSender =
+                    sender;
+            }
+
+            if (track.kind === "audio") {
+                window.niselAudioSender =
+                    sender;
             }
         });
 }
