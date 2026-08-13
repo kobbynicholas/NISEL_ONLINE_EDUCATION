@@ -60,18 +60,49 @@ if ($booking_id <= 0) {
     if ($_SERVER["REQUEST_METHOD"] === "POST") {
         json_response(["success" => false, "message" => "No valid booking was selected."]);
     }
-    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style></head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style>
+<style id="nisel-v12-style">
+.nisel-v12-badge{
+    position:fixed;
+    top:78px;
+    left:18px;
+    z-index:9990;
+    padding:6px 10px;
+    border-radius:999px;
+    background:rgba(11,130,198,.92);
+    color:#fff;
+    font:800 10px/1 Arial,sans-serif;
+    letter-spacing:.5px;
+    box-shadow:0 8px 22px rgba(0,0,0,.25);
+}
+</style>
+
+
+<style id="nisel-v12-audio-style">
+#remoteAudioButton.active{
+    background:rgba(11,130,198,.95) !important;
+    box-shadow:0 0 0 3px rgba(11,130,198,.20);
+}
+#remoteVideo{
+    background:#020a12 !important;
+}
+</style>
+
+</head><body><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+
 <div id="niseLDiagnostic" style="
-position:fixed;right:18px;bottom:82px;z-index:9999;
-width:320px;max-width:calc(100vw - 36px);
-background:rgba(5,18,31,.96);color:#fff;
+position:fixed;right:18px;bottom:78px;z-index:99999;
+width:310px;max-width:calc(100vw - 36px);
+background:rgba(5,18,31,.97);color:#fff;
 border:1px solid rgba(255,255,255,.16);
 border-radius:14px;padding:14px;
 font:12px/1.45 Arial,sans-serif;
-box-shadow:0 20px 50px rgba(0,0,0,.4);
+box-shadow:0 20px 50px rgba(0,0,0,.45);
 display:none;">
-  <div style="font-weight:800;font-size:13px;margin-bottom:8px">NISEL WebRTC Diagnostic</div>
-  <div id="niseLDiagBody">Waiting...</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:8px">
+        NISEL WebRTC Diagnostic
+    </div>
+    <div id="niseLDiagBody">Waiting...</div>
 </div>
 
 </body></html>');
@@ -570,20 +601,111 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 .topbar{height:68px;background:linear-gradient(135deg,#032b4f,#0874b7);display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:12px}.brand-icon{width:40px;height:40px;border-radius:12px;background:#ffffff18;display:grid;place-items:center;font-size:20px}.brand-title{font-size:14px;font-weight:900}.brand-sub{font-size:9px;letter-spacing:1px;color:#b9d9ec;margin-top:3px}
 .top-actions{display:flex;gap:9px;align-items:center}.status-pill{display:flex;gap:7px;align-items:center;padding:8px 12px;border-radius:99px;background:#ffffff12;font-size:10px;font-weight:900}.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}.status-pill.live .dot{background:#22c55e;box-shadow:0 0 0 5px #22c55e1c}.back{color:#fff;text-decoration:none;background:#ffffff14;padding:9px 13px;border-radius:10px;font-size:11px;font-weight:800}
-.layout{height:calc(100vh - 68px);height:calc(100dvh - 68px);min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 340px}.stage{position:relative;min-width:0;background:#020711;overflow:hidden}.remote-wrap{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#0a35521c,transparent 38%),#020711}.remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#8ea1b6;padding:30px}.remote-placeholder div{max-width:460px}.remote-placeholder .icon{font-size:48px;margin-bottom:12px}.remote-placeholder h2{margin:0 0 8px;color:#d9e5ef}.remote-placeholder p{margin:0;line-height:1.6;font-size:13px}
+.layout{height:calc(100vh - 68px);height:calc(100dvh - 68px);min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 340px}.stage{min-height:0;position:relative;min-width:0;background:#020711;overflow:hidden}.remote-wrap{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#0a35521c,transparent 38%),#020711}.remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#8ea1b6;padding:30px}.remote-placeholder div{max-width:460px}.remote-placeholder .icon{font-size:48px;margin-bottom:12px}.remote-placeholder h2{margin:0 0 8px;color:#d9e5ef}.remote-placeholder p{margin:0;line-height:1.6;font-size:13px}
 #remoteVideo{width:100%;height:100%;object-fit:contain;background:#020711;display:none}.remote-name{position:absolute;left:18px;bottom:18px;background:#000a;padding:9px 12px;border-radius:10px;font-size:11px;font-weight:800;z-index:4}
 #localVideo{position:absolute;right:20px;bottom:88px;width:230px;height:145px;object-fit:cover;border:2px solid #ffffff38;border-radius:16px;background:#101827;box-shadow:0 15px 40px #0009;transform:scaleX(-1);display:none;z-index:5}.screen-active #localVideo{transform:none}
 .start-overlay{position:absolute;inset:0;z-index:10;display:grid;place-items:center;background:#020711f2}.start-card{text-align:center;width:min(92%,520px);padding:35px}.start-icon{width:78px;height:78px;border-radius:24px;background:linear-gradient(135deg,#075a9e,#0b8ddd);display:grid;place-items:center;margin:0 auto 18px;font-size:35px;box-shadow:0 18px 45px #0877c933}.start-card h1{font-size:27px;margin:0 0 8px}.start-card p{color:#9aabba;font-size:13px;line-height:1.6;margin:0 auto 20px;max-width:430px}.button-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.btn{border:0;color:#fff;border-radius:12px;padding:13px 19px;font-size:12px;font-weight:900;cursor:pointer}.btn-start{background:linear-gradient(135deg,#16a34a,#0e8b3e)}.btn-end{background:linear-gradient(135deg,#dc3545,#b91c1c);display:none}.btn:disabled{opacity:.55;cursor:not-allowed}
-.controls{position:absolute;z-index:100;bottom:14px;left:50%;transform:translateX(-50%);display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto;gap:8px;padding:9px;border-radius:999px;background:rgba(10,20,34,.94);border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 45px rgba(0,0,0,.55);backdrop-filter:blur(14px)}.control{width:46px;height:46px;flex:0 0 46px;border:0;border-radius:50%;background:#243249;color:#fff;cursor:pointer;font-size:17px}.control:hover{background:#30415d;transform:translateY(-1px)}.control.active{background:#0b84d8}.control.off{background:#b42336}.control.share{width:auto;border-radius:23px;padding:0 15px;font-size:11px;font-weight:900}.control.share.active{background:#16a34a}
+.controls{position:absolute;z-index:1000;bottom:14px;left:50%;transform:translateX(-50%);display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto;gap:8px;padding:9px;border-radius:999px;background:rgba(10,20,34,.94);border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 45px rgba(0,0,0,.55);backdrop-filter:blur(14px)}.control{width:46px;height:46px;flex:0 0 46px;border:0;border-radius:50%;background:#243249;color:#fff;cursor:pointer;font-size:17px}.control:hover{background:#30415d;transform:translateY(-1px)}.control.active{background:#0b84d8}.control.off{background:#b42336}.control.share{width:auto;border-radius:23px;padding:0 15px;font-size:11px;font-weight:900}.control.share.active{background:#16a34a}
 .sidebar{background:#0a1422;border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}.lesson{padding:19px;border-bottom:1px solid var(--line)}.lesson-head{display:flex;justify-content:space-between;gap:10px}.lesson h2{margin:0;font-size:17px}.sub{font-size:10px;color:var(--muted);margin-top:6px}.badge{padding:6px 9px;border-radius:99px;background:#243249;color:#cbd5e1;font-size:8px;font-weight:900}.badge.live{background:#16a34a24;color:#4ade80}.rows{margin-top:15px}.row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #ffffff09;font-size:10px}.row span:first-child{color:#718198}.row span:last-child{text-align:right;font-weight:800}.device-box{margin-top:13px;padding:11px;border-radius:12px;background:#ffffff06;border:1px solid #ffffff0a}.device-title{font-size:10px;font-weight:900;margin-bottom:7px}.device-status{display:flex;justify-content:space-between;font-size:9px;color:#9aaabd;padding:4px 0}.ok{color:#4ade80}.warn{color:#fbbf24}.chat-title{padding:14px 18px;border-bottom:1px solid var(--line);font-size:11px;font-weight:900}.messages{flex:1;min-height:0;overflow:auto;padding:14px}.empty{color:#6e8096;text-align:center;padding:30px 10px;font-size:10px}.message{margin-bottom:12px}.message.mine{text-align:right}.message-name{font-size:9px;color:#708198;margin-bottom:4px}.bubble{display:inline-block;max-width:90%;padding:9px 11px;background:#1c2b41;border-radius:11px 11px 11px 3px;font-size:10px;line-height:1.45;overflow-wrap:anywhere}.mine .bubble{background:#075a9e;border-radius:11px 11px 3px 11px}.chat{display:flex;gap:7px;padding:10px;border-top:1px solid var(--line)}.chat input{flex:1;min-width:0;border:1px solid #ffffff0b;background:#152238;color:#fff;border-radius:10px;padding:11px;outline:0}.chat input:focus{border-color:#0b84d8}.chat button{border:0;background:#0877c9;color:#fff;border-radius:10px;padding:0 14px;font-weight:900;cursor:pointer}.toast{position:fixed;top:84px;left:50%;transform:translate(-50%,-15px);opacity:0;pointer-events:none;z-index:99;background:#111c2c;border:1px solid #ffffff12;border-radius:12px;padding:12px 16px;box-shadow:0 15px 40px #0007;font-size:11px;transition:.25s}.toast.show{opacity:1;transform:translate(-50%,0)}.toast.error{background:#641e29}
 @media(max-width:900px){body{overflow:auto}.layout{height:auto;min-height:calc(100vh - 68px);grid-template-columns:1fr}.stage{height:68vh;min-height:500px}.sidebar{min-height:430px;border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:560px){.topbar{padding:0 12px}.status-pill{display:none}.brand-title{font-size:11px}.back{font-size:10px}.controls{bottom:10px}.control{width:40px;height:40px}.control.share{padding:0 12px}.start-card h1{font-size:23px}#localVideo{width:155px;height:100px;right:12px;bottom:75px}}
 </style>
+
+<style id="niseL-modern-classroom">
+.layout{
+    height:calc(100vh - 68px);
+    height:calc(100dvh - 68px);
+    min-height:0 !important;
+}
+.stage{
+    min-height:0 !important;
+    overflow:hidden;
+    isolation:isolate;
+}
+.remote-wrap{
+    min-height:0 !important;
+    height:100%;
+}
+#remoteVideo{
+    width:100%;
+    height:100%;
+    min-height:0 !important;
+    object-fit:cover;
+}
+.controls{
+    z-index:1000 !important;
+    bottom:18px !important;
+    gap:9px !important;
+    padding:8px !important;
+    border:1px solid rgba(255,255,255,.13) !important;
+    background:rgba(6,17,29,.94) !important;
+    box-shadow:0 18px 45px rgba(0,0,0,.45) !important;
+}
+.control{
+    min-width:48px;
+    height:48px !important;
+    border:1px solid rgba(255,255,255,.12) !important;
+    background:rgba(255,255,255,.08) !important;
+    border-radius:14px !important;
+    display:flex !important;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    font-weight:700;
+    transition:transform .18s ease,background .18s ease,box-shadow .18s ease;
+}
+.control span{
+    font-size:11px;
+    font-weight:800;
+}
+.control:hover{
+    transform:translateY(-2px);
+    background:rgba(255,255,255,.16) !important;
+    box-shadow:0 8px 20px rgba(0,0,0,.22);
+}
+.control.share{
+    padding:0 14px !important;
+    min-width:100px;
+}
+.class-timer{
+    min-width:74px;
+    height:36px;
+    padding:0 12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.12);
+    color:#fff;
+    font:800 12px/1 Arial,sans-serif;
+    letter-spacing:.7px;
+}
+#localVideo{
+    border:2px solid rgba(255,255,255,.9) !important;
+    box-shadow:0 14px 35px rgba(0,0,0,.45);
+}
+.sidebar{
+    min-height:0;
+    overflow:hidden;
+}
+.messages{
+    min-height:0;
+}
+@media(max-width:700px){
+    .class-timer{display:none}
+    .control{width:44px;min-width:44px;height:44px !important}
+    .control span{display:none}
+    .control.share{min-width:44px;padding:0 10px !important}
+    .controls{bottom:10px !important}
+}
+</style>
+
 </head>
 <body>
 <header class="topbar">
     <div class="brand"><div class="brand-icon">🎓</div><div><div class="brand-title">NISEL ONLINE EDUCATION</div><div class="brand-sub">TEACHER LIVE CLASSROOM</div></div></div>
-    <div class="top-actions"><div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">CLASS NOT STARTED</span></div><a class="back" href="schedule.php">← Schedule</a></div>
+    <div class="top-actions"><div class="class-timer" id="classTimer">00:00</div><div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusText">CLASS NOT STARTED</span></div><a class="back" href="schedule.php">← Schedule</a></div>
 </header>
 
 <main class="layout">
@@ -605,10 +727,18 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
     </div>
 
     <div class="controls">
-        <button class="control" id="micButton" type="button" title="Microphone">🎤</button>
-        <button class="control" id="cameraButton" type="button" title="Camera">📷</button>
-        <button class="control share" id="shareButton" type="button" title="Share screen">🖥️ Share Screen</button>
-        <button class="control" id="fullscreenButton" type="button" title="Fullscreen">⛶</button>
+        <button class="control" id="micButton" type="button" title="Microphone" aria-label="Microphone">🎤<span>Mic</span></button>
+        <button class="control" id="cameraButton" type="button" title="Camera" aria-label="Camera">📷<span>Camera</span></button>
+        <button class="control share" id="shareButton" type="button" title="Share screen" aria-label="Share screen">🖥️<span>Share</span></button>
+        <button
+    class="control"
+    id="remoteAudioButton"
+    type="button"
+    title="Enable student audio"
+    aria-label="Enable student audio"
+>🔊<span>Audio</span></button>
+
+<button class="control" id="fullscreenButton" type="button" title="Fullscreen" aria-label="Fullscreen">⛶<span>Full</span></button>
     </div>
 </section>
 
@@ -633,6 +763,59 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 
 
 <script>
+
+/* =========================================================
+   NISEL DIAGNOSTIC - SAFE
+========================================================= */
+
+function niselDiagShow() {
+    var panel = document.getElementById("niseLDiagnostic");
+    if (panel) panel.style.display = "block";
+}
+
+function niselDiagUpdate(lastEvent) {
+
+    var body =
+        document.getElementById("niseLDiagBody");
+
+    if (!body) return;
+
+    var pc =
+        (typeof peerConnection !== "undefined")
+            ? peerConnection
+            : null;
+
+    var rows = [
+        ["Class", (typeof started !== "undefined" && started) ? "LIVE" : "WAITING"],
+        ["Student READY", window.niselStudentReady ? "YES" : "NO"],
+        ["Offer sent", window.niselOfferSent ? "YES" : "NO"],
+        ["Answer received", window.niselAnswerReceived ? "YES" : "NO"],
+        ["Camera", (typeof cameraTrack !== "undefined" && cameraTrack) ? "YES" : "NO"],
+        ["Microphone", (typeof microphoneTrack !== "undefined" && microphoneTrack) ? "YES" : "NO"],
+        ["Signaling", pc ? pc.signalingState : "none"],
+        ["ICE gathering", pc ? pc.iceGatheringState : "none"],
+        ["ICE connection", pc ? pc.iceConnectionState : "none"],
+        ["Connection", pc ? pc.connectionState : "none"],
+        ["Remote video", (
+            typeof remoteVideo !== "undefined" &&
+            remoteVideo &&
+            remoteVideo.srcObject
+        ) ? "YES" : "NO"],
+        ["Last event", lastEvent || "—"]
+    ];
+
+    body.innerHTML =
+        rows.map(function(row) {
+            return (
+                '<div style="display:flex;justify-content:space-between;' +
+                'gap:12px;border-bottom:1px solid #ffffff12;padding:4px 0">' +
+                '<span>' + row[0] + '</span>' +
+                '<strong>' + row[1] + '</strong>' +
+                '</div>'
+            );
+        }).join("");
+}
+
 "use strict";
 
 const niselDiag = document.getElementById("niseLDiagnostic");
@@ -681,7 +864,7 @@ function niselDiagUpdate(extra) {
         ["Last event", extra || "—"]
     ]);
 }
-</script>
+
 
 
 const BOOKING_ID = <?= (int)$booking_id ?>;
@@ -726,11 +909,6 @@ let lastMessageId = 0;
 let pendingCandidates = [];
 let offerInProgress = false;
 
-window.peerConnection = null;
-window.started = false;
-window.cameraTrack = null;
-window.microphoneTrack = null;
-window.remoteVideo = document.getElementById("remoteVideo");
 window.niselStudentReady = false;
 window.niselOfferSent = false;
 window.niselAnswerReceived = false;
@@ -820,6 +998,7 @@ async function openOptionalMedia() {
 
     if (localStream.getVideoTracks().length) {
         localVideo.srcObject = localStream;
+        localVideo.play().catch(function() {});
         localVideo.style.display = "block";
         const localLabel = document.getElementById("localLabel");
         if (localLabel) localLabel.style.display = "block";
@@ -876,27 +1055,167 @@ function createPeerConnection() {
         audioTransceiver.sender;
 
     peerConnection.ontrack = event => {
-        let remoteStream = event.streams && event.streams[0];
+
+        console.log(
+            "NISEL v12: remote track received:",
+            event.track.kind,
+            "stream count:",
+            event.streams ? event.streams.length : 0
+        );
 
         /*
-         * Some browsers omit the stream association (msid) when a
-         * track is attached via replaceTrack() instead of addTrack().
-         * Build the stream manually in that case so the video isn't
-         * silently dropped.
+         * Always render the student's video track.
+         * Some browsers provide event.streams[0], while others
+         * provide only event.track.
          */
-        if (!remoteStream) {
-            remoteStream = remoteVideo.srcObject;
-            if (!remoteStream || !(remoteStream instanceof MediaStream)) {
-                remoteStream = new MediaStream();
+        let stream =
+            event.streams &&
+            event.streams[0]
+                ? event.streams[0]
+                : null;
+
+        if (!stream) {
+
+            stream =
+                remoteVideo.srcObject;
+
+            if (
+                !stream ||
+                !(stream instanceof MediaStream)
+            ) {
+                stream = new MediaStream();
             }
-            remoteStream.addTrack(event.track);
+
+            const exists =
+                stream
+                    .getTracks()
+                    .some(
+                        track =>
+                            track.id ===
+                            event.track.id
+                    );
+
+            if (!exists) {
+                stream.addTrack(event.track);
+            }
         }
 
-        remoteVideo.srcObject = remoteStream;
-        remoteVideo.style.display = "block";
-        remotePlaceholder.style.display = "none";
-        remoteVideo.play().catch(() => {});
+        remoteVideo.srcObject = stream;
+
+        remoteVideo.style.display =
+            "block";
+
+        remoteVideo.style.visibility =
+            "visible";
+
+        remoteVideo.classList.add(
+            "remote-connected"
+        );
+
+        remotePlaceholder.style.display =
+            "none";
+
+        /*
+         * Start the student's face/video muted.
+         * This avoids browser autoplay restrictions.
+         */
+        remoteVideo.muted = true;
+
+        remoteVideo
+            .play()
+            .then(() => {
+                console.log(
+                    "NISEL v12: student video is playing."
+                );
+            })
+            .catch(error => {
+                console.warn(
+                    "NISEL v12: remote video autoplay:",
+                    error
+                );
+            });
+
+        event.track.onunmute = () => {
+
+            remoteVideo.muted = true;
+
+            remoteVideo
+                .play()
+                .catch(error => {
+                    console.warn(
+                        "NISEL v12: remote play:",
+                        error
+                    );
+                });
+        };
+
+        event.track.onended = () => {
+
+            console.log(
+                "NISEL v12: student",
+                event.track.kind,
+                "track ended."
+            );
+        };
     };
+
+    /*
+     * Teacher can explicitly enable/disable student audio.
+     * The video remains available even when muted.
+     */
+    const remoteAudioButton =
+        document.getElementById(
+            "remoteAudioButton"
+        );
+
+    if (remoteAudioButton) {
+
+        remoteAudioButton.addEventListener(
+            "click",
+            async () => {
+
+                try {
+
+                    remoteVideo.muted =
+                        !remoteVideo.muted;
+
+                    await remoteVideo.play();
+
+                    remoteAudioButton.classList.toggle(
+                        "active",
+                        !remoteVideo.muted
+                    );
+
+                    remoteAudioButton.innerHTML =
+                        remoteVideo.muted
+                            ? "🔇<span>Audio</span>"
+                            : "🔊<span>Audio</span>";
+
+                    remoteAudioButton.title =
+                        remoteVideo.muted
+                            ? "Enable student audio"
+                            : "Mute student audio";
+
+                } catch (error) {
+
+                    console.warn(
+                        "NISEL v12 audio:",
+                        error
+                    );
+
+                    remoteVideo.muted = true;
+
+                    remoteAudioButton.innerHTML =
+                        "🔇<span>Audio</span>";
+
+                    remoteAudioButton.classList.remove(
+                        "active"
+                    );
+                }
+            }
+        );
+    }
+
 
     /*
      * NISEL v8 uses non-trickle ICE.
@@ -914,7 +1233,7 @@ function createPeerConnection() {
     peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
 
-        console.log("NISEL teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state);
+        console.log("NISEL v12 teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state); niselDiagUpdate("connection=" + state);
 
         if (state === "connected") {
             remotePlaceholder.style.display = "none";
@@ -1391,9 +1710,31 @@ async function stopScreenShare() {
 
 fullscreenButton.addEventListener("click", async () => {
     try {
-        if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
-        else await document.exitFullscreen();
-    } catch (e) { console.warn(e); }
+        if (!document.fullscreenElement) {
+            if (stage.requestFullscreen) {
+                await stage.requestFullscreen();
+            } else if (stage.webkitRequestFullscreen) {
+                stage.webkitRequestFullscreen();
+            } else {
+                throw new Error("Fullscreen is not supported.");
+            }
+        } else {
+            if (document.exitFullscreen) {
+                await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            }
+        }
+    } catch (e) {
+        console.warn("Fullscreen:", e);
+        toastMessage("Fullscreen is not available in this browser.", true);
+    }
+});
+
+document.addEventListener("fullscreenchange", () => {
+    const active = !!document.fullscreenElement;
+    fullscreenButton.innerHTML =
+        active ? "⛶<span>Exit</span>" : "⛶<span>Full</span>";
 });
 
 chatForm.addEventListener("submit", async event => {
@@ -1453,5 +1794,43 @@ window.addEventListener("beforeunload", () => {
     if (peerConnection) peerConnection.close();
 });
 </script>
+
+<script>
+(function(){
+    const timer = document.getElementById("classTimer");
+    if (!timer) return;
+    let startedAt = null;
+
+    function render(){
+        if (!startedAt){
+            timer.textContent = "00:00";
+            return;
+        }
+        const seconds = Math.max(
+            0,
+            Math.floor((Date.now() - startedAt) / 1000)
+        );
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = seconds % 60;
+        timer.textContent = h > 0
+            ? String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")
+            : String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+    }
+
+    setInterval(function(){
+        const status = document.getElementById("statusText");
+        if (status && /LIVE/i.test(status.textContent)){
+            if (!startedAt) startedAt = Date.now();
+        } else {
+            startedAt = null;
+        }
+        render();
+    },1000);
+
+    render();
+})();
+</script>
+
 </body>
 </html>
