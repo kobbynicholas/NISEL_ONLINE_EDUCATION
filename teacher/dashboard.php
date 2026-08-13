@@ -811,8 +811,8 @@ ONLINE EDUCATION
 👤 My Profile
 </a>
 
-<a href="classroom.php">
- Virtual Classroom
+<a href="classroom.php?id=<?= (int)$booking['id'] ?>">
+🎥 Classroom
 </a>
 
 
