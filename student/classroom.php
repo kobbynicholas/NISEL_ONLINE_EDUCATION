@@ -3434,18 +3434,19 @@ function createPeerConnection() {
         };
 
 
+    /*
+     * NISEL v8 uses non-trickle ICE.
+     * The answer contains the complete gathered ICE information.
+     */
     peerConnection.onicecandidate =
         function(event) {
 
-            if (event.candidate) {
-
-                sendStudentSignal(
-                    "ice-candidate",
-                    event.candidate.toJSON
-                        ? event.candidate.toJSON()
-                        : event.candidate
-                ).catch(console.error);
-            }
+            console.log(
+                "NISEL student ICE candidate:",
+                event.candidate
+                    ? "gathered"
+                    : "gathering-complete"
+            );
         };
 
 
@@ -3497,6 +3498,15 @@ function createPeerConnection() {
             console.log(
                 "NISEL student ICE state:",
                 peerConnection.iceConnectionState
+            );
+        };
+
+    peerConnection.onsignalingstatechange =
+        function() {
+
+            console.log(
+                "NISEL student signaling state:",
+                peerConnection.signalingState
             );
         };
 
@@ -3685,6 +3695,67 @@ async function tellTeacherReady() {
 
 
 /* =========================================================
+   ICE GATHERING
+========================================================= */
+
+function waitForIceGatheringComplete(
+    pc,
+    timeout = 10000
+) {
+
+    return new Promise(function(resolve) {
+
+        if (
+            !pc ||
+            pc.iceGatheringState ===
+            "complete"
+        ) {
+            resolve();
+            return;
+        }
+
+        let finished = false;
+
+        function done() {
+
+            if (finished) {
+                return;
+            }
+
+            finished = true;
+
+            pc.removeEventListener(
+                "icegatheringstatechange",
+                check
+            );
+
+            resolve();
+        }
+
+        function check() {
+
+            if (
+                pc.iceGatheringState ===
+                "complete"
+            ) {
+                done();
+            }
+        }
+
+        pc.addEventListener(
+            "icegatheringstatechange",
+            check
+        );
+
+        setTimeout(
+            done,
+            timeout
+        );
+    });
+}
+
+
+/* =========================================================
    TEACHER SIGNAL PROCESSING
 ========================================================= */
 
@@ -3726,6 +3797,14 @@ async function processTeacherSignal(
                     answer
                 );
 
+            /*
+             * Wait for ICE candidates to be included in the
+             * answer SDP before sending it to the teacher.
+             */
+            await waitForIceGatheringComplete(
+                peerConnection
+            );
+
             const localDescription =
                 peerConnection.localDescription;
 
@@ -3747,6 +3826,11 @@ async function processTeacherSignal(
             console.log(
                 "NISEL student: answer sent."
             );
+
+            if (liveStatus) {
+                liveStatus.innerHTML =
+                    '<span class="live-dot"></span> CONNECTING VIDEO...';
+            }
 
             return;
         }
