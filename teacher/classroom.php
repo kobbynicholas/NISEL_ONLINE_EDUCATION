@@ -17,6 +17,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+require "../teacher_auth.php";
 require "../config/db.php";
 
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
@@ -32,10 +33,16 @@ function json_response(array $data) {
     exit;
 }
 
-$teacher_id = (int)($_SESSION["teacher_id"] ?? 0);
-$teacher_name = $_SESSION["teacher_name"] ?? "Teacher";
+$teacher_id = trim((string)($_SESSION["teacher_id"] ?? ""));
+$teacher_name = trim((string)($_SESSION["teacher_name"] ?? "Teacher"));
 
-if ($teacher_id <= 0) {
+/*
+ * IMPORTANT: teacher_id is a STRING in the NISEL system, for example:
+ * NISEL-T-XXXXXXXX
+ * Do NOT cast it to integer. Casting it to int changes it to 0 and
+ * causes the teacher authentication flow to send the user away.
+ */
+if ($teacher_id === "") {
     if ($_SERVER["REQUEST_METHOD"] === "POST") {
         json_response([
             "success" => false,
