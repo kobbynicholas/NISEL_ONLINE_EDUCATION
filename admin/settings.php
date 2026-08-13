@@ -1693,74 +1693,190 @@ body {
      SIDEBAR
 ===================================================== -->
 
-<div class="sidebar">
+<aside class="sidebar">
+
 
     <div class="logo">
 
-        NISEL
 
-        <span>
-            ONLINE EDUCATION
+        <div class="logo-icon">
+
+            🎓
+
+        </div>
+
+
+        <h2>
+
+            NISEL ONLINE
+
+        </h2>
+
+
+        <p>
+
+            EDUCATION
+
+        </p>
+
+
+    </div>
+
+
+
+    <div class="menu-title">
+
+        Main Menu
+
+    </div>
+
+
+
+    <a
+        href="dashboard.php"
+        class="active"
+    >
+
+        <span class="menu-icon">
+            🏠
         </span>
 
-    </div>
+        <span class="text">
+            Dashboard
+        </span>
+
+    </a>
 
 
-    <div class="menu">
 
-        <a href="dashboard.php">
-            🏠 Dashboard
-        </a>
+    <a href="students.php">
 
+        <span class="menu-icon">
+            👨‍🎓
+        </span>
 
-        <a href="students.php">
-            👨‍🎓 Students
-        </a>
+        <span class="text">
+            Students
+        </span>
 
-
-        <a href="teachers.php">
-            👨‍🏫 Teachers
-        </a>
+    </a>
 
 
-        <a href="booking.php">
-            📚 Bookings
-        </a>
+
+    <a href="teachers.php">
+
+        <span class="menu-icon">
+            👨‍🏫
+        </span>
+
+        <span class="text">
+            Teachers
+        </span>
+
+    </a>
 
 
-        <a href="payments.php">
-            💳 Payments
-        </a>
+
+    <a href="teacher_applications.php">
+
+        <span class="menu-icon">
+            📋
+        </span>
+
+        <span class="text">
+            Teacher Applications
+        </span>
+
+    </a>
 
 
-        <a href="report.php">
-            📊 Reports
-        </a>
+
+    <a href="bookings.php">
+
+        <span class="menu-icon">
+            📚
+        </span>
+
+        <span class="text">
+            Bookings
+        </span>
+
+    </a>
 
 
-        <a href="teacher_applications.php">
-            📋 Teacher Applications
-        </a>
+
+    <a href="payments.php">
+
+        <span class="menu-icon">
+            💳
+        </span>
+
+        <span class="text">
+            Payments
+        </span>
+
+    </a>
 
 
-        <a
-            href="settings.php"
-            class="active"
-        >
-            ⚙️ Settings
-        </a>
+
+    <a href="reports.php">
+
+        <span class="menu-icon">
+            📊
+        </span>
+
+        <span class="text">
+            Reports
+        </span>
+
+    </a>
 
 
-        <a
-            href="../admin_login.php"
-            class="logout"
-        >
-            🚪 Logout
-        </a>
 
-    </div>
+    <a href="schedules.php">
 
-</div>
+        <span class="menu-icon">
+            📅
+        </span>
+
+        <span class="text">
+            Schedules
+        </span>
+
+    </a>
+
+    
+    <a href="settings.php">
+
+        <span class="menu-icon">
+            ⚙️
+        </span>
+
+        <span class="text">
+            Settings
+        </span>
+
+    </a>
+
+
+
+    <a
+        href="logout.php"
+        class="logout"
+    >
+
+        <span class="menu-icon">
+            🚪
+        </span>
+
+        <span class="text">
+            Logout
+        </span>
+
+    </a>
+
+
+</aside>
 
 
 
