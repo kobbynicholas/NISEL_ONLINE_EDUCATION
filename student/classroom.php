@@ -3423,6 +3423,11 @@ function createPeerConnection() {
             const state =
                 peerConnection.connectionState;
 
+            console.log(
+                "NISEL student WebRTC connection:",
+                state
+            );
+
             if (
                 state === "connected" &&
                 liveStatus
@@ -3430,6 +3435,15 @@ function createPeerConnection() {
 
                 liveStatus.innerHTML =
                     '<span class="live-dot"></span> LIVE CLASS';
+            }
+
+            if (
+                state === "connecting" &&
+                liveStatus
+            ) {
+
+                liveStatus.innerHTML =
+                    '<span class="live-dot"></span> CONNECTING...';
             }
 
             if (
@@ -3443,6 +3457,15 @@ function createPeerConnection() {
                 liveStatus.innerHTML =
                     '<span class="live-dot"></span> CONNECTION INTERRUPTED';
             }
+        };
+
+    peerConnection.oniceconnectionstatechange =
+        function() {
+
+            console.log(
+                "NISEL student ICE state:",
+                peerConnection.iceConnectionState
+            );
         };
 
 
@@ -3868,6 +3891,42 @@ async function joinClassroom() {
     }
 
     try {
+
+        const statusResult =
+            await classroomPost({
+                classroom_action:
+                    "get_status"
+            });
+
+        if (
+            !statusResult.success ||
+            String(
+                statusResult.status || ""
+            ).toLowerCase() !== "live"
+        ) {
+            alert(
+                "The teacher has not started the live classroom yet."
+            );
+            return;
+        }
+
+        const serverRoom =
+            String(
+                statusResult.room_code || ""
+            ).trim();
+
+        if (serverRoom !== "") {
+
+            const roomLabel =
+                document.getElementById(
+                    "studentRoomCode"
+                );
+
+            if (roomLabel) {
+                roomLabel.textContent =
+                    serverRoom;
+            }
+        }
 
         createPeerConnection();
 
