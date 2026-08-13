@@ -2,7 +2,7 @@
 
 /* =========================================================
    NISEL ONLINE EDUCATION
-   STUDENT LIVE CLASSROOM
+   STUDENT LIVE VIRTUAL CLASSROOM
    ========================================================= */
 
 session_start();
@@ -11,7 +11,7 @@ require_once __DIR__ . '/../config/db.php';
 
 
 /* =========================================================
-   BASIC SESSION CHECK
+   STUDENT LOGIN CHECK
    ========================================================= */
 
 if (
@@ -24,21 +24,25 @@ if (
 }
 
 
-$student_id = (int) $_SESSION['student_id'];
-$student_name = $_SESSION['student_name'] ?? 'Student';
+$student_id =
+    (int) $_SESSION['student_id'];
+
+$student_name =
+    $_SESSION['student_name'] ?? 'Student';
 
 
 /* =========================================================
-   GET BOOKING / LESSON ID
+   GET CLASSROOM / BOOKING ID
    ========================================================= */
 
-$booking_id = isset($_GET['id'])
-    ? (int) $_GET['id']
-    : 0;
+$booking_id =
+    isset($_GET['id'])
+        ? (int) $_GET['id']
+        : 0;
 
 
 /* =========================================================
-   INVALID CLASSROOM
+   INVALID CLASSROOM ID
    ========================================================= */
 
 if ($booking_id <= 0) {
@@ -76,27 +80,27 @@ if ($booking_id <= 0) {
                 align-items: center;
                 justify-content: center;
                 font-family:
-                    Inter,
                     Arial,
+                    Helvetica,
                     sans-serif;
                 background:
                     linear-gradient(
                         135deg,
-                        #eef5fb,
-                        #f7faff
+                        #edf5fb,
+                        #f8fbff
                     );
             }
 
             .box {
                 width: 90%;
                 max-width: 500px;
-                background: #ffffff;
+                background: #fff;
                 padding: 45px 35px;
                 border-radius: 22px;
                 text-align: center;
                 box-shadow:
                     0 20px 50px
-                    rgba(0, 50, 100, .12);
+                    rgba(0, 47, 84, .12);
             }
 
             .icon {
@@ -104,7 +108,7 @@ if ($booking_id <= 0) {
                 height: 80px;
                 margin: 0 auto 20px;
                 border-radius: 50%;
-                background: #eaf3ff;
+                background: #eaf4ff;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -114,13 +118,11 @@ if ($booking_id <= 0) {
             h2 {
                 margin: 0 0 12px;
                 color: #003b70;
-                font-size: 26px;
             }
 
             p {
                 color: #667085;
                 line-height: 1.7;
-                font-size: 15px;
             }
 
             .button {
@@ -131,12 +133,7 @@ if ($booking_id <= 0) {
                 color: white;
                 text-decoration: none;
                 border-radius: 10px;
-                font-weight: 700;
-                transition: .2s;
-            }
-
-            .button:hover {
-                background: #0877c9;
+                font-weight: bold;
             }
 
         </style>
@@ -158,7 +155,7 @@ if ($booking_id <= 0) {
             <p>
                 No valid lesson was selected.
                 Please return to your schedule and
-                select a classroom from one of your lessons.
+                select one of your lessons.
             </p>
 
             <a
@@ -186,10 +183,6 @@ if ($booking_id <= 0) {
 
 try {
 
-    /*
-     * First try the normal NISEL booking structure.
-     */
-
     $stmt = $pdo->prepare("
         SELECT *
         FROM bookings
@@ -201,8 +194,8 @@ try {
         $booking_id
     ]);
 
-    $booking = $stmt->fetch(PDO::FETCH_ASSOC);
-
+    $booking =
+        $stmt->fetch(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
 
@@ -217,6 +210,11 @@ try {
 
         <meta charset="UTF-8">
 
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0"
+        >
+
         <title>
             Classroom Error | NISEL
         </title>
@@ -227,10 +225,10 @@ try {
                 margin: 0;
                 min-height: 100vh;
                 display: flex;
-                justify-content: center;
                 align-items: center;
-                background: #eef3f8;
+                justify-content: center;
                 font-family: Arial, sans-serif;
+                background: #eef3f8;
             }
 
             .box {
@@ -251,6 +249,7 @@ try {
 
             p {
                 color: #667085;
+                line-height: 1.6;
             }
 
         </style>
@@ -266,7 +265,9 @@ try {
             </h2>
 
             <p>
-                There was a problem loading this lesson.
+                The classroom could not be loaded.
+                Please contact the administrator if the
+                problem continues.
             </p>
 
         </div>
@@ -332,17 +333,24 @@ if (!$booking) {
                 text-align: center;
                 box-shadow:
                     0 20px 50px
-                    rgba(0, 0, 0, .12);
+                    rgba(0,0,0,.12);
             }
 
             .icon {
-                font-size: 55px;
-                margin-bottom: 15px;
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 20px;
+                border-radius: 50%;
+                background: #eef4ff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 36px;
             }
 
             h2 {
-                margin: 0 0 10px;
                 color: #003b70;
+                margin-bottom: 10px;
             }
 
             p {
@@ -359,10 +367,6 @@ if (!$booking) {
                 text-decoration: none;
                 border-radius: 9px;
                 font-weight: bold;
-            }
-
-            .button:hover {
-                background: #0877c9;
             }
 
         </style>
@@ -383,8 +387,6 @@ if (!$booking) {
 
             <p>
                 The selected lesson could not be found.
-                It may have been removed or the classroom
-                link may no longer be valid.
             </p>
 
             <a
@@ -407,15 +409,10 @@ if (!$booking) {
 
 
 /* =========================================================
-   VERIFY STUDENT OWNERSHIP
+   VERIFY STUDENT
    ========================================================= */
 
 $booking_student_id = 0;
-
-
-/*
- * Support the normal student_id column.
- */
 
 if (isset($booking['student_id'])) {
 
@@ -426,8 +423,8 @@ if (isset($booking['student_id'])) {
 
 
 /*
- * Make sure the booking belongs to the
- * currently logged-in student.
+ * If the booking contains a student ID,
+ * make sure it belongs to this student.
  */
 
 if (
@@ -480,7 +477,7 @@ if (
                 text-align: center;
                 box-shadow:
                     0 20px 50px
-                    rgba(0, 0, 0, .12);
+                    rgba(0,0,0,.12);
             }
 
             .icon {
@@ -492,12 +489,12 @@ if (
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 38px;
+                font-size: 36px;
             }
 
             h2 {
-                margin: 0 0 10px;
                 color: #b42318;
+                margin-bottom: 10px;
             }
 
             p {
@@ -557,7 +554,7 @@ if (
 
 
 /* =========================================================
-   GET BOOKING INFORMATION
+   BOOKING INFORMATION
    ========================================================= */
 
 $subject =
@@ -586,24 +583,36 @@ $payment_status =
     strtolower(
         trim(
             $booking['payment_status']
-            ?? $booking['payment_status_text']
             ?? ''
         )
     );
 
 
-$is_paid = (
-    $payment_status === 'paid' ||
-    $payment_status === 'successful' ||
-    $payment_status === 'completed' ||
-    $payment_status === 'confirmed' ||
-    $payment_status === 'success'
-);
+$is_paid = false;
+
+
+if (
+    in_array(
+        $payment_status,
+        [
+            'paid',
+            'successful',
+            'completed',
+            'confirmed',
+            'success'
+        ],
+        true
+    )
+) {
+
+    $is_paid = true;
+
+}
 
 
 /*
- * Some existing NISEL installations use booking_status
- * rather than payment_status.
+ * Support installations where the booking
+ * status is used to indicate confirmation.
  */
 
 if (!$is_paid) {
@@ -611,21 +620,29 @@ if (!$is_paid) {
     $booking_status =
         strtolower(
             trim(
-                $booking['status']
-                ?? $booking['booking_status']
+                $booking['booking_status']
+                ?? $booking['status']
                 ?? ''
             )
         );
 
+
     if (
-        $booking_status === 'paid' ||
-        $booking_status === 'confirmed' ||
-        $booking_status === 'approved'
+        in_array(
+            $booking_status,
+            [
+                'paid',
+                'confirmed',
+                'approved'
+            ],
+            true
+        )
     ) {
 
         $is_paid = true;
 
     }
+
 }
 
 
@@ -635,7 +652,6 @@ if (!$is_paid) {
 
 $teacher_name =
     'Assigned Teacher';
-
 
 $teacher_email =
     '';
@@ -656,9 +672,10 @@ if ($teacher_id > 0) {
             $teacher_id
         ]);
 
-        $teacher = $teacher_stmt->fetch(
-            PDO::FETCH_ASSOC
-        );
+        $teacher =
+            $teacher_stmt->fetch(
+                PDO::FETCH_ASSOC
+            );
 
 
         if ($teacher) {
@@ -678,11 +695,6 @@ if ($teacher_id > 0) {
 
     } catch (PDOException $e) {
 
-        /*
-         * Teacher information is optional.
-         * The classroom can still load.
-         */
-
         $teacher_name =
             'Assigned Teacher';
 
@@ -692,7 +704,7 @@ if ($teacher_id > 0) {
 
 
 /* =========================================================
-   DATE / TIME
+   CLASS DATE / TIME
    ========================================================= */
 
 $class_date =
@@ -711,7 +723,7 @@ $class_time =
 
 
 /* =========================================================
-   DISPLAY DATE
+   FORMAT DATE
    ========================================================= */
 
 $display_date = '';
@@ -721,6 +733,7 @@ if ($class_date !== '') {
 
     $timestamp =
         strtotime($class_date);
+
 
     if ($timestamp !== false) {
 
@@ -741,7 +754,7 @@ if ($class_date !== '') {
 
 
 /* =========================================================
-   DISPLAY TIME
+   FORMAT TIME
    ========================================================= */
 
 $display_time =
@@ -751,15 +764,7 @@ $display_time =
 
 
 /* =========================================================
-   CLASSROOM TITLE
-   ========================================================= */
-
-$classroom_title =
-    $subject;
-
-
-/* =========================================================
-   LIVE CLASSROOM IDENTIFIER
+   CLASSROOM KEY
    ========================================================= */
 
 $classroom_key =
@@ -767,7 +772,7 @@ $classroom_key =
 
 
 /* =========================================================
-   PROFILE INITIAL
+   INITIALS
    ========================================================= */
 
 $student_initial =
@@ -779,16 +784,13 @@ $student_initial =
         )
     );
 
+
 if ($student_initial === '') {
 
     $student_initial = 'S';
 
 }
 
-
-/* =========================================================
-   TEACHER INITIAL
-   ========================================================= */
 
 $teacher_initial =
     strtoupper(
@@ -798,6 +800,7 @@ $teacher_initial =
             1
         )
     );
+
 
 if ($teacher_initial === '') {
 
@@ -822,7 +825,9 @@ if ($teacher_initial === '') {
 
 <title>
 
-<?php echo htmlspecialchars($classroom_title); ?>
+<?php
+echo htmlspecialchars($subject);
+?>
 
 |
 NISEL Virtual Classroom
@@ -840,31 +845,19 @@ NISEL Virtual Classroom
 :root {
 
     --navy: #003b70;
-
     --blue: #0877c9;
-
+    --dark: #071827;
     --light-blue: #eaf4ff;
-
     --background: #eef3f8;
-
     --white: #ffffff;
-
     --text: #172b4d;
-
     --muted: #667085;
-
     --border: #e4e7ec;
-
     --success: #12b76a;
-
     --danger: #d92d20;
 
 }
 
-
-/* =========================================================
-   BODY
-========================================================= */
 
 body {
 
@@ -872,16 +865,15 @@ body {
 
     font-family:
         Inter,
-        -apple-system,
-        BlinkMacSystemFont,
-        "Segoe UI",
         Arial,
+        Helvetica,
         sans-serif;
 
     background:
         var(--background);
 
-    color: var(--text);
+    color:
+        var(--text);
 
 }
 
@@ -938,9 +930,9 @@ body {
 
 .brand-logo {
 
-    width: 42px;
+    width: 43px;
 
-    height: 42px;
+    height: 43px;
 
     border-radius: 12px;
 
@@ -971,11 +963,11 @@ body {
 
     display: block;
 
-    font-size: 11px;
+    font-size: 10px;
 
     opacity: .75;
 
-    letter-spacing: 1.2px;
+    letter-spacing: 1.5px;
 
 }
 
@@ -987,6 +979,15 @@ body {
     align-items: center;
 
     gap: 12px;
+
+}
+
+
+.user-name {
+
+    font-size: 14px;
+
+    font-weight: 600;
 
 }
 
@@ -1017,15 +1018,6 @@ body {
 }
 
 
-.user-name {
-
-    font-size: 14px;
-
-    font-weight: 600;
-
-}
-
-
 /* =========================================================
    PAGE
 ========================================================= */
@@ -1048,25 +1040,33 @@ body {
 
 .class-header {
 
-    background: white;
+    background:
+        white;
 
-    border-radius: 18px;
+    border-radius:
+        18px;
 
-    padding: 20px 24px;
+    padding:
+        20px 24px;
 
-    display: flex;
+    display:
+        flex;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 20px;
+    gap:
+        20px;
 
-    margin-bottom: 20px;
+    margin-bottom:
+        20px;
 
     box-shadow:
         0 8px 30px
-        rgba(0, 47, 84, .06);
+        rgba(0,47,84,.06);
 
     border:
         1px solid
@@ -1077,11 +1077,14 @@ body {
 
 .class-info {
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 15px;
+    gap:
+        15px;
 
 }
 
@@ -1100,11 +1103,14 @@ body {
     color:
         var(--navy);
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
     font-size: 25px;
 
@@ -1113,38 +1119,47 @@ body {
 
 .class-info h1 {
 
-    margin: 0 0 5px;
+    margin:
+        0 0 5px;
 
-    font-size: 23px;
+    font-size:
+        23px;
 
-    color: var(--navy);
+    color:
+        var(--navy);
 
 }
 
 
 .class-meta {
 
-    color: var(--muted);
+    color:
+        var(--muted);
 
-    font-size: 13px;
+    font-size:
+        13px;
 
 }
 
 
 .class-meta span {
 
-    margin-right: 14px;
+    margin-right:
+        14px;
 
 }
 
 
 .live-status {
 
-    display: inline-flex;
+    display:
+        inline-flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 7px;
+    gap:
+        7px;
 
     padding:
         8px 13px;
@@ -1155,25 +1170,62 @@ body {
     color:
         #067647;
 
-    border-radius: 20px;
+    border-radius:
+        20px;
 
-    font-size: 12px;
+    font-size:
+        12px;
 
-    font-weight: 700;
+    font-weight:
+        700;
 
 }
 
 
 .live-dot {
 
-    width: 8px;
+    width:
+        8px;
 
-    height: 8px;
+    height:
+        8px;
 
-    border-radius: 50%;
+    border-radius:
+        50%;
 
     background:
         var(--success);
+
+}
+
+
+/* =========================================================
+   NOTICE
+========================================================= */
+
+.notice {
+
+    padding:
+        13px 16px;
+
+    border-radius:
+        12px;
+
+    margin-bottom:
+        18px;
+
+    background:
+        #fff8e6;
+
+    color:
+        #7a4f00;
+
+    border:
+        1px solid
+        #f5d98b;
+
+    font-size:
+        13px;
 
 }
 
@@ -1184,33 +1236,39 @@ body {
 
 .classroom-grid {
 
-    display: grid;
+    display:
+        grid;
 
     grid-template-columns:
         minmax(0, 1fr)
         330px;
 
-    gap: 20px;
+    gap:
+        20px;
 
 }
 
 
 /* =========================================================
-   VIDEO AREA
+   VIDEO CARD
 ========================================================= */
 
 .video-card {
 
     background:
-        #071827;
+        var(--dark);
 
-    border-radius: 20px;
+    border-radius:
+        20px;
 
-    min-height: 620px;
+    min-height:
+        620px;
 
-    overflow: hidden;
+    overflow:
+        hidden;
 
-    position: relative;
+    position:
+        relative;
 
     box-shadow:
         0 12px 40px
@@ -1221,15 +1279,20 @@ body {
 
 .video-stage {
 
-    min-height: 620px;
+    min-height:
+        620px;
 
-    position: relative;
+    position:
+        relative;
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
     background:
         radial-gradient(
@@ -1241,24 +1304,110 @@ body {
 }
 
 
+/* =========================================================
+   REMOTE VIDEO
+========================================================= */
+
+#remoteVideo {
+
+    width:
+        100%;
+
+    height:
+        100%;
+
+    min-height:
+        620px;
+
+    object-fit:
+        cover;
+
+    display:
+        none;
+
+    background:
+        #000;
+
+}
+
+
+/* =========================================================
+   LOCAL VIDEO
+========================================================= */
+
+.local-video {
+
+    position:
+        absolute;
+
+    right:
+        20px;
+
+    bottom:
+        90px;
+
+    width:
+        220px;
+
+    height:
+        135px;
+
+    border-radius:
+        14px;
+
+    object-fit:
+        cover;
+
+    background:
+        #111;
+
+    border:
+        2px solid
+        rgba(255,255,255,.7);
+
+    display:
+        none;
+
+    z-index:
+        10;
+
+}
+
+
+/* =========================================================
+   PLACEHOLDER
+========================================================= */
+
 .video-placeholder {
 
-    text-align: center;
+    text-align:
+        center;
 
-    color: white;
+    color:
+        white;
 
-    padding: 30px;
+    padding:
+        30px;
+
+    position:
+        relative;
+
+    z-index:
+        5;
 
 }
 
 
 .video-placeholder-icon {
 
-    width: 90px;
+    width:
+        90px;
 
-    height: 90px;
+    height:
+        90px;
 
-    border-radius: 50%;
+    border-radius:
+        50%;
 
     margin:
         0 auto 18px;
@@ -1266,13 +1415,17 @@ body {
     background:
         rgba(255,255,255,.08);
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
-    font-size: 38px;
+    font-size:
+        38px;
 
 }
 
@@ -1282,7 +1435,8 @@ body {
     margin:
         0 0 10px;
 
-    font-size: 21px;
+    font-size:
+        21px;
 
 }
 
@@ -1292,64 +1446,61 @@ body {
     color:
         rgba(255,255,255,.65);
 
-    max-width: 450px;
+    max-width:
+        450px;
 
-    line-height: 1.6;
+    line-height:
+        1.6;
 
     margin:
         0 auto;
 
-    font-size: 14px;
+    font-size:
+        14px;
 
 }
 
 
 /* =========================================================
-   VIDEO ELEMENTS
+   JOIN BUTTON
 ========================================================= */
 
-#remoteVideo {
+.start-btn {
 
-    width: 100%;
+    border:
+        none;
 
-    height: 100%;
+    padding:
+        13px 22px;
 
-    min-height: 620px;
+    border-radius:
+        10px;
 
-    object-fit: cover;
+    background:
+        var(--blue);
 
-    display: none;
+    color:
+        white;
 
-    background: #000;
+    font-weight:
+        700;
+
+    cursor:
+        pointer;
+
+    font-size:
+        14px;
+
+    margin-top:
+        20px;
 
 }
 
 
-.local-video {
+.start-btn:hover {
 
-    position: absolute;
-
-    right: 20px;
-
-    bottom: 90px;
-
-    width: 220px;
-
-    height: 135px;
-
-    border-radius: 14px;
-
-    object-fit: cover;
-
-    background: #111;
-
-    border:
-        2px solid
-        rgba(255,255,255,.7);
-
-    display: none;
-
-    z-index: 10;
+    background:
+        #0565aa;
 
 }
 
@@ -1360,13 +1511,17 @@ body {
 
 .video-controls {
 
-    position: absolute;
+    position:
+        absolute;
 
-    left: 0;
+    left:
+        0;
 
-    right: 0;
+    right:
+        0;
 
-    bottom: 0;
+    bottom:
+        0;
 
     padding:
         18px 20px;
@@ -1374,38 +1529,52 @@ body {
     background:
         linear-gradient(
             transparent,
-            rgba(0,0,0,.85)
+            rgba(0,0,0,.9)
         );
 
-    display: flex;
+    display:
+        flex;
 
-    justify-content: center;
+    justify-content:
+        center;
 
-    gap: 10px;
+    gap:
+        10px;
+
+    z-index:
+        30;
 
 }
 
 
 .control-btn {
 
-    width: 46px;
+    width:
+        46px;
 
-    height: 46px;
+    height:
+        46px;
 
-    border: none;
+    border:
+        none;
 
-    border-radius: 50%;
+    border-radius:
+        50%;
 
     background:
         rgba(255,255,255,.12);
 
-    color: white;
+    color:
+        white;
 
-    cursor: pointer;
+    cursor:
+        pointer;
 
-    font-size: 18px;
+    font-size:
+        18px;
 
-    transition: .2s;
+    transition:
+        .2s;
 
 }
 
@@ -1413,7 +1582,7 @@ body {
 .control-btn:hover {
 
     background:
-        rgba(255,255,255,.22);
+        rgba(255,255,255,.25);
 
     transform:
         translateY(-2px);
@@ -1429,50 +1598,20 @@ body {
 }
 
 
-.start-btn {
-
-    border: none;
-
-    padding:
-        13px 22px;
-
-    border-radius: 10px;
-
-    background:
-        var(--blue);
-
-    color: white;
-
-    font-weight: 700;
-
-    cursor: pointer;
-
-    font-size: 14px;
-
-    margin-top: 20px;
-
-}
-
-
-.start-btn:hover {
-
-    background:
-        #0565aa;
-
-}
-
-
 /* =========================================================
    SIDE PANEL
 ========================================================= */
 
 .side-panel {
 
-    display: flex;
+    display:
+        flex;
 
-    flex-direction: column;
+    flex-direction:
+        column;
 
-    gap: 18px;
+    gap:
+        18px;
 
 }
 
@@ -1482,7 +1621,8 @@ body {
     background:
         white;
 
-    border-radius: 18px;
+    border-radius:
+        18px;
 
     border:
         1px solid
@@ -1492,7 +1632,8 @@ body {
         0 8px 30px
         rgba(0,47,84,.06);
 
-    overflow: hidden;
+    overflow:
+        hidden;
 
 }
 
@@ -1506,29 +1647,36 @@ body {
         1px solid
         var(--border);
 
-    display: flex;
+    display:
+        flex;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
-    align-items: center;
+    align-items:
+        center;
 
 }
 
 
 .panel-header h3 {
 
-    margin: 0;
+    margin:
+        0;
 
-    font-size: 15px;
+    font-size:
+        15px;
 
-    color: var(--navy);
+    color:
+        var(--navy);
 
 }
 
 
 .panel-body {
 
-    padding: 18px;
+    padding:
+        18px;
 
 }
 
@@ -1539,22 +1687,28 @@ body {
 
 .teacher-card {
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    gap: 12px;
+    gap:
+        12px;
 
 }
 
 
 .teacher-avatar {
 
-    width: 50px;
+    width:
+        50px;
 
-    height: 50px;
+    height:
+        50px;
 
-    border-radius: 50%;
+    border-radius:
+        50%;
 
     background:
         linear-gradient(
@@ -1563,39 +1717,51 @@ body {
             #0b82c6
         );
 
-    color: white;
+    color:
+        white;
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
-    font-size: 19px;
+    font-size:
+        19px;
 
-    font-weight: 700;
+    font-weight:
+        700;
 
 }
 
 
 .teacher-card strong {
 
-    display: block;
+    display:
+        block;
 
-    font-size: 14px;
+    font-size:
+        14px;
 
 }
 
 
 .teacher-card span {
 
-    display: block;
+    display:
+        block;
 
-    color: var(--muted);
+    color:
+        var(--muted);
 
-    font-size: 12px;
+    font-size:
+        12px;
 
-    margin-top: 4px;
+    margin-top:
+        4px;
 
 }
 
@@ -1606,62 +1772,79 @@ body {
 
 .detail {
 
-    display: flex;
+    display:
+        flex;
 
-    gap: 12px;
+    gap:
+        12px;
 
-    margin-bottom: 16px;
+    margin-bottom:
+        16px;
 
 }
 
 
 .detail:last-child {
 
-    margin-bottom: 0;
+    margin-bottom:
+        0;
 
 }
 
 
 .detail-icon {
 
-    width: 35px;
+    width:
+        35px;
 
-    height: 35px;
+    height:
+        35px;
 
-    min-width: 35px;
+    min-width:
+        35px;
 
-    border-radius: 9px;
+    border-radius:
+        9px;
 
     background:
         #f1f7fc;
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
 }
 
 
 .detail strong {
 
-    display: block;
+    display:
+        block;
 
-    font-size: 12px;
+    font-size:
+        12px;
 
-    color: var(--muted);
+    color:
+        var(--muted);
 
-    margin-bottom: 3px;
+    margin-bottom:
+        3px;
 
 }
 
 
 .detail span {
 
-    font-size: 13px;
+    font-size:
+        13px;
 
-    color: var(--text);
+    color:
+        var(--text);
 
 }
 
@@ -1672,13 +1855,17 @@ body {
 
 .payment {
 
-    padding: 13px;
+    padding:
+        13px;
 
-    border-radius: 10px;
+    border-radius:
+        10px;
 
-    font-size: 12px;
+    font-size:
+        12px;
 
-    font-weight: 700;
+    font-weight:
+        700;
 
 }
 
@@ -1711,46 +1898,56 @@ body {
 
 .chat-panel {
 
-    flex: 1;
-
-    min-height: 250px;
+    min-height:
+        250px;
 
 }
 
 
 .chat-messages {
 
-    height: 190px;
+    height:
+        190px;
 
-    overflow-y: auto;
+    overflow-y:
+        auto;
 
-    padding: 15px;
+    padding:
+        15px;
 
 }
 
 
 .chat-empty {
 
-    height: 100%;
+    height:
+        100%;
 
-    display: flex;
+    display:
+        flex;
 
-    align-items: center;
+    align-items:
+        center;
 
-    justify-content: center;
+    justify-content:
+        center;
 
-    color: var(--muted);
+    color:
+        var(--muted);
 
-    font-size: 12px;
+    font-size:
+        12px;
 
-    text-align: center;
+    text-align:
+        center;
 
 }
 
 
 .chat-form {
 
-    display: flex;
+    display:
+        flex;
 
     border-top:
         1px solid
@@ -1761,60 +1958,40 @@ body {
 
 .chat-form input {
 
-    flex: 1;
+    flex:
+        1;
 
-    border: none;
+    border:
+        none;
 
-    outline: none;
+    outline:
+        none;
 
     padding:
         13px;
 
-    font-size: 12px;
+    font-size:
+        12px;
 
 }
 
 
 .chat-form button {
 
-    width: 48px;
+    width:
+        48px;
 
-    border: none;
+    border:
+        none;
 
     background:
         var(--navy);
 
-    color: white;
-
-    cursor: pointer;
-
-}
-
-
-/* =========================================================
-   ALERT
-========================================================= */
-
-.notice {
-
-    padding:
-        13px 16px;
-
-    border-radius: 12px;
-
-    margin-bottom: 18px;
-
-    background:
-        #fff8e6;
-
     color:
-        #7a4f00;
+        white;
 
-    border:
-        1px solid
-        #f5d98b;
-
-    font-size: 13px;
+    cursor:
+        pointer;
 
 }
 
@@ -1825,12 +2002,14 @@ body {
 
 .footer {
 
-    text-align: center;
+    text-align:
+        center;
 
     color:
         #98a2b3;
 
-    font-size: 11px;
+    font-size:
+        11px;
 
     padding:
         25px 0;
@@ -1846,13 +2025,15 @@ body {
 
     .classroom-grid {
 
-        grid-template-columns: 1fr;
+        grid-template-columns:
+            1fr;
 
     }
 
     .side-panel {
 
-        display: grid;
+        display:
+            grid;
 
         grid-template-columns:
             repeat(2, 1fr);
@@ -1873,33 +2054,39 @@ body {
 
     .user-name {
 
-        display: none;
+        display:
+            none;
 
     }
 
     .page {
 
-        width: 94%;
+        width:
+            94%;
 
     }
 
     .class-header {
 
-        align-items: flex-start;
+        align-items:
+            flex-start;
 
-        flex-direction: column;
+        flex-direction:
+            column;
 
     }
 
     .class-info h1 {
 
-        font-size: 19px;
+        font-size:
+            19px;
 
     }
 
     .side-panel {
 
-        display: flex;
+        display:
+            flex;
 
     }
 
@@ -1907,19 +2094,24 @@ body {
     .video-stage,
     #remoteVideo {
 
-        min-height: 420px;
+        min-height:
+            420px;
 
     }
 
     .local-video {
 
-        width: 140px;
+        width:
+            140px;
 
-        height: 90px;
+        height:
+            90px;
 
-        right: 12px;
+        right:
+            12px;
 
-        bottom: 80px;
+        bottom:
+            80px;
 
     }
 
@@ -1933,9 +2125,9 @@ body {
 <body>
 
 
-<!-- ======================================================
+<!-- =====================================================
      TOP BAR
-====================================================== -->
+===================================================== -->
 
 <header class="topbar">
 
@@ -1965,7 +2157,9 @@ body {
         <div class="user-name">
 
             <?php
-            echo htmlspecialchars($student_name);
+            echo htmlspecialchars(
+                $student_name
+            );
             ?>
 
         </div>
@@ -1973,7 +2167,9 @@ body {
         <div class="user-avatar">
 
             <?php
-            echo htmlspecialchars($student_initial);
+            echo htmlspecialchars(
+                $student_initial
+            );
             ?>
 
         </div>
@@ -1984,14 +2180,16 @@ body {
 
 
 
-<!-- ======================================================
-     MAIN PAGE
-====================================================== -->
+<!-- =====================================================
+     PAGE
+===================================================== -->
 
 <main class="page">
 
 
-    <!-- CLASS HEADER -->
+    <!-- =================================================
+         CLASS HEADER
+    ================================================== -->
 
     <section class="class-header">
 
@@ -2007,7 +2205,7 @@ body {
 
                     <?php
                     echo htmlspecialchars(
-                        $classroom_title
+                        $subject
                     );
                     ?>
 
@@ -2015,15 +2213,19 @@ body {
 
                 <div class="class-meta">
 
+
                     <?php if ($curriculum !== ''): ?>
 
                         <span>
+
                             📚
+
                             <?php
                             echo htmlspecialchars(
                                 $curriculum
                             );
                             ?>
+
                         </span>
 
                     <?php endif; ?>
@@ -2032,22 +2234,30 @@ body {
                     <?php if ($display_date !== ''): ?>
 
                         <span>
+
                             📅
+
                             <?php
                             echo htmlspecialchars(
                                 $display_date
                             );
                             ?>
+
                         </span>
 
                     <?php endif; ?>
 
 
                     <span>
+
                         🆔
-                        Class #<?php
+
+                        Class #
+
+                        <?php
                         echo $booking_id;
                         ?>
+
                     </span>
 
                 </div>
@@ -2057,7 +2267,10 @@ body {
         </div>
 
 
-        <div class="live-status">
+        <div
+            class="live-status"
+            id="liveStatus"
+        >
 
             <span class="live-dot"></span>
 
@@ -2069,13 +2282,21 @@ body {
 
 
 
+    <!-- =================================================
+         PAYMENT NOTICE
+    ================================================== -->
+
     <?php if (!$is_paid): ?>
 
         <div class="notice">
 
-            ⚠️ Your payment has not yet been confirmed.
-            You may view the classroom, but the live lesson
-            will only be available after payment is confirmed.
+            ⚠️
+
+            Your payment has not yet been confirmed.
+
+            You may view the classroom, but the live
+            lesson will only become available after
+            payment confirmation.
 
         </div>
 
@@ -2083,21 +2304,23 @@ body {
 
 
 
-    <!-- ==================================================
-         CLASSROOM
+    <!-- =================================================
+         CLASSROOM GRID
     ================================================== -->
 
     <div class="classroom-grid">
 
 
-        <!-- VIDEO -->
+        <!-- =============================================
+             VIDEO AREA
+        ============================================== -->
 
         <section class="video-card">
 
             <div class="video-stage">
 
 
-                <!-- Remote teacher video -->
+                <!-- REMOTE TEACHER VIDEO -->
 
                 <video
                     id="remoteVideo"
@@ -2106,7 +2329,7 @@ body {
                 ></video>
 
 
-                <!-- Local student video -->
+                <!-- LOCAL STUDENT VIDEO -->
 
                 <video
                     id="localVideo"
@@ -2117,7 +2340,7 @@ body {
                 ></video>
 
 
-                <!-- Placeholder -->
+                <!-- VIDEO PLACEHOLDER -->
 
                 <div
                     class="video-placeholder"
@@ -2130,13 +2353,16 @@ body {
                         🎥
                     </div>
 
+
                     <h2>
                         Live Virtual Classroom
                     </h2>
 
+
                     <p>
-                        Your live lesson will appear here
-                        when the teacher starts the classroom.
+                        Join the classroom when your
+                        lesson is ready. Your teacher's
+                        live video will appear here.
                     </p>
 
 
@@ -2148,6 +2374,20 @@ body {
                             id="joinClassBtn"
                         >
                             🎥 Join Live Classroom
+                        </button>
+
+                    <?php else: ?>
+
+                        <button
+                            type="button"
+                            class="start-btn"
+                            disabled
+                            style="
+                                opacity:.5;
+                                cursor:not-allowed;
+                            "
+                        >
+                            🔒 Payment Required
                         </button>
 
                     <?php endif; ?>
@@ -2211,9 +2451,9 @@ body {
 
 
 
-        <!-- =================================================
-             SIDE PANEL
-        ================================================= -->
+        <!-- =============================================
+             RIGHT PANEL
+        ============================================== -->
 
         <aside class="side-panel">
 
@@ -2230,6 +2470,7 @@ body {
 
                 </div>
 
+
                 <div class="panel-body">
 
                     <div class="teacher-card">
@@ -2243,6 +2484,7 @@ body {
                             ?>
 
                         </div>
+
 
                         <div>
 
@@ -2281,6 +2523,7 @@ body {
                     </h3>
 
                 </div>
+
 
                 <div class="panel-body">
 
@@ -2327,11 +2570,13 @@ body {
                             <span>
 
                                 <?php
+
                                 echo htmlspecialchars(
                                     $display_date !== ''
                                         ? $display_date
                                         : 'Not specified'
                                 );
+
                                 ?>
 
                             </span>
@@ -2411,6 +2656,7 @@ body {
 
                 </div>
 
+
                 <div class="panel-body">
 
                     <?php if ($is_paid): ?>
@@ -2461,8 +2707,9 @@ body {
 
                     <div class="chat-empty">
 
-                        Classroom chat will become
-                        available when the live lesson starts.
+                        Chat will become available
+                        when the live classroom
+                        connection is established.
 
                     </div>
 
@@ -2480,6 +2727,7 @@ body {
                         placeholder="Type a message..."
                         autocomplete="off"
                     >
+
 
                     <button
                         type="submit"
@@ -2499,11 +2747,16 @@ body {
     </div>
 
 
+
+    <!-- FOOTER -->
+
     <div class="footer">
 
         ©
         <?php echo date('Y'); ?>
+
         NISEL ONLINE EDUCATION.
+
         All Rights Reserved.
 
     </div>
@@ -2516,30 +2769,68 @@ body {
 <script>
 
 /* =========================================================
-   NISEL STUDENT CLASSROOM
+   NISEL STUDENT CLASSROOM JAVASCRIPT
    ========================================================= */
-
-const bookingId =
-    <?php echo (int) $booking_id; ?>;
-
-const classroomKey =
-    <?php
-    echo json_encode($classroom_key);
-    ?>;
-
-const isPaid =
-    <?php
-    echo $is_paid ? 'true' : 'false';
-    ?>;
-
-
-let localStream = null;
-
-let peerConnection = null;
 
 
 /* =========================================================
-   ELEMENTS
+   CLASSROOM DATA
+========================================================= */
+
+const bookingId =
+    <?php
+    echo (int) $booking_id;
+    ?>;
+
+
+const classroomKey =
+    <?php
+    echo json_encode(
+        $classroom_key
+    );
+    ?>;
+
+
+const isPaid =
+    <?php
+    echo $is_paid
+        ? 'true'
+        : 'false';
+    ?>;
+
+
+const studentName =
+    <?php
+    echo json_encode(
+        $student_name
+    );
+    ?>;
+
+
+const teacherName =
+    <?php
+    echo json_encode(
+        $teacher_name
+    );
+    ?>;
+
+
+/* =========================================================
+   WEBRTC VARIABLES
+========================================================= */
+
+let localStream =
+    null;
+
+let peerConnection =
+    null;
+
+let screenStream =
+    null;
+
+
+/* =========================================================
+   DOM ELEMENTS
 ========================================================= */
 
 const joinClassBtn =
@@ -2547,44 +2838,58 @@ const joinClassBtn =
         'joinClassBtn'
     );
 
+
 const remoteVideo =
     document.getElementById(
         'remoteVideo'
     );
+
 
 const localVideo =
     document.getElementById(
         'localVideo'
     );
 
+
 const videoPlaceholder =
     document.getElementById(
         'videoPlaceholder'
     );
+
 
 const videoControls =
     document.getElementById(
         'videoControls'
     );
 
+
 const micBtn =
     document.getElementById(
         'micBtn'
     );
+
 
 const cameraBtn =
     document.getElementById(
         'cameraBtn'
     );
 
+
+const screenBtn =
+    document.getElementById(
+        'screenBtn'
+    );
+
+
 const leaveBtn =
     document.getElementById(
         'leaveBtn'
     );
 
-const screenBtn =
+
+const liveStatus =
     document.getElementById(
-        'screenBtn'
+        'liveStatus'
     );
 
 
@@ -2614,44 +2919,11 @@ async function joinClassroom() {
     }
 
 
+    /*
+     * Create WebRTC connection.
+     */
+
     try {
-
-        /*
-         * Request camera and microphone.
-         */
-
-        localStream =
-            await navigator.mediaDevices.getUserMedia({
-
-                video: true,
-
-                audio: true
-
-            });
-
-
-        localVideo.srcObject =
-            localStream;
-
-
-        localVideo.style.display =
-            'block';
-
-
-        videoPlaceholder.style.display =
-            'none';
-
-
-        videoControls.style.display =
-            'flex';
-
-
-        /*
-         * Create WebRTC connection.
-         *
-         * The signaling server will be connected
-         * in the next classroom phase.
-         */
 
         peerConnection =
             new RTCPeerConnection({
@@ -2673,22 +2945,17 @@ async function joinClassroom() {
             });
 
 
-        localStream
-            .getTracks()
-            .forEach(
-                track => {
-
-                    peerConnection.addTrack(
-                        track,
-                        localStream
-                    );
-
-                }
-            );
-
+        /* =============================================
+           RECEIVE TEACHER MEDIA
+        ============================================== */
 
         peerConnection.ontrack =
             function(event) {
+
+                console.log(
+                    'Remote media received.'
+                );
+
 
                 if (
                     event.streams &&
@@ -2698,41 +2965,256 @@ async function joinClassroom() {
                     remoteVideo.srcObject =
                         event.streams[0];
 
+
                     remoteVideo.style.display =
                         'block';
+
+
+                    videoPlaceholder.style.display =
+                        'none';
+
+
+                    if (liveStatus) {
+
+                        liveStatus.innerHTML =
+                            '<span class="live-dot"></span> LIVE CLASS';
+
+                    }
 
                 }
 
             };
 
 
+        /* =============================================
+           ICE CANDIDATE
+        ============================================== */
+
+        peerConnection.onicecandidate =
+            function(event) {
+
+                if (
+                    event.candidate
+                ) {
+
+                    /*
+                     * The signaling server will use
+                     * this candidate in the next
+                     * live-classroom phase.
+                     */
+
+                    console.log(
+                        'ICE candidate generated.'
+                    );
+
+                }
+
+            };
+
+
+        /* =============================================
+           TRY CAMERA + MICROPHONE
+        ============================================== */
+
+        try {
+
+            if (
+                navigator.mediaDevices &&
+                navigator.mediaDevices.getUserMedia
+            ) {
+
+                localStream =
+                    await navigator.mediaDevices
+                        .getUserMedia({
+
+                            video: true,
+
+                            audio: true
+
+                        });
+
+
+                localVideo.srcObject =
+                    localStream;
+
+
+                localVideo.style.display =
+                    'block';
+
+
+                /*
+                 * Add local tracks.
+                 */
+
+                localStream
+                    .getTracks()
+                    .forEach(
+                        function(track) {
+
+                            peerConnection.addTrack(
+                                track,
+                                localStream
+                            );
+
+                        }
+                    );
+
+
+                console.log(
+                    'Camera and microphone connected.'
+                );
+
+            }
+
+        } catch (mediaError) {
+
+            /*
+             * Camera/microphone are OPTIONAL.
+             *
+             * The student can still enter.
+             */
+
+            console.warn(
+                'Camera/microphone unavailable:',
+                mediaError
+            );
+
+
+            localStream =
+                null;
+
+
+            localVideo.style.display =
+                'none';
+
+
+            console.log(
+                'Joining without local camera/microphone.'
+            );
+
+        }
+
+
+        /* =============================================
+           SHOW CLASSROOM
+        ============================================== */
+
+        videoControls.style.display =
+            'flex';
+
+
+        videoPlaceholder.style.display =
+            'none';
+
+
+        /* =============================================
+           STATUS MESSAGE
+        ============================================== */
+
+        const oldMessage =
+            document.getElementById(
+                'classroomConnectedMessage'
+            );
+
+
+        if (!oldMessage) {
+
+            const classroomMessage =
+                document.createElement(
+                    'div'
+                );
+
+
+            classroomMessage.id =
+                'classroomConnectedMessage';
+
+
+            classroomMessage.style.position =
+                'absolute';
+
+
+            classroomMessage.style.top =
+                '20px';
+
+
+            classroomMessage.style.left =
+                '20px';
+
+
+            classroomMessage.style.right =
+                '20px';
+
+
+            classroomMessage.style.padding =
+                '12px 16px';
+
+
+            classroomMessage.style.background =
+                'rgba(0,59,112,.92)';
+
+
+            classroomMessage.style.color =
+                'white';
+
+
+            classroomMessage.style.borderRadius =
+                '10px';
+
+
+            classroomMessage.style.fontSize =
+                '13px';
+
+
+            classroomMessage.style.zIndex =
+                '20';
+
+
+            classroomMessage.textContent =
+                '✓ You have joined the classroom. Waiting for your teacher...';
+
+
+            const videoStage =
+                document.querySelector(
+                    '.video-stage'
+                );
+
+
+            if (videoStage) {
+
+                videoStage.appendChild(
+                    classroomMessage
+                );
+
+            }
+
+        }
+
+
         /*
-         * At this stage the student's local camera
-         * and microphone are active.
+         * IMPORTANT:
          *
-         * Teacher-to-student WebRTC signaling will
-         * be connected through the NISEL classroom
-         * signaling backend.
+         * The actual teacher ↔ student WebRTC
+         * signaling will be connected through
+         * the NISEL signaling backend.
          */
 
         console.log(
-            'Joined classroom:',
+            'NISEL classroom joined:',
             classroomKey
-        );
-
-        alert(
-            'You have joined the classroom. Your camera and microphone are ready.'
         );
 
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            'Classroom error:',
+            error
+        );
+
 
         alert(
-            'Unable to access your camera or microphone. ' +
-            'Please allow camera and microphone permissions ' +
-            'in your browser and try again.'
+            'Unable to connect to the classroom. ' +
+            'Please refresh the page and try again.'
         );
 
     }
@@ -2748,45 +3230,144 @@ if (micBtn) {
 
     micBtn.addEventListener(
         'click',
-        function() {
+        toggleMicrophone
+    );
 
-            if (!localStream) {
-                return;
-            }
+}
 
 
-            const audioTracks =
-                localStream.getAudioTracks();
+async function toggleMicrophone() {
+
+    /*
+     * If no local stream exists,
+     * request microphone only.
+     */
+
+    if (!localStream) {
+
+        try {
+
+            const audioStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+
+                        audio: true
+
+                    });
+
+
+            localStream =
+                audioStream;
+
+
+            const audioTrack =
+                audioStream
+                    .getAudioTracks()[0];
 
 
             if (
-                audioTracks.length === 0
+                peerConnection &&
+                audioTrack
             ) {
-                return;
+
+                peerConnection.addTrack(
+                    audioTrack,
+                    localStream
+                );
+
             }
 
 
-            const enabled =
-                audioTracks[0].enabled;
+            micBtn.textContent =
+                '🎤';
 
 
-            audioTracks.forEach(
-                track => {
+            return;
 
-                    track.enabled =
-                        !enabled;
+        } catch (error) {
 
-                }
+            alert(
+                'Microphone permission was not granted or no microphone was detected.'
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    const audioTracks =
+        localStream.getAudioTracks();
+
+
+    if (
+        audioTracks.length === 0
+    ) {
+
+        try {
+
+            const audioStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        audio: true
+                    });
+
+
+            const audioTrack =
+                audioStream.getAudioTracks()[0];
+
+
+            localStream.addTrack(
+                audioTrack
             );
 
 
+            if (peerConnection) {
+
+                peerConnection.addTrack(
+                    audioTrack,
+                    localStream
+                );
+
+            }
+
+
             micBtn.textContent =
-                enabled
-                    ? '🔇'
-                    : '🎤';
+                '🎤';
+
+
+        } catch (error) {
+
+            alert(
+                'No microphone was detected.'
+            );
+
+        }
+
+
+        return;
+    }
+
+
+    const enabled =
+        audioTracks[0].enabled;
+
+
+    audioTracks.forEach(
+        function(track) {
+
+            track.enabled =
+                !enabled;
 
         }
     );
+
+
+    micBtn.textContent =
+        enabled
+            ? '🔇'
+            : '🎤';
 
 }
 
@@ -2799,45 +3380,159 @@ if (cameraBtn) {
 
     cameraBtn.addEventListener(
         'click',
-        function() {
+        toggleCamera
+    );
 
-            if (!localStream) {
-                return;
-            }
+}
 
 
-            const videoTracks =
-                localStream.getVideoTracks();
+async function toggleCamera() {
+
+    /*
+     * If there is no local stream,
+     * request camera only.
+     */
+
+    if (!localStream) {
+
+        try {
+
+            const cameraStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+
+                        video: true
+
+                    });
+
+
+            localStream =
+                cameraStream;
+
+
+            const videoTrack =
+                cameraStream.getVideoTracks()[0];
 
 
             if (
-                videoTracks.length === 0
+                peerConnection &&
+                videoTrack
             ) {
-                return;
+
+                peerConnection.addTrack(
+                    videoTrack,
+                    localStream
+                );
+
             }
 
 
-            const enabled =
-                videoTracks[0].enabled;
+            localVideo.srcObject =
+                localStream;
 
 
-            videoTracks.forEach(
-                track => {
-
-                    track.enabled =
-                        !enabled;
-
-                }
-            );
+            localVideo.style.display =
+                'block';
 
 
             cameraBtn.textContent =
-                enabled
-                    ? '🚫'
-                    : '📷';
+                '📷';
+
+
+            return;
+
+        } catch (error) {
+
+            alert(
+                'Camera permission was not granted or no camera was detected.'
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    const videoTracks =
+        localStream.getVideoTracks();
+
+
+    if (
+        videoTracks.length === 0
+    ) {
+
+        try {
+
+            const cameraStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        video: true
+                    });
+
+
+            const videoTrack =
+                cameraStream.getVideoTracks()[0];
+
+
+            localStream.addTrack(
+                videoTrack
+            );
+
+
+            if (peerConnection) {
+
+                peerConnection.addTrack(
+                    videoTrack,
+                    localStream
+                );
+
+            }
+
+
+            localVideo.srcObject =
+                localStream;
+
+
+            localVideo.style.display =
+                'block';
+
+
+            cameraBtn.textContent =
+                '📷';
+
+
+        } catch (error) {
+
+            alert(
+                'No camera was detected.'
+            );
+
+        }
+
+
+        return;
+    }
+
+
+    const enabled =
+        videoTracks[0].enabled;
+
+
+    videoTracks.forEach(
+        function(track) {
+
+            track.enabled =
+                !enabled;
 
         }
     );
+
+
+    cameraBtn.textContent =
+        enabled
+            ? '🚫'
+            : '📷';
 
 }
 
@@ -2850,110 +3545,165 @@ if (screenBtn) {
 
     screenBtn.addEventListener(
         'click',
-        async function() {
-
-            try {
-
-                const screenStream =
-                    await navigator.mediaDevices
-                        .getDisplayMedia({
-                            video: true
-                        });
-
-
-                const screenTrack =
-                    screenStream.getVideoTracks()[0];
-
-
-                if (
-                    peerConnection
-                ) {
-
-                    const sender =
-                        peerConnection
-                            .getSenders()
-                            .find(
-                                s =>
-                                    s.track &&
-                                    s.track.kind ===
-                                    'video'
-                            );
-
-
-                    if (sender) {
-
-                        await sender.replaceTrack(
-                            screenTrack
-                        );
-
-                    }
-
-                }
-
-
-                localVideo.srcObject =
-                    screenStream;
-
-
-                screenTrack.onended =
-                    function() {
-
-                        if (
-                            localStream &&
-                            peerConnection
-                        ) {
-
-                            const cameraTrack =
-                                localStream
-                                    .getVideoTracks()[0];
-
-
-                            const sender =
-                                peerConnection
-                                    .getSenders()
-                                    .find(
-                                        s =>
-                                            s.track &&
-                                            s.track.kind ===
-                                            'video'
-                                    );
-
-
-                            if (
-                                sender &&
-                                cameraTrack
-                            ) {
-
-                                sender.replaceTrack(
-                                    cameraTrack
-                                );
-
-                            }
-
-                            localVideo.srcObject =
-                                localStream;
-
-                        }
-
-                    };
-
-
-            } catch (error) {
-
-                console.log(
-                    'Screen sharing cancelled.'
-                );
-
-            }
-
-        }
+        shareScreen
     );
 
 }
 
 
+async function shareScreen() {
+
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getDisplayMedia
+    ) {
+
+        alert(
+            'Screen sharing is not supported by this browser.'
+        );
+
+        return;
+    }
+
+
+    try {
+
+        screenStream =
+            await navigator.mediaDevices
+                .getDisplayMedia({
+
+                    video: true
+
+                });
+
+
+        const screenTrack =
+            screenStream.getVideoTracks()[0];
+
+
+        if (!screenTrack) {
+            return;
+        }
+
+
+        localVideo.srcObject =
+            screenStream;
+
+
+        localVideo.style.display =
+            'block';
+
+
+        /*
+         * Replace camera track if WebRTC sender exists.
+         */
+
+        if (peerConnection) {
+
+            const sender =
+                peerConnection
+                    .getSenders()
+                    .find(
+                        function(item) {
+
+                            return (
+                                item.track &&
+                                item.track.kind ===
+                                'video'
+                            );
+
+                        }
+                    );
+
+
+            if (sender) {
+
+                await sender.replaceTrack(
+                    screenTrack
+                );
+
+            }
+
+        }
+
+
+        screenTrack.onended =
+            async function() {
+
+                /*
+                 * Restore camera after
+                 * screen sharing ends.
+                 */
+
+                if (
+                    localStream &&
+                    peerConnection
+                ) {
+
+                    const cameraTrack =
+                        localStream
+                            .getVideoTracks()
+                            [0];
+
+
+                    if (cameraTrack) {
+
+                        const sender =
+                            peerConnection
+                                .getSenders()
+                                .find(
+                                    function(item) {
+
+                                        return (
+                                            item.track &&
+                                            item.track.kind ===
+                                            'video'
+                                        );
+
+                                    }
+                                );
+
+
+                        if (sender) {
+
+                            await sender.replaceTrack(
+                                cameraTrack
+                            );
+
+                        }
+
+
+                        localVideo.srcObject =
+                            localStream;
+
+                    } else {
+
+                        localVideo.srcObject =
+                            null;
+
+                        localVideo.style.display =
+                            'none';
+
+                    }
+
+                }
+
+            };
+
+
+    } catch (error) {
+
+        console.log(
+            'Screen sharing cancelled.'
+        );
+
+    }
+
+}
+
+
 /* =========================================================
-   LEAVE CLASS
+   LEAVE CLASSROOM
 ========================================================= */
 
 if (leaveBtn) {
@@ -2968,28 +3718,62 @@ if (leaveBtn) {
 
 function leaveClassroom() {
 
+    /*
+     * Stop camera and microphone.
+     */
+
     if (localStream) {
 
         localStream
             .getTracks()
             .forEach(
-                track => track.stop()
+                function(track) {
+
+                    track.stop();
+
+                }
             );
 
     }
 
 
+    /*
+     * Stop screen sharing.
+     */
+
+    if (screenStream) {
+
+        screenStream
+            .getTracks()
+            .forEach(
+                function(track) {
+
+                    track.stop();
+
+                }
+            );
+
+    }
+
+
+    /*
+     * Close WebRTC.
+     */
+
     if (peerConnection) {
 
         peerConnection.close();
-
-        peerConnection =
-            null;
 
     }
 
 
     localStream =
+        null;
+
+    screenStream =
+        null;
+
+    peerConnection =
         null;
 
 
@@ -3016,6 +3800,27 @@ function leaveClassroom() {
     videoPlaceholder.style.display =
         'block';
 
+
+    if (liveStatus) {
+
+        liveStatus.innerHTML =
+            '<span class="live-dot"></span> Classroom Ready';
+
+    }
+
+
+    const connectedMessage =
+        document.getElementById(
+            'classroomConnectedMessage'
+        );
+
+
+    if (connectedMessage) {
+
+        connectedMessage.remove();
+
+    }
+
 }
 
 
@@ -3028,10 +3833,12 @@ const chatForm =
         'chatForm'
     );
 
+
 const chatInput =
     document.getElementById(
         'chatInput'
     );
+
 
 const chatMessages =
     document.getElementById(
@@ -3053,24 +3860,22 @@ if (chatForm) {
 
 
             if (!message) {
+
                 return;
+
             }
 
 
-            /*
-             * Temporary local classroom chat.
-             * The live database chat will be connected
-             * to the NISEL classroom backend.
-             */
-
-            const empty =
+            const emptyMessage =
                 chatMessages.querySelector(
                     '.chat-empty'
                 );
 
 
-            if (empty) {
-                empty.remove();
+            if (emptyMessage) {
+
+                emptyMessage.remove();
+
             }
 
 
@@ -3081,11 +3886,11 @@ if (chatForm) {
 
 
             item.style.padding =
-                '8px 10px';
+                '9px 11px';
 
 
             item.style.marginBottom =
-                '7px';
+                '8px';
 
 
             item.style.background =
@@ -3093,7 +3898,7 @@ if (chatForm) {
 
 
             item.style.borderRadius =
-                '8px';
+                '9px';
 
 
             item.style.fontSize =
@@ -3124,7 +3929,7 @@ if (chatForm) {
 
 
 /* =========================================================
-   HTML ESCAPE
+   ESCAPE HTML
 ========================================================= */
 
 function escapeHtml(value) {
@@ -3134,8 +3939,10 @@ function escapeHtml(value) {
             'div'
         );
 
+
     div.textContent =
         value;
+
 
     return div.innerHTML;
 
@@ -3155,10 +3962,30 @@ window.addEventListener(
             localStream
                 .getTracks()
                 .forEach(
-                    track => track.stop()
+                    function(track) {
+
+                        track.stop();
+
+                    }
                 );
 
         }
+
+
+        if (screenStream) {
+
+            screenStream
+                .getTracks()
+                .forEach(
+                    function(track) {
+
+                        track.stop();
+
+                    }
+                );
+
+        }
+
 
         if (peerConnection) {
 
