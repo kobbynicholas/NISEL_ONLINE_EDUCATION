@@ -2,65 +2,57 @@
 
 session_start();
 
-/*
-|--------------------------------------------------------------------------
-| NISEL ONLINE EDUCATION
-| ADMIN BOOKING MANAGEMENT
-| PDO VERSION
-|--------------------------------------------------------------------------
-*/
-
-
-/*
-|--------------------------------------------------------------------------
-| ADMIN LOGIN CHECK
-|--------------------------------------------------------------------------
-*/
-
-if (
-    !isset($_SESSION['admin_id']) ||
-    empty($_SESSION['admin_id'])
-) {
-    header("Location: ../admin_login.php");
-    exit;
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| DATABASE
-|--------------------------------------------------------------------------
-*/
-
+require "../admin_auth.php";
 require "../config/db.php";
 
+/*
+=========================================================
+NISEL ONLINE EDUCATION
+ADMIN BOOKING MANAGEMENT
 
-if (!isset($pdo)) {
+This page controls:
 
-    die(
-        "Database connection is not available. " .
-        "Please check config/db.php"
-    );
-
-}
-
-
-$pdo->setAttribute(
-    PDO::ATTR_ERRMODE,
-    PDO::ERRMODE_EXCEPTION
-);
+1. View bookings
+2. Assign teacher
+3. Unassign teacher
+4. Schedule lesson
+5. Change lesson status
+6. Create live classroom room code
+7. View live classroom
+=========================================================
+*/
 
 
 /*
-|--------------------------------------------------------------------------
-| HELPER
-|--------------------------------------------------------------------------
+=========================================================
+DATABASE ERROR MODE
+=========================================================
+*/
+
+if ($pdo instanceof PDO) {
+
+    $pdo->setAttribute(
+        PDO::ATTR_ERRMODE,
+        PDO::ERRMODE_EXCEPTION
+    );
+
+    $pdo->setAttribute(
+        PDO::ATTR_DEFAULT_FETCH_MODE,
+        PDO::FETCH_ASSOC
+    );
+}
+
+
+/*
+=========================================================
+HELPER
+=========================================================
 */
 
 function h($value)
 {
     return htmlspecialchars(
-        (string)($value ?? ''),
+        (string)$value,
         ENT_QUOTES,
         'UTF-8'
     );
@@ -68,388 +60,865 @@ function h($value)
 
 
 /*
-|--------------------------------------------------------------------------
-| MESSAGE
-|--------------------------------------------------------------------------
+=========================================================
+ADMIN INFORMATION
+=========================================================
+*/
+
+$adminName =
+    $_SESSION['admin_name']
+    ?? 'Administrator';
+
+
+/*
+=========================================================
+MESSAGES
+=========================================================
 */
 
 $message = "";
-
-$messageType = "";
+$messageType = "success";
 
 
 /*
-|--------------------------------------------------------------------------
-| ASSIGN / UPDATE BOOKING
-|--------------------------------------------------------------------------
+=========================================================
+CSRF TOKEN
+=========================================================
 */
 
 if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['assign_booking'])
+    empty(
+        $_SESSION['booking_csrf']
+    )
 ) {
 
-
-    $bookingId =
-        isset($_POST['booking_id'])
-            ? (int)$_POST['booking_id']
-            : 0;
-
-
-    $teacherId =
-        trim(
-            $_POST['teacher_id']
-            ?? ''
+    $_SESSION['booking_csrf'] =
+        bin2hex(
+            random_bytes(32)
         );
+}
+
+$csrfToken =
+    $_SESSION['booking_csrf'];
 
 
-    $lessonDate =
-        trim(
-            $_POST['lesson_date']
-            ?? ''
-        );
+/*
+=========================================================
+PROCESS POST REQUEST
+=========================================================
+*/
 
+if (
+    $_SERVER['REQUEST_METHOD']
+    === 'POST'
+) {
 
-    $lessonTime =
-        trim(
-            $_POST['lesson_time']
-            ?? ''
-        );
+    /*
+    -----------------------------------------------------
+    CSRF CHECK
+    -----------------------------------------------------
+    */
 
+    $submittedToken =
+        $_POST['csrf_token']
+        ?? '';
 
-    if ($bookingId <= 0) {
+    if (
+        !hash_equals(
+            $csrfToken,
+            $submittedToken
+        )
+    ) {
 
         $message =
-            "Invalid booking selected.";
+            "Invalid security token. Please refresh the page.";
 
         $messageType =
             "error";
 
-    }
+    } else {
 
-    elseif ($teacherId === '') {
+        /*
+        =================================================
+        ACTION
+        =================================================
+        */
 
-        $message =
-            "Please select a teacher.";
+        $action =
+            $_POST['action']
+            ?? '';
 
-        $messageType =
-            "error";
 
-    }
+        /*
+        =================================================
+        GET BOOKING ID
+        =================================================
+        */
 
-    elseif ($lessonDate === '') {
+        $bookingId =
+            isset($_POST['booking_id'])
+                ? (int)$_POST['booking_id']
+                : 0;
 
-        $message =
-            "Please select a lesson date.";
 
-        $messageType =
-            "error";
+        /*
+        =================================================
+        VALIDATE BOOKING
+        =================================================
+        */
 
-    }
+        if ($bookingId <= 0) {
 
-    elseif ($lessonTime === '') {
+            $message =
+                "Invalid booking ID.";
 
-        $message =
-            "Please select a lesson time.";
+            $messageType =
+                "error";
 
-        $messageType =
-            "error";
-
-    }
-
-    else {
-
-        try {
+        } else {
 
 
             /*
-            |--------------------------------------------------------------------------
-            | GET TEACHER
-            |--------------------------------------------------------------------------
+            =================================================
+            ASSIGN TEACHER
+            =================================================
             */
 
-            $teacherStmt =
-                $pdo->prepare("
-                    SELECT
-                        teacher_id,
-                        teacher_name,
-                        subjects,
-                        curriculum,
-                        status
-                    FROM teachers
-                    WHERE teacher_id = ?
-                    LIMIT 1
-                ");
+            if (
+                $action ===
+                'assign_teacher'
+            ) {
+
+                $teacherId =
+                    trim(
+                        $_POST['teacher_id']
+                        ?? ''
+                    );
 
 
-            $teacherStmt->execute([
-                $teacherId
-            ]);
+                if ($teacherId === '') {
+
+                    $message =
+                        "Please select a teacher.";
+
+                    $messageType =
+                        "error";
+
+                } else {
+
+                    try {
+
+                        /*
+                        -------------------------------------
+                        GET TEACHER
+                        -------------------------------------
+                        */
+
+                        $teacherStmt =
+                            $pdo->prepare("
+                                SELECT
+                                    id,
+                                    teacher_id,
+                                    teacher_name,
+                                    phone,
+                                    email,
+                                    status
+                                FROM teachers
+                                WHERE teacher_id = ?
+                                LIMIT 1
+                            ");
+
+                        $teacherStmt->execute([
+                            $teacherId
+                        ]);
+
+                        $teacher =
+                            $teacherStmt->fetch();
 
 
-            $teacher =
-                $teacherStmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
+                        if (!$teacher) {
+
+                            throw new Exception(
+                                "Selected teacher was not found."
+                            );
+                        }
 
 
-            if (!$teacher) {
+                        /*
+                        -------------------------------------
+                        CHECK TEACHER STATUS
+                        -------------------------------------
+                        */
 
-                throw new Exception(
-                    "Selected teacher could not be found."
-                );
+                        $teacherStatus =
+                            strtolower(
+                                trim(
+                                    $teacher['status']
+                                    ?? ''
+                                )
+                            );
 
+
+                        if (
+                            !in_array(
+                                $teacherStatus,
+                                [
+                                    'active',
+                                    'approved'
+                                ],
+                                true
+                            )
+                        ) {
+
+                            throw new Exception(
+                                "The selected teacher is not active."
+                            );
+                        }
+
+
+                        /*
+                        -------------------------------------
+                        GET BOOKING
+                        -------------------------------------
+                        */
+
+                        $bookingStmt =
+                            $pdo->prepare("
+                                SELECT
+                                    id,
+                                    booking_reference,
+                                    payment_status,
+                                    lesson_status
+                                FROM bookings
+                                WHERE id = ?
+                                LIMIT 1
+                            ");
+
+                        $bookingStmt->execute([
+                            $bookingId
+                        ]);
+
+                        $booking =
+                            $bookingStmt->fetch();
+
+
+                        if (!$booking) {
+
+                            throw new Exception(
+                                "Booking was not found."
+                            );
+                        }
+
+
+                        /*
+                        -------------------------------------
+                        PAYMENT CHECK
+                        -------------------------------------
+                        */
+
+                        $paymentStatus =
+                            strtolower(
+                                trim(
+                                    $booking['payment_status']
+                                    ?? ''
+                                )
+                            );
+
+
+                        /*
+                        Teacher assignment is allowed
+                        even if payment is pending.
+
+                        However, the classroom will only
+                        become available after payment.
+                        */
+
+
+                        /*
+                        -------------------------------------
+                        UPDATE BOOKING
+                        -------------------------------------
+                        */
+
+                        $update =
+                            $pdo->prepare("
+                                UPDATE bookings
+
+                                SET
+                                    teacher_id = ?,
+                                    teacher_name = ?,
+                                    assignment_status = 'Assigned'
+
+                                WHERE id = ?
+                            ");
+
+                        $update->execute([
+                            $teacher['teacher_id'],
+                            $teacher['teacher_name'],
+                            $bookingId
+                        ]);
+
+
+                        /*
+                        -------------------------------------
+                        SUCCESS
+                        -------------------------------------
+                        */
+
+                        $message =
+                            "Teacher "
+                            . $teacher['teacher_name']
+                            . " has been assigned successfully.";
+
+                        $messageType =
+                            "success";
+
+                    } catch (
+                        Exception $e
+                    ) {
+
+                        $message =
+                            "Teacher assignment failed: "
+                            . $e->getMessage();
+
+                        $messageType =
+                            "error";
+                    }
+                }
             }
 
 
             /*
-            |--------------------------------------------------------------------------
-            | GET BOOKING
-            |--------------------------------------------------------------------------
+            =================================================
+            UNASSIGN TEACHER
+            =================================================
             */
 
-            $bookingStmt =
-                $pdo->prepare("
-                    SELECT
-                        id,
-                        student_id,
-                        student_name,
-                        email,
-                        curriculum,
-                        class_year,
-                        subjects,
-                        payment_status
-                    FROM bookings
-                    WHERE id = ?
-                    LIMIT 1
-                ");
+            elseif (
+                $action ===
+                'unassign_teacher'
+            ) {
+
+                try {
+
+                    $stmt =
+                        $pdo->prepare("
+                            UPDATE bookings
+
+                            SET
+                                teacher_id = NULL,
+                                teacher_name = NULL,
+                                assignment_status = 'Pending'
+
+                            WHERE id = ?
+                        ");
+
+                    $stmt->execute([
+                        $bookingId
+                    ]);
 
 
-            $bookingStmt->execute([
-                $bookingId
-            ]);
+                    /*
+                    -----------------------------------------
+                    ALSO RESET LIVE CLASS
+                    -----------------------------------------
+                    */
+
+                    $stmt =
+                        $pdo->prepare("
+                            UPDATE bookings
+
+                            SET
+                                live_room_code = NULL,
+                                live_status = 'waiting',
+                                live_started_at = NULL,
+                                live_ended_at = NULL
+
+                            WHERE id = ?
+                        ");
+
+                    $stmt->execute([
+                        $bookingId
+                    ]);
 
 
-            $booking =
-                $bookingStmt->fetch(
-                    PDO::FETCH_ASSOC
-                );
+                    $message =
+                        "Teacher assignment removed successfully.";
 
+                    $messageType =
+                        "success";
 
-            if (!$booking) {
+                } catch (
+                    PDOException $e
+                ) {
 
-                throw new Exception(
-                    "Booking could not be found."
-                );
+                    $message =
+                        "Unable to remove teacher assignment.";
 
+                    $messageType =
+                        "error";
+                }
             }
 
 
             /*
-            |--------------------------------------------------------------------------
-            | UPDATE BOOKING
-            |--------------------------------------------------------------------------
+            =================================================
+            UPDATE LESSON
+            =================================================
             */
 
-            $update =
-                $pdo->prepare("
-                    UPDATE bookings
-                    SET
-                        teacher_id = :teacher_id,
-                        teacher_name = :teacher_name,
-                        lesson_date = :lesson_date,
-                        lesson_time = :lesson_time,
-                        assignment_status = 'Assigned',
-                        lesson_status = 'Scheduled'
-                    WHERE id = :id
-                    LIMIT 1
-                ");
+            elseif (
+                $action ===
+                'update_lesson'
+            ) {
+
+                $lessonDate =
+                    trim(
+                        $_POST['lesson_date']
+                        ?? ''
+                    );
+
+                $lessonTime =
+                    trim(
+                        $_POST['lesson_time']
+                        ?? ''
+                    );
+
+                $lessonStatus =
+                    trim(
+                        $_POST['lesson_status']
+                        ?? 'Scheduled'
+                    );
 
 
-            $update->execute([
+                /*
+                -----------------------------------------
+                VALIDATE LESSON STATUS
+                -----------------------------------------
+                */
 
-                ':teacher_id'
-                    => $teacher['teacher_id'],
-
-                ':teacher_name'
-                    => $teacher['teacher_name'],
-
-                ':lesson_date'
-                    => $lessonDate,
-
-                ':lesson_time'
-                    => $lessonTime,
-
-                ':id'
-                    => $bookingId
-
-            ]);
+                $allowedStatuses = [
+                    'Scheduled',
+                    'Completed',
+                    'Cancelled'
+                ];
 
 
-            $message =
-                "Booking successfully assigned to " .
-                $teacher['teacher_name'] .
-                ".";
+                if (
+                    !in_array(
+                        $lessonStatus,
+                        $allowedStatuses,
+                        true
+                    )
+                ) {
+
+                    $message =
+                        "Invalid lesson status.";
+
+                    $messageType =
+                        "error";
+
+                } else {
+
+                    try {
+
+                        /*
+                        -------------------------------------
+                        CHECK TEACHER ASSIGNMENT
+                        -------------------------------------
+                        */
+
+                        $check =
+                            $pdo->prepare("
+                                SELECT
+                                    id,
+                                    teacher_id
+                                FROM bookings
+                                WHERE id = ?
+                                LIMIT 1
+                            ");
+
+                        $check->execute([
+                            $bookingId
+                        ]);
+
+                        $booking =
+                            $check->fetch();
 
 
-            $messageType =
-                "success";
+                        if (!$booking) {
 
+                            throw new Exception(
+                                "Booking was not found."
+                            );
+                        }
+
+
+                        /*
+                        -------------------------------------
+                        UPDATE
+                        -------------------------------------
+                        */
+
+                        $update =
+                            $pdo->prepare("
+                                UPDATE bookings
+
+                                SET
+                                    lesson_date = ?,
+                                    lesson_time = ?,
+                                    lesson_status = ?
+
+                                WHERE id = ?
+                            ");
+
+                        $update->execute([
+                            $lessonDate !== ''
+                                ? $lessonDate
+                                : null,
+
+                            $lessonTime !== ''
+                                ? $lessonTime
+                                : null,
+
+                            $lessonStatus,
+
+                            $bookingId
+                        ]);
+
+
+                        /*
+                        -------------------------------------
+                        IF CANCELLED
+                        END LIVE CLASS
+                        -------------------------------------
+                        */
+
+                        if (
+                            strtolower(
+                                $lessonStatus
+                            ) ===
+                            'cancelled'
+                        ) {
+
+                            $endLive =
+                                $pdo->prepare("
+                                    UPDATE bookings
+
+                                    SET
+                                        live_status = 'ended',
+                                        live_ended_at = NOW()
+
+                                    WHERE id = ?
+                                ");
+
+                            $endLive->execute([
+                                $bookingId
+                            ]);
+                        }
+
+
+                        $message =
+                            "Lesson schedule updated successfully.";
+
+                        $messageType =
+                            "success";
+
+                    } catch (
+                        Exception $e
+                    ) {
+
+                        $message =
+                            "Unable to update lesson: "
+                            . $e->getMessage();
+
+                        $messageType =
+                            "error";
+                    }
+                }
+            }
+
+
+            /*
+            =================================================
+            CREATE LIVE ROOM
+            =================================================
+            */
+
+            elseif (
+                $action ===
+                'create_live_room'
+            ) {
+
+                try {
+
+                    /*
+                    -----------------------------------------
+                    GET BOOKING
+                    -----------------------------------------
+                    */
+
+                    $stmt =
+                        $pdo->prepare("
+                            SELECT
+                                id,
+                                payment_status,
+                                lesson_status,
+                                teacher_id,
+                                live_room_code
+                            FROM bookings
+                            WHERE id = ?
+                            LIMIT 1
+                        ");
+
+                    $stmt->execute([
+                        $bookingId
+                    ]);
+
+                    $booking =
+                        $stmt->fetch();
+
+
+                    if (!$booking) {
+
+                        throw new Exception(
+                            "Booking not found."
+                        );
+                    }
+
+
+                    /*
+                    -----------------------------------------
+                    TEACHER CHECK
+                    -----------------------------------------
+                    */
+
+                    if (
+                        empty(
+                            $booking['teacher_id']
+                        )
+                    ) {
+
+                        throw new Exception(
+                            "A teacher must be assigned before creating a classroom."
+                        );
+                    }
+
+
+                    /*
+                    -----------------------------------------
+                    PAYMENT CHECK
+                    -----------------------------------------
+                    */
+
+                    $paymentStatus =
+                        strtolower(
+                            trim(
+                                $booking['payment_status']
+                                ?? ''
+                            )
+                        );
+
+
+                    if (
+                        !in_array(
+                            $paymentStatus,
+                            [
+                                'paid',
+                                'success'
+                            ],
+                            true
+                        )
+                    ) {
+
+                        throw new Exception(
+                            "The booking must be paid before the live classroom can be created."
+                        );
+                    }
+
+
+                    /*
+                    -----------------------------------------
+                    LESSON STATUS CHECK
+                    -----------------------------------------
+                    */
+
+                    if (
+                        strtolower(
+                            trim(
+                                $booking['lesson_status']
+                                ?? ''
+                            )
+                        )
+                        ===
+                        'cancelled'
+                    ) {
+
+                        throw new Exception(
+                            "A classroom cannot be created for a cancelled lesson."
+                        );
+                    }
+
+
+                    /*
+                    -----------------------------------------
+                    EXISTING ROOM
+                    -----------------------------------------
+                    */
+
+                    if (
+                        !empty(
+                            $booking['live_room_code']
+                        )
+                    ) {
+
+                        $message =
+                            "This booking already has a live classroom.";
+
+                        $messageType =
+                            "success";
+
+                    } else {
+
+                        /*
+                        -------------------------------------
+                        GENERATE ROOM
+                        -------------------------------------
+                        */
+
+                        do {
+
+                            $roomCode =
+                                'NISEL-'
+                                .
+                                strtoupper(
+                                    bin2hex(
+                                        random_bytes(8)
+                                    )
+                                );
+
+
+                            $checkRoom =
+                                $pdo->prepare("
+                                    SELECT id
+                                    FROM bookings
+                                    WHERE live_room_code = ?
+                                    LIMIT 1
+                                ");
+
+                            $checkRoom->execute([
+                                $roomCode
+                            ]);
+
+                        } while (
+                            $checkRoom->fetch()
+                        );
+
+
+                        /*
+                        -------------------------------------
+                        SAVE ROOM
+                        -------------------------------------
+                        */
+
+                        $update =
+                            $pdo->prepare("
+                                UPDATE bookings
+
+                                SET
+                                    live_room_code = ?,
+                                    live_status = 'waiting',
+                                    live_started_at = NULL,
+                                    live_ended_at = NULL
+
+                                WHERE id = ?
+                            ");
+
+                        $update->execute([
+                            $roomCode,
+                            $bookingId
+                        ]);
+
+
+                        $message =
+                            "NISEL live classroom created successfully.";
+
+                        $messageType =
+                            "success";
+                    }
+
+                } catch (
+                    Exception $e
+                ) {
+
+                    $message =
+                        "Unable to create classroom: "
+                        . $e->getMessage();
+
+                    $messageType =
+                        "error";
+                }
+            }
+
+
+            /*
+            =================================================
+            RESET LIVE ROOM
+            =================================================
+            */
+
+            elseif (
+                $action ===
+                'reset_live_room'
+            ) {
+
+                try {
+
+                    $stmt =
+                        $pdo->prepare("
+                            UPDATE bookings
+
+                            SET
+                                live_room_code = NULL,
+                                live_status = 'waiting',
+                                live_started_at = NULL,
+                                live_ended_at = NULL
+
+                            WHERE id = ?
+                        ");
+
+                    $stmt->execute([
+                        $bookingId
+                    ]);
+
+
+                    $message =
+                        "Live classroom reset successfully.";
+
+                    $messageType =
+                        "success";
+
+                } catch (
+                    PDOException $e
+                ) {
+
+                    $message =
+                        "Unable to reset live classroom.";
+
+                    $messageType =
+                        "error";
+                }
+            }
 
         }
-
-        catch (
-            Exception $e
-        ) {
-
-            $message =
-                $e->getMessage();
-
-            $messageType =
-                "error";
-
-        }
-
     }
-
 }
 
 
 /*
-|--------------------------------------------------------------------------
-| REMOVE TEACHER ASSIGNMENT
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['remove_assignment'])
-) {
-
-
-    $bookingId =
-        isset($_POST['booking_id'])
-            ? (int)$_POST['booking_id']
-            : 0;
-
-
-    if ($bookingId > 0) {
-
-        try {
-
-            $stmt =
-                $pdo->prepare("
-                    UPDATE bookings
-                    SET
-                        teacher_id = NULL,
-                        teacher_name = NULL,
-                        lesson_date = NULL,
-                        lesson_time = NULL,
-                        assignment_status = 'Unassigned',
-                        lesson_status = 'Scheduled'
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-
-
-            $stmt->execute([
-                $bookingId
-            ]);
-
-
-            $message =
-                "Teacher assignment removed successfully.";
-
-            $messageType =
-                "success";
-
-
-        }
-
-        catch (
-            PDOException $e
-        ) {
-
-            $message =
-                "Unable to remove assignment.";
-
-            $messageType =
-                "error";
-
-        }
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| MARK LESSON COMPLETED
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $_SERVER['REQUEST_METHOD'] === 'POST' &&
-    isset($_POST['complete_lesson'])
-) {
-
-
-    $bookingId =
-        isset($_POST['booking_id'])
-            ? (int)$_POST['booking_id']
-            : 0;
-
-
-    if ($bookingId > 0) {
-
-        try {
-
-            $stmt =
-                $pdo->prepare("
-                    UPDATE bookings
-                    SET
-                        lesson_status = 'Completed'
-                    WHERE id = ?
-                    LIMIT 1
-                ");
-
-
-            $stmt->execute([
-                $bookingId
-            ]);
-
-
-            $message =
-                "Lesson marked as completed.";
-
-            $messageType =
-                "success";
-
-
-        }
-
-        catch (
-            PDOException $e
-        ) {
-
-            $message =
-                "Unable to update lesson status.";
-
-            $messageType =
-                "error";
-
-        }
-
-    }
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| FILTERS
-|--------------------------------------------------------------------------
+=========================================================
+FILTERS
+=========================================================
 */
 
 $search =
@@ -458,20 +927,11 @@ $search =
         ?? ''
     );
 
-
-$curriculumFilter =
-    trim(
-        $_GET['curriculum']
-        ?? ''
-    );
-
-
 $paymentFilter =
     trim(
         $_GET['payment']
         ?? ''
     );
-
 
 $assignmentFilter =
     trim(
@@ -479,50 +939,152 @@ $assignmentFilter =
         ?? ''
     );
 
-
 $lessonFilter =
     trim(
-        $_GET['lesson_status']
+        $_GET['lesson']
         ?? ''
     );
 
 
 /*
-|--------------------------------------------------------------------------
-| BUILD QUERY
-|--------------------------------------------------------------------------
+=========================================================
+GET TEACHERS
+=========================================================
 */
 
-$where = [];
+$teacherStmt =
+    $pdo->prepare("
+        SELECT
+            id,
+            teacher_id,
+            teacher_name,
+            phone,
+            email,
+            status,
+            subjects,
+            curriculum
+        FROM teachers
+
+        WHERE
+            LOWER(status) IN
+            ('active','approved')
+
+        ORDER BY teacher_name ASC
+    ");
+
+$teacherStmt->execute();
+
+$teachers =
+    $teacherStmt->fetchAll();
+
+
+/*
+=========================================================
+BUILD BOOKING QUERY
+=========================================================
+*/
+
+$sql = "
+
+    SELECT
+
+        b.id,
+
+        b.booking_reference,
+
+        b.student_id,
+
+        b.student_name,
+
+        b.email,
+
+        b.phone,
+
+        b.curriculum,
+
+        b.class_year,
+
+        b.subjects,
+
+        b.amount,
+
+        b.payment_status,
+
+        b.paystack_reference,
+
+        b.teacher_id,
+
+        b.teacher_name,
+
+        b.assignment_status,
+
+        b.lesson_date,
+
+        b.lesson_time,
+
+        b.lesson_status,
+
+        b.live_room_code,
+
+        b.live_status,
+
+        b.live_started_at,
+
+        b.live_ended_at,
+
+        t.teacher_name AS assigned_teacher_name,
+
+        t.phone AS teacher_phone,
+
+        t.email AS teacher_email
+
+    FROM bookings b
+
+    LEFT JOIN teachers t
+
+        ON b.teacher_id =
+           t.teacher_id
+
+    WHERE 1 = 1
+";
+
 
 $params = [];
 
 
 /*
-|--------------------------------------------------------------------------
-| SEARCH
-|--------------------------------------------------------------------------
+=========================================================
+SEARCH
+=========================================================
 */
 
 if ($search !== '') {
 
-    $where[] = "
-        (
-            b.student_name LIKE ?
-            OR b.email LIKE ?
-            OR b.phone LIKE ?
-            OR b.booking_reference LIKE ?
-            OR b.subjects LIKE ?
-        )
-    ";
+    $sql .= "
 
+        AND (
+
+            b.booking_reference LIKE ?
+
+            OR b.student_name LIKE ?
+
+            OR b.email LIKE ?
+
+            OR b.phone LIKE ?
+
+            OR b.subjects LIKE ?
+
+            OR b.teacher_name LIKE ?
+
+        )
+
+    ";
 
     $searchValue =
         '%' .
         $search .
         '%';
 
-
     $params[] =
         $searchValue;
 
@@ -538,69 +1100,38 @@ if ($search !== '') {
     $params[] =
         $searchValue;
 
+    $params[] =
+        $searchValue;
 }
 
 
 /*
-|--------------------------------------------------------------------------
-| CURRICULUM FILTER
-|--------------------------------------------------------------------------
-*/
-
-if (
-    $curriculumFilter !== ''
-) {
-
-    $where[] =
-        "b.curriculum = ?";
-
-    $params[] =
-        $curriculumFilter;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| PAYMENT FILTER
-|--------------------------------------------------------------------------
+=========================================================
+PAYMENT FILTER
+=========================================================
 */
 
 if (
     $paymentFilter !== ''
 ) {
 
-    if (
-        $paymentFilter === 'paid'
-    ) {
-
-        $where[] = "
-            (
-                LOWER(b.payment_status) = 'paid'
-                OR
-                LOWER(b.payment_status) = 'success'
+    $sql .= "
+        AND LOWER(
+            TRIM(
+                b.payment_status
             )
-        ";
+        ) = LOWER(?)
+    ";
 
-    }
-
-    elseif (
-        $paymentFilter === 'pending'
-    ) {
-
-        $where[] = "
-            LOWER(b.payment_status) = 'pending'
-        ";
-
-    }
-
+    $params[] =
+        $paymentFilter;
 }
 
 
 /*
-|--------------------------------------------------------------------------
-| ASSIGNMENT FILTER
-|--------------------------------------------------------------------------
+=========================================================
+ASSIGNMENT FILTER
+=========================================================
 */
 
 if (
@@ -608,381 +1139,211 @@ if (
 ) {
 
     if (
-        $assignmentFilter === 'assigned'
+        $assignmentFilter ===
+        'unassigned'
     ) {
 
-        $where[] = "
-            b.teacher_id IS NOT NULL
-            AND b.teacher_id <> ''
-        ";
+        $sql .= "
 
-    }
-
-    elseif (
-        $assignmentFilter === 'unassigned'
-    ) {
-
-        $where[] = "
-            (
+            AND (
                 b.teacher_id IS NULL
-                OR
-                b.teacher_id = ''
+                OR b.teacher_id = ''
             )
+
         ";
 
-    }
+    } elseif (
+        $assignmentFilter ===
+        'assigned'
+    ) {
 
+        $sql .= "
+
+            AND b.teacher_id IS NOT NULL
+            AND b.teacher_id <> ''
+
+        ";
+    }
 }
 
 
 /*
-|--------------------------------------------------------------------------
-| LESSON STATUS FILTER
-|--------------------------------------------------------------------------
+=========================================================
+LESSON FILTER
+=========================================================
 */
 
 if (
     $lessonFilter !== ''
 ) {
 
-    $where[] =
-        "LOWER(b.lesson_status) = LOWER(?)";
+    $sql .= "
+        AND LOWER(
+            TRIM(
+                b.lesson_status
+            )
+        ) = LOWER(?)
+    ";
 
     $params[] =
         $lessonFilter;
-
 }
 
 
 /*
-|--------------------------------------------------------------------------
-| WHERE SQL
-|--------------------------------------------------------------------------
+=========================================================
+ORDER
+=========================================================
 */
 
-$whereSQL = "";
+$sql .= "
 
+    ORDER BY
 
-if (
-    !empty($where)
-) {
+        CASE
 
-    $whereSQL =
-        " WHERE " .
-        implode(
-            " AND ",
-            $where
-        );
+            WHEN
+                b.lesson_date = CURDATE()
+            THEN 0
 
-}
+            WHEN
+                b.lesson_date > CURDATE()
+            THEN 1
+
+            WHEN
+                b.lesson_date IS NULL
+            THEN 2
+
+            ELSE 3
+
+        END,
+
+        b.lesson_date ASC,
+
+        b.lesson_time ASC,
+
+        b.id DESC
+
+";
 
 
 /*
-|--------------------------------------------------------------------------
-| GET BOOKINGS
-|--------------------------------------------------------------------------
+=========================================================
+GET BOOKINGS
+=========================================================
 */
 
-try {
+$bookingStmt =
+    $pdo->prepare($sql);
 
+$bookingStmt->execute(
+    $params
+);
 
-    $sql = "
-        SELECT
-
-            b.id,
-
-            b.booking_reference,
-
-            b.student_id,
-
-            b.student_name,
-
-            b.email,
-
-            b.phone,
-
-            b.dob,
-
-            b.curriculum,
-
-            b.class_year,
-
-            b.subjects,
-
-            b.amount,
-
-            b.payment_status,
-
-            b.paystack_reference,
-
-            b.teacher_id,
-
-            b.teacher_name,
-
-            b.assignment_status,
-
-            b.lesson_date,
-
-            b.lesson_time,
-
-            b.lesson_status
-
-        FROM bookings b
-
-        $whereSQL
-
-        ORDER BY
-            CASE
-                WHEN b.lesson_date IS NULL
-                THEN 1
-                ELSE 0
-            END,
-
-            b.lesson_date ASC,
-
-            b.lesson_time ASC,
-
-            b.id DESC
-    ";
-
-
-    $stmt =
-        $pdo->prepare(
-            $sql
-        );
-
-
-    $stmt->execute(
-        $params
-    );
-
-
-    $bookings =
-        $stmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
-
-
-}
-
-catch (
-    PDOException $e
-) {
-
-    die(
-        "Unable to load bookings: " .
-        h(
-            $e->getMessage()
-        )
-    );
-
-}
+$bookings =
+    $bookingStmt->fetchAll();
 
 
 /*
-|--------------------------------------------------------------------------
-| GET TEACHERS
-|--------------------------------------------------------------------------
-*/
-
-try {
-
-    $teacherListStmt =
-        $pdo->query("
-            SELECT
-                teacher_id,
-                teacher_name,
-                subjects,
-                curriculum,
-                availability,
-                zoom_link,
-                status
-            FROM teachers
-            WHERE
-                status IS NULL
-                OR
-                status = 'Active'
-                OR
-                status = 'active'
-            ORDER BY teacher_name ASC
-        ");
-
-
-    $teachers =
-        $teacherListStmt->fetchAll(
-            PDO::FETCH_ASSOC
-        );
-
-
-}
-
-catch (
-    PDOException $e
-) {
-
-    $teachers = [];
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| STATISTICS
-|--------------------------------------------------------------------------
+=========================================================
+STATISTICS
+=========================================================
 */
 
 $totalBookings =
     count($bookings);
 
+$paidBookings = 0;
 
-$paidBookings =
-    0;
+$assignedBookings = 0;
 
+$unassignedBookings = 0;
 
-$pendingBookings =
-    0;
+$todayBookings = 0;
 
-
-$assignedBookings =
-    0;
-
-
-$unassignedBookings =
-    0;
-
-
-$completedLessons =
-    0;
-
-
-$scheduledLessons =
-    0;
+$liveBookings = 0;
 
 
 foreach (
-    $bookings as $b
+    $bookings
+    as $booking
 ) {
-
 
     $payment =
         strtolower(
             trim(
-                $b['payment_status']
+                $booking['payment_status']
                 ?? ''
             )
         );
 
 
     if (
-        $payment === 'paid' ||
-        $payment === 'success'
+        in_array(
+            $payment,
+            [
+                'paid',
+                'success'
+            ],
+            true
+        )
     ) {
 
         $paidBookings++;
-
-    }
-
-
-    if (
-        $payment === 'pending'
-    ) {
-
-        $pendingBookings++;
-
     }
 
 
     if (
         !empty(
-            $b['teacher_id']
+            $booking['teacher_id']
         )
     ) {
 
         $assignedBookings++;
 
-    }
-
-    else {
+    } else {
 
         $unassignedBookings++;
-
     }
 
 
-    $lesson =
+    if (
+        !empty(
+            $booking['lesson_date']
+        )
+        &&
+        $booking['lesson_date']
+        ===
+        date('Y-m-d')
+    ) {
+
+        $todayBookings++;
+    }
+
+
+    if (
         strtolower(
             trim(
-                $b['lesson_status']
+                $booking['live_status']
                 ?? ''
             )
-        );
-
-
-    if (
-        $lesson === 'completed'
+        )
+        ===
+        'live'
     ) {
 
-        $completedLessons++;
-
+        $liveBookings++;
     }
-
-
-    if (
-        $lesson === 'scheduled'
-    ) {
-
-        $scheduledLessons++;
-
-    }
-
 }
 
 
 /*
-|--------------------------------------------------------------------------
-| UNIQUE CURRICULA
-|--------------------------------------------------------------------------
+=========================================================
+HTML
+=========================================================
 */
 
-$curricula = [];
-
-
-foreach (
-    $bookings as $b
-) {
-
-    $value =
-        trim(
-            $b['curriculum']
-            ?? ''
-        );
-
-
-    if (
-        $value !== ''
-    ) {
-
-        $curricula[$value] =
-            true;
-
-    }
-
-}
-
-
-$curricula =
-    array_keys(
-        $curricula
-    );
-
-
-sort(
-    $curricula
-);
-
-
 ?>
-
 
 <!DOCTYPE html>
 
@@ -998,10 +1359,8 @@ sort(
 >
 
 <title>
-
     Booking Management |
     NISEL ONLINE EDUCATION
-
 </title>
 
 
@@ -1015,9 +1374,7 @@ sort(
     box-sizing: border-box;
 }
 
-
 body {
-
     margin: 0;
 
     font-family:
@@ -1025,10 +1382,9 @@ body {
         Helvetica,
         sans-serif;
 
-    background: #f4f7fb;
+    background: #eef3f8;
 
-    color: #172b4d;
-
+    color: #333;
 }
 
 
@@ -1041,161 +1397,56 @@ body {
     position: fixed;
 
     left: 0;
-
     top: 0;
 
-    width: 245px;
+    width: 240px;
 
     height: 100vh;
 
-    background:
-        linear-gradient(
-            180deg,
-            #003366,
-            #00264d
-        );
+    background: #003366;
 
     color: white;
 
-    padding: 24px 14px;
-
-    z-index: 1000;
-
+    padding: 25px 15px;
 }
 
 
-.brand {
+.logo {
 
     text-align: center;
 
-    padding:
-        0 5px 24px;
+    font-size: 19px;
 
-    border-bottom:
-        1px solid
-        rgba(
-            255,
-            255,
-            255,
-            .12
-        );
+    font-weight: bold;
 
+    line-height: 1.5;
+
+    margin-bottom: 35px;
 }
 
 
-.brand-icon {
+.menu a {
 
-    width: 58px;
+    display: block;
 
-    height: 58px;
-
-    margin:
-        0 auto 10px;
-
-    border-radius: 16px;
-
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            .12
-        );
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 28px;
-
-}
-
-
-.brand h2 {
-
-    margin: 0;
-
-    font-size: 20px;
-
-}
-
-
-.brand p {
-
-    margin:
-        5px 0 0;
-
-    font-size: 9px;
-
-    letter-spacing: 2px;
-
-    opacity: .7;
-
-}
-
-
-.nav {
-
-    margin-top: 25px;
-
-}
-
-
-.nav a {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 12px;
-
-    padding: 13px 14px;
-
-    margin-bottom: 7px;
-
-    border-radius: 9px;
-
-    color:
-        rgba(
-            255,
-            255,
-            255,
-            .82
-        );
+    color: white;
 
     text-decoration: none;
 
-    font-size: 14px;
+    padding: 13px;
+
+    margin-bottom: 7px;
+
+    border-radius: 7px;
 
     transition: .2s;
-
 }
 
 
-.nav a:hover,
-.nav a.active {
+.menu a:hover,
+.menu a.active {
 
-    background:
-        rgba(
-            255,
-            255,
-            255,
-            .14
-        );
-
-    color: white;
-
-}
-
-
-.nav-icon {
-
-    width: 22px;
-
-    text-align: center;
-
+    background: #0055a5;
 }
 
 
@@ -1205,97 +1456,88 @@ body {
 
 .main {
 
-    margin-left: 245px;
+    margin-left: 240px;
 
-    padding: 28px;
-
-    min-height: 100vh;
-
+    padding: 30px;
 }
 
 
 /* =====================================================
-   HEADER
+   TOPBAR
 ===================================================== */
 
-.header {
+.topbar {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 12px;
+
+    margin-bottom: 25px;
 
     display: flex;
 
+    justify-content:
+        space-between;
+
     align-items: center;
 
-    justify-content: space-between;
-
-    margin-bottom: 24px;
-
+    gap: 20px;
 }
 
 
-.header h1 {
+.topbar h1 {
 
     margin: 0;
 
     color: #003366;
 
-    font-size: 27px;
-
-}
-
-
-.header p {
-
-    margin:
-        6px 0 0;
-
-    color: #667085;
-
-    font-size: 13px;
-
+    font-size: 25px;
 }
 
 
 .admin {
 
-    background: white;
+    color: #555;
 
-    padding: 10px 15px;
-
-    border-radius: 12px;
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 10px;
-
-    box-shadow:
-        0 3px 15px
-        rgba(
-            0,
-            0,
-            0,
-            .05
-        );
-
+    font-size: 14px;
 }
 
 
-.admin-icon {
+/* =====================================================
+   MESSAGE
+===================================================== */
 
-    width: 36px;
+.message {
 
-    height: 36px;
+    padding: 15px 18px;
 
-    border-radius: 50%;
+    border-radius: 9px;
 
-    background: #e8f2ff;
+    margin-bottom: 20px;
 
-    display: flex;
+    font-weight: 600;
+}
 
-    align-items: center;
 
-    justify-content: center;
+.message.success {
 
+    background: #dff5e8;
+
+    color: #126b3a;
+
+    border: 1px solid #bce8ce;
+}
+
+
+.message.error {
+
+    background: #fde5e5;
+
+    color: #a31f1f;
+
+    border: 1px solid #f5c1c1;
 }
 
 
@@ -1308,15 +1550,11 @@ body {
     display: grid;
 
     grid-template-columns:
-        repeat(
-            6,
-            1fr
-        );
+        repeat(6, 1fr);
 
-    gap: 14px;
+    gap: 15px;
 
-    margin-bottom: 22px;
-
+    margin-bottom: 25px;
 }
 
 
@@ -1324,151 +1562,63 @@ body {
 
     background: white;
 
-    border-radius: 14px;
+    padding: 20px;
 
-    padding: 18px;
+    border-radius: 12px;
 
     box-shadow:
-        0 4px 18px
-        rgba(
-            0,
-            0,
-            0,
-            .05
-        );
-
+        0 4px 15px
+        rgba(0,0,0,.05);
 }
 
 
-.stat-top {
+.stat .number {
 
-    display: flex;
+    font-size: 27px;
 
-    align-items: center;
-
-    justify-content: space-between;
-
-}
-
-
-.stat-icon {
-
-    width: 40px;
-
-    height: 40px;
-
-    border-radius: 11px;
-
-    background: #eef4ff;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 19px;
-
-}
-
-
-.stat-number {
-
-    margin-top: 13px;
-
-    font-size: 24px;
-
-    font-weight: 800;
+    font-weight: bold;
 
     color: #003366;
 
+    margin-bottom: 5px;
 }
 
 
-.stat-label {
+.stat .label {
 
-    margin-top: 3px;
+    font-size: 12px;
 
-    font-size: 10px;
+    color: #777;
 
-    color: #667085;
-
+    text-transform:
+        uppercase;
 }
 
 
 /* =====================================================
-   FILTER CARD
+   FILTER
 ===================================================== */
 
-.filter-card {
+.filter-box {
 
     background: white;
 
-    border-radius: 16px;
+    padding: 20px;
 
-    padding: 21px;
+    border-radius: 12px;
 
-    margin-bottom: 22px;
-
-    box-shadow:
-        0 4px 18px
-        rgba(
-            0,
-            0,
-            0,
-            .05
-        );
-
+    margin-bottom: 25px;
 }
 
 
-.filter-title {
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: space-between;
-
-    margin-bottom: 16px;
-
-}
-
-
-.filter-title h2 {
-
-    margin: 0;
-
-    font-size: 17px;
-
-    color: #003366;
-
-}
-
-
-.filter-title span {
-
-    color: #98a2b3;
-
-    font-size: 11px;
-
-}
-
-
-.filters {
+.filter-form {
 
     display: grid;
 
     grid-template-columns:
-        2fr
-        1fr
-        1fr
-        1fr
-        1fr
-        auto;
+        2fr 1fr 1fr 1fr auto;
 
     gap: 10px;
-
 }
 
 
@@ -1477,43 +1627,29 @@ select {
 
     width: 100%;
 
-    padding: 12px 13px;
+    padding: 11px 12px;
 
     border:
-        1px solid
-        #d0d5dd;
+        1px solid #d5dce3;
 
-    border-radius: 9px;
+    border-radius: 7px;
+
+    font-size: 14px;
 
     background: white;
-
-    color: #344054;
-
-    outline: none;
-
-    font-size: 12px;
-
 }
 
 
 input:focus,
 select:focus {
 
-    border-color: #0066aa;
+    outline: none;
 
-    box-shadow:
-        0 0 0 3px
-        rgba(
-            0,
-            102,
-            170,
-            .08
-        );
-
+    border-color: #0055a5;
 }
 
 
-.filter-btn {
+.filter-button {
 
     border: none;
 
@@ -1522,25 +1658,17 @@ select:focus {
     color: white;
 
     padding:
-        0 18px;
+        11px 18px;
 
-    border-radius: 9px;
-
-    font-weight: 700;
+    border-radius: 7px;
 
     cursor: pointer;
 
+    font-weight: bold;
 }
 
 
-.filter-btn:hover {
-
-    background: #0055a5;
-
-}
-
-
-.clear-btn {
+.clear-button {
 
     display: inline-flex;
 
@@ -1548,249 +1676,138 @@ select:focus {
 
     justify-content: center;
 
+    background: #eef2f5;
+
+    color: #333;
+
     padding:
-        10px 15px;
+        11px 15px;
 
-    margin-top: 12px;
-
-    border-radius: 8px;
-
-    background: #f2f4f7;
-
-    color: #344054;
+    border-radius: 7px;
 
     text-decoration: none;
 
-    font-size: 11px;
-
-    font-weight: 700;
-
+    font-weight: bold;
 }
 
 
 /* =====================================================
-   ALERT
+   TABLE
 ===================================================== */
 
-.alert {
-
-    padding: 14px 17px;
-
-    border-radius: 10px;
-
-    margin-bottom: 20px;
-
-    font-size: 13px;
-
-    font-weight: 600;
-
-}
-
-
-.alert.success {
-
-    background: #ecfdf3;
-
-    color: #027a48;
-
-    border:
-        1px solid
-        #abefc6;
-
-}
-
-
-.alert.error {
-
-    background: #fef3f2;
-
-    color: #b42318;
-
-    border:
-        1px solid
-        #fecdca;
-
-}
-
-
-/* =====================================================
-   BOOKING CARD
-===================================================== */
-
-.booking-card {
+.table-card {
 
     background: white;
 
-    border-radius: 16px;
+    border-radius: 12px;
+
+    overflow: hidden;
+
+    box-shadow:
+        0 5px 20px
+        rgba(0,0,0,.06);
+}
+
+
+.table-header {
 
     padding: 20px;
 
-    margin-bottom: 18px;
-
-    box-shadow:
-        0 4px 18px
-        rgba(
-            0,
-            0,
-            0,
-            .05
-        );
-
-}
-
-
-.booking-top {
-
-    display: flex;
-
-    align-items: flex-start;
-
-    justify-content: space-between;
-
-    gap: 15px;
-
-    padding-bottom: 15px;
-
     border-bottom:
-        1px solid
-        #eaecf0;
-
-}
-
-
-.student {
+        1px solid #e7edf2;
 
     display: flex;
 
+    justify-content:
+        space-between;
+
     align-items: center;
-
-    gap: 13px;
-
 }
 
 
-.student-avatar {
-
-    width: 48px;
-
-    height: 48px;
-
-    border-radius: 50%;
-
-    background: #e8f2ff;
-
-    color: #003366;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-weight: 800;
-
-}
-
-
-.student-name {
+.table-header h2 {
 
     margin: 0;
 
-    font-size: 15px;
-
-    color: #172b4d;
-
-}
-
-
-.student-meta {
-
-    margin-top: 5px;
-
-    color: #98a2b3;
-
-    font-size: 10px;
-
-}
-
-
-.reference {
-
-    color: #667085;
-
-    font-size: 10px;
-
-    text-align: right;
-
-}
-
-
-.reference strong {
-
     color: #003366;
 
+    font-size: 19px;
+}
+
+
+.table-wrapper {
+
+    overflow-x: auto;
+}
+
+
+table {
+
+    width: 100%;
+
+    border-collapse:
+        collapse;
+
+    min-width: 1450px;
+}
+
+
+th {
+
+    background: #003366;
+
+    color: white;
+
+    padding: 13px 10px;
+
+    text-align: left;
+
+    font-size: 12px;
+
+    white-space: nowrap;
+}
+
+
+td {
+
+    padding: 13px 10px;
+
+    border-bottom:
+        1px solid #edf0f2;
+
+    vertical-align: top;
+
+    font-size: 13px;
+}
+
+
+tr:hover td {
+
+    background: #f8fbfd;
 }
 
 
 /* =====================================================
-   BOOKING GRID
+   STUDENT
 ===================================================== */
 
-.booking-grid {
+.student-name {
 
-    display: grid;
+    font-weight: bold;
 
-    grid-template-columns:
-        repeat(
-            5,
-            1fr
-        );
+    color: #003366;
 
-    gap: 12px;
-
-    margin-top: 17px;
-
+    margin-bottom: 3px;
 }
 
 
-.info {
+.student-contact {
 
-    background: #f8fafc;
+    font-size: 11px;
 
-    border-radius: 9px;
+    color: #777;
 
-    padding: 12px;
-
-    min-height: 67px;
-
-}
-
-
-.info-label {
-
-    color: #98a2b3;
-
-    font-size: 9px;
-
-    text-transform: uppercase;
-
-    letter-spacing: .5px;
-
-    margin-bottom: 7px;
-
-}
-
-
-.info-value {
-
-    color: #344054;
-
-    font-size: 12px;
-
-    font-weight: 600;
-
-    word-break: break-word;
-
+    margin-bottom: 2px;
 }
 
 
@@ -1802,269 +1819,286 @@ select:focus {
 
     display: inline-block;
 
-    padding: 5px 9px;
+    padding:
+        5px 9px;
 
     border-radius: 20px;
 
-    font-size: 9px;
-
-    font-weight: 800;
-
-}
-
-
-.badge.paid {
-
-    background: #e7f7ed;
-
-    color: #16803d;
-
-}
-
-
-.badge.pending {
-
-    background: #fff4e5;
-
-    color: #b54708;
-
-}
-
-
-.badge.assigned {
-
-    background: #eef4ff;
-
-    color: #175cd3;
-
-}
-
-
-.badge.unassigned {
-
-    background: #f2f4f7;
-
-    color: #667085;
-
-}
-
-
-.badge.completed {
-
-    background: #e7f7ed;
-
-    color: #16803d;
-
-}
-
-
-.badge.scheduled {
-
-    background: #eef4ff;
-
-    color: #175cd3;
-
-}
-
-
-.badge.cancelled {
-
-    background: #fef3f2;
-
-    color: #b42318;
-
-}
-
-
-/* =====================================================
-   ASSIGNMENT SECTION
-===================================================== */
-
-.assignment {
-
-    margin-top: 18px;
-
-    padding-top: 18px;
-
-    border-top:
-        1px solid
-        #eaecf0;
-
-}
-
-
-.assignment-title {
-
-    display: flex;
-
-    align-items: center;
-
-    gap: 8px;
-
-    margin-bottom: 13px;
-
-}
-
-
-.assignment-title h3 {
-
-    margin: 0;
-
-    font-size: 14px;
-
-    color: #003366;
-
-}
-
-
-.assignment-form {
-
-    display: grid;
-
-    grid-template-columns:
-        2fr
-        1fr
-        1fr
-        auto;
-
-    gap: 10px;
-
-    align-items: end;
-
-}
-
-
-.form-field label {
-
-    display: block;
-
-    margin-bottom: 6px;
-
-    color: #667085;
-
     font-size: 10px;
 
-    font-weight: 700;
+    font-weight: bold;
 
+    white-space: nowrap;
 }
 
 
-.assign-btn {
+.paid {
 
-    height: 42px;
+    background: #dff5e8;
 
-    padding:
-        0 18px;
-
-    border: none;
-
-    border-radius: 9px;
-
-    background: #003366;
-
-    color: white;
-
-    font-weight: 700;
-
-    cursor: pointer;
-
+    color: #126b3a;
 }
 
 
-.assign-btn:hover {
+.pending {
 
-    background: #0055a5;
+    background: #fff3cd;
 
+    color: #856404;
 }
 
 
-.teacher-current {
+.assigned {
 
-    display: flex;
+    background: #e2efff;
 
-    align-items: center;
-
-    justify-content: space-between;
-
-    gap: 10px;
-
-    margin-bottom: 12px;
-
-    padding: 11px 13px;
-
-    background: #f8fafc;
-
-    border-radius: 9px;
-
+    color: #145a9c;
 }
 
 
-.teacher-current span {
+.not-assigned {
 
-    font-size: 11px;
+    background: #f1f1f1;
 
-    color: #667085;
-
+    color: #777;
 }
 
 
-.teacher-current strong {
+.scheduled {
 
-    color: #003366;
+    background: #e2efff;
 
+    color: #145a9c;
+}
+
+
+.completed {
+
+    background: #dff5e8;
+
+    color: #126b3a;
+}
+
+
+.cancelled {
+
+    background: #fde5e5;
+
+    color: #a31f1f;
+}
+
+
+.live-badge {
+
+    background: #dff5e8;
+
+    color: #126b3a;
+}
+
+
+.waiting-badge {
+
+    background: #fff3cd;
+
+    color: #856404;
+}
+
+
+.ended-badge {
+
+    background: #e5e7eb;
+
+    color: #374151;
 }
 
 
 /* =====================================================
-   ACTIONS
+   TEACHER
 ===================================================== */
 
-.actions {
+.teacher-name {
 
-    display: flex;
+    font-weight: bold;
 
-    flex-wrap: wrap;
+    color: #003366;
 
-    gap: 8px;
-
-    margin-top: 15px;
-
+    margin-bottom: 4px;
 }
 
 
-.action-btn {
+.teacher-phone {
+
+    color: #777;
+
+    font-size: 11px;
+}
+
+
+/* =====================================================
+   FORMS
+===================================================== */
+
+.action-form {
+
+    margin-bottom: 7px;
+}
+
+
+.action-form:last-child {
+
+    margin-bottom: 0;
+}
+
+
+.small-select {
+
+    min-width: 180px;
+
+    margin-bottom: 6px;
+}
+
+
+.date-input {
+
+    width: 145px;
+
+    margin-bottom: 5px;
+}
+
+
+.time-input {
+
+    width: 120px;
+
+    margin-bottom: 5px;
+}
+
+
+.status-select {
+
+    width: 145px;
+
+    margin-bottom: 6px;
+}
+
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
+.btn {
+
+    display: inline-block;
 
     border: none;
-
-    cursor: pointer;
 
     padding:
         8px 11px;
 
-    border-radius: 8px;
+    border-radius: 6px;
+
+    font-size: 11px;
+
+    font-weight: bold;
+
+    cursor: pointer;
+
+    text-decoration: none;
+
+    white-space: nowrap;
+}
+
+
+.btn-primary {
+
+    background: #003366;
+
+    color: white;
+}
+
+
+.btn-primary:hover {
+
+    background: #0055a5;
+}
+
+
+.btn-success {
+
+    background: #198754;
+
+    color: white;
+}
+
+
+.btn-danger {
+
+    background: #dc3545;
+
+    color: white;
+}
+
+
+.btn-warning {
+
+    background: #e0a800;
+
+    color: white;
+}
+
+
+.btn-secondary {
+
+    background: #687684;
+
+    color: white;
+}
+
+
+.btn-disabled {
+
+    background: #e9ecef;
+
+    color: #999;
+
+    cursor: not-allowed;
+}
+
+
+/* =====================================================
+   ROOM CODE
+===================================================== */
+
+.room-code {
+
+    display: inline-block;
+
+    background: #f0f6fb;
+
+    border:
+        1px solid #d5e5f1;
+
+    color: #003366;
+
+    padding:
+        5px 8px;
+
+    border-radius: 5px;
+
+    font-family:
+        monospace;
 
     font-size: 10px;
 
-    font-weight: 700;
-
+    margin-bottom: 6px;
 }
 
 
-.complete-btn {
+.no-room {
 
-    background: #ecfdf3;
+    color: #999;
 
-    color: #027a48;
-
-}
-
-
-.remove-btn {
-
-    background: #fef3f2;
-
-    color: #b42318;
-
+    font-size: 11px;
 }
 
 
@@ -2074,67 +2108,19 @@ select:focus {
 
 .empty {
 
-    background: white;
-
-    border-radius: 16px;
-
-    padding: 60px 20px;
+    padding: 60px;
 
     text-align: center;
 
-    box-shadow:
-        0 4px 18px
-        rgba(
-            0,
-            0,
-            0,
-            .05
-        );
-
+    color: #777;
 }
 
 
 .empty-icon {
 
-    font-size: 48px;
+    font-size: 45px;
 
-    margin-bottom: 12px;
-
-}
-
-
-.empty h3 {
-
-    margin: 0;
-
-    color: #003366;
-
-}
-
-
-.empty p {
-
-    color: #98a2b3;
-
-    font-size: 12px;
-
-}
-
-
-/* =====================================================
-   FOOTER
-===================================================== */
-
-.footer {
-
-    text-align: center;
-
-    padding: 15px;
-
-    color: #98a2b3;
-
-    font-size: 10px;
-
+    margin-bottom: 10px;
 }
 
 
@@ -2142,188 +2128,69 @@ select:focus {
    MOBILE
 ===================================================== */
 
-@media(max-width:1250px) {
+@media(max-width:1100px) {
 
     .stats {
 
         grid-template-columns:
-            repeat(
-                3,
-                1fr
-            );
-
-    }
-
-
-    .filters {
-
-        grid-template-columns:
-            repeat(
-                3,
-                1fr
-            );
-
-    }
-
-
-    .booking-grid {
-
-        grid-template-columns:
-            repeat(
-                3,
-                1fr
-            );
-
-    }
-
-
-    .assignment-form {
-
-        grid-template-columns:
-            1fr
-            1fr
-            1fr
-            auto;
-
+            repeat(3, 1fr);
     }
 
 }
 
 
-@media(max-width:900px) {
+@media(max-width:800px) {
 
     .sidebar {
 
-        width: 70px;
+        position: relative;
 
-        padding:
-            20px 8px;
+        width: 100%;
 
-    }
-
-
-    .brand h2,
-    .brand p,
-    .nav-text {
-
-        display: none;
-
-    }
-
-
-    .brand {
-
-        border: none;
-
-    }
-
-
-    .nav a {
-
-        justify-content:
-            center;
-
+        height: auto;
     }
 
 
     .main {
 
-        margin-left: 70px;
+        margin-left: 0;
 
-        padding: 18px;
-
+        padding: 15px;
     }
 
 
-    .header {
+    .topbar {
+
+        flex-direction:
+            column;
 
         align-items:
             flex-start;
+    }
 
-        flex-direction:
-            column;
 
-        gap: 15px;
+    .filter-form {
 
+        grid-template-columns:
+            1fr;
+    }
+
+
+    .stats {
+
+        grid-template-columns:
+            repeat(2, 1fr);
     }
 
 }
 
 
-@media(max-width:650px) {
-
-    .stats {
-
-        grid-template-columns:
-            repeat(
-                2,
-                1fr
-            );
-
-    }
-
-
-    .filters {
-
-        grid-template-columns: 1fr;
-
-    }
-
-
-    .booking-grid {
-
-        grid-template-columns:
-            1fr
-            1fr;
-
-    }
-
-
-    .assignment-form {
-
-        grid-template-columns: 1fr;
-
-    }
-
-
-    .booking-top {
-
-        flex-direction:
-            column;
-
-    }
-
-
-    .reference {
-
-        text-align: left;
-
-    }
-
-}
-
-
-@media(max-width:450px) {
+@media(max-width:500px) {
 
     .stats {
 
         grid-template-columns:
             1fr;
-
-    }
-
-
-    .booking-grid {
-
-        grid-template-columns: 1fr;
-
-    }
-
-
-    .main {
-
-        padding: 12px;
-
     }
 
 }
@@ -2340,232 +2207,152 @@ select:focus {
      SIDEBAR
 ===================================================== -->
 
-<aside class="sidebar">
+<div class="sidebar">
 
+    <div class="logo">
 
-    <div class="brand">
-
-
-        <div class="brand-icon">
-
-            🎓
-
-        </div>
-
-
-        <h2>
-
-            NISEL
-
-        </h2>
-
-
-        <p>
-
-            ONLINE EDUCATION
-
-        </p>
-
+        NISEL<br>
+        ONLINE EDUCATION
 
     </div>
 
 
-    <nav class="nav">
-
+    <div class="menu">
 
         <a href="dashboard.php">
 
-            <span class="nav-icon">
-                🏠
-            </span>
-
-            <span class="nav-text">
-                Dashboard
-            </span>
-
-        </a>
-
-
-        <a href="teachers.php">
-
-            <span class="nav-icon">
-                👨‍🏫
-            </span>
-
-            <span class="nav-text">
-                Teachers
-            </span>
-
-        </a>
-
-
-        <a href="students.php">
-
-            <span class="nav-icon">
-                👨‍🎓
-            </span>
-
-            <span class="nav-text">
-                Students
-            </span>
+            🏠 Dashboard
 
         </a>
 
 
         <a
-            href="booking.php"
+            href="students.php"
+        >
+
+            👨‍🎓 Students
+
+        </a>
+
+
+        <a
+            href="teachers.php"
+        >
+
+            👨‍🏫 Teachers
+
+        </a>
+
+
+        <a
+            href="bookings.php"
             class="active"
         >
 
-            <span class="nav-icon">
-                📚
-            </span>
-
-            <span class="nav-text">
-                Bookings
-            </span>
+            📚 Bookings
 
         </a>
 
 
-        <a href="payments.php">
+        <a
+            href="payments.php"
+        >
 
-            <span class="nav-icon">
-                💳
-            </span>
-
-            <span class="nav-text">
-                Payments
-            </span>
+            💳 Payments
 
         </a>
 
 
-        <a href="logout.php">
+        <a
+            href="teacher_applications.php"
+        >
 
-            <span class="nav-icon">
-                🚪
-            </span>
-
-            <span class="nav-text">
-                Logout
-            </span>
+            📝 Teacher Applications
 
         </a>
 
 
-    </nav>
+        <a
+            href="reports.php"
+        >
+
+            📊 Reports
+
+        </a>
 
 
-</aside>
+        <a
+            href="settings.php"
+        >
 
+            ⚙️ Settings
+
+        </a>
+
+
+        <a
+            href="logout.php"
+        >
+
+            🚪 Logout
+
+        </a>
+
+    </div>
+
+</div>
 
 
 <!-- =====================================================
      MAIN
 ===================================================== -->
 
-<main class="main">
+<div class="main">
 
 
-    <!-- HEADER -->
+    <!-- TOPBAR -->
 
-    <div class="header">
+    <div class="topbar">
 
+        <h1>
 
-        <div>
+            📚 Booking Management
 
-            <h1>
-
-                📚 Booking Management
-
-            </h1>
-
-
-            <p>
-
-                Manage student bookings,
-                assign teachers and schedule lessons.
-
-            </p>
-
-        </div>
+        </h1>
 
 
         <div class="admin">
 
+            Administrator:
 
-            <div class="admin-icon">
+            <strong>
 
-                👤
+                <?= h($adminName) ?>
 
-            </div>
-
-
-            <div>
-
-
-                <strong>
-
-                    <?= h(
-                        $_SESSION[
-                            'admin_name'
-                        ]
-                        ??
-                        'Administrator'
-                    ) ?>
-
-                </strong>
-
-
-                <div
-                    style="
-                        color:#98a2b3;
-                        font-size:10px;
-                        margin-top:3px;
-                    "
-                >
-
-                    Administrator
-
-                </div>
-
-
-            </div>
-
+            </strong>
 
         </div>
-
 
     </div>
 
 
+    <!-- MESSAGE -->
 
-    <!-- ALERT -->
-
-    <?php if (
-        $message !== ''
-    ): ?>
-
+    <?php if ($message !== ''): ?>
 
         <div
-            class="
-                alert
-                <?= h(
-                    $messageType
-                ) ?>
-            "
+            class="message
+            <?= $messageType === 'error'
+                ? 'error'
+                : 'success'
+            ?>"
         >
 
-            <?= h(
-                $message
-            ) ?>
+            <?= h($message) ?>
 
         </div>
 
-
     <?php endif; ?>
-
 
 
     <!-- =================================================
@@ -2577,154 +2364,101 @@ select:focus {
 
         <div class="stat">
 
-            <div class="stat-top">
+            <div class="number">
 
-                <strong>
-                    Bookings
-                </strong>
-
-                <div class="stat-icon">
-                    📚
-                </div>
-
-            </div>
-
-            <div class="stat-number">
                 <?= $totalBookings ?>
+
             </div>
 
-            <div class="stat-label">
-                Total bookings
+            <div class="label">
+
+                Total Bookings
+
             </div>
 
         </div>
 
 
-
         <div class="stat">
 
-            <div class="stat-top">
+            <div class="number">
 
-                <strong>
-                    Paid
-                </strong>
-
-                <div class="stat-icon">
-                    💳
-                </div>
-
-            </div>
-
-            <div class="stat-number">
                 <?= $paidBookings ?>
-            </div>
-
-            <div class="stat-label">
-                Paid bookings
-            </div>
-
-        </div>
-
-
-
-        <div class="stat">
-
-            <div class="stat-top">
-
-                <strong>
-                    Pending
-                </strong>
-
-                <div class="stat-icon">
-                    ⏳
-                </div>
 
             </div>
 
-            <div class="stat-number">
-                <?= $pendingBookings ?>
-            </div>
+            <div class="label">
 
-            <div class="stat-label">
-                Awaiting payment
+                Paid
+
             </div>
 
         </div>
 
 
-
         <div class="stat">
 
-            <div class="stat-top">
+            <div class="number">
 
-                <strong>
-                    Assigned
-                </strong>
-
-                <div class="stat-icon">
-                    👨‍🏫
-                </div>
-
-            </div>
-
-            <div class="stat-number">
                 <?= $assignedBookings ?>
+
             </div>
 
-            <div class="stat-label">
-                Teacher assigned
+            <div class="label">
+
+                Assigned
+
             </div>
 
         </div>
 
 
-
         <div class="stat">
 
-            <div class="stat-top">
+            <div class="number">
 
-                <strong>
-                    Unassigned
-                </strong>
-
-                <div class="stat-icon">
-                    ⚠️
-                </div>
-
-            </div>
-
-            <div class="stat-number">
                 <?= $unassignedBookings ?>
+
             </div>
 
-            <div class="stat-label">
-                Need teacher
+            <div class="label">
+
+                Unassigned
+
             </div>
 
         </div>
 
 
+        <div class="stat">
+
+            <div class="number">
+
+                <?= $todayBookings ?>
+
+            </div>
+
+            <div class="label">
+
+                Today's Lessons
+
+            </div>
+
+        </div>
+
 
         <div class="stat">
 
-            <div class="stat-top">
+            <div class="number">
 
-                <strong>
-                    Completed
-                </strong>
-
-                <div class="stat-icon">
-                    ✅
-                </div>
+                <?= $liveBookings ?>
 
             </div>
 
-            <div class="stat-number">
-                <?= $completedLessons ?>
-            </div>
+            <div class="label">
 
-            <div class="stat-label">
-                Completed lessons
+                Live Now
+
             </div>
 
         </div>
@@ -2733,1397 +2467,1194 @@ select:focus {
     </div>
 
 
-
     <!-- =================================================
-         FILTERS
+         FILTER
     ================================================== -->
 
-    <section class="filter-card">
-
-
-        <div class="filter-title">
-
-
-            <h2>
-
-                🔎 Find Bookings
-
-            </h2>
-
-
-            <span>
-
-                Combine filters to narrow the results
-
-            </span>
-
-
-        </div>
-
-
+    <div class="filter-box">
 
         <form
             method="GET"
-            action=""
+            class="filter-form"
         >
 
 
-            <div class="filters">
+            <input
+                type="text"
+                name="search"
+                placeholder="
+                    Search student,
+                    booking reference,
+                    email, phone or subject
+                "
+                value="<?= h($search) ?>"
+            >
 
 
-                <input
-                    type="text"
-                    name="search"
-                    value="<?= h(
-                        $search
-                    ) ?>"
-                    placeholder="Search student, email, phone, reference or subject..."
+            <select
+                name="payment"
+            >
+
+                <option value="">
+                    All Payments
+                </option>
+
+                <option
+                    value="paid"
+                    <?= $paymentFilter === 'paid'
+                        ? 'selected'
+                        : ''
+                    ?>
                 >
+                    Paid
+                </option>
 
-
-                <select
-                    name="curriculum"
+                <option
+                    value="pending"
+                    <?= $paymentFilter === 'pending'
+                        ? 'selected'
+                        : ''
+                    ?>
                 >
+                    Pending
+                </option>
 
-                    <option value="">
-
-                        All Curricula
-
-                    </option>
+            </select>
 
 
-                    <?php foreach (
-                        $curricula
-                        as $curriculum
-                    ): ?>
+            <select
+                name="assignment"
+            >
 
-                        <option
-                            value="<?= h(
-                                $curriculum
-                            ) ?>"
-                            <?= (
-                                $curriculumFilter
-                                ===
-                                $curriculum
-                            )
-                                ? 'selected'
-                                : ''
-                            ?>
-                        >
+                <option value="">
+                    All Assignments
+                </option>
 
-                            <?= h(
-                                $curriculum
-                            ) ?>
-
-                        </option>
-
-                    <?php endforeach; ?>
-
-
-                </select>
-
-
-
-                <select
-                    name="payment"
+                <option
+                    value="assigned"
+                    <?= $assignmentFilter === 'assigned'
+                        ? 'selected'
+                        : ''
+                    ?>
                 >
+                    Assigned
+                </option>
 
-                    <option value="">
-
-                        All Payments
-
-                    </option>
-
-
-                    <option
-                        value="paid"
-                        <?= $paymentFilter === 'paid'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Paid
-
-                    </option>
-
-
-                    <option
-                        value="pending"
-                        <?= $paymentFilter === 'pending'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Pending
-
-                    </option>
-
-
-                </select>
-
-
-
-                <select
-                    name="assignment"
+                <option
+                    value="unassigned"
+                    <?= $assignmentFilter === 'unassigned'
+                        ? 'selected'
+                        : ''
+                    ?>
                 >
+                    Unassigned
+                </option>
 
-                    <option value="">
-
-                        All Assignments
-
-                    </option>
+            </select>
 
 
-                    <option
-                        value="assigned"
-                        <?= $assignmentFilter === 'assigned'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
+            <select
+                name="lesson"
+            >
 
-                        Teacher Assigned
+                <option value="">
+                    All Lesson Status
+                </option>
 
-                    </option>
-
-
-                    <option
-                        value="unassigned"
-                        <?= $assignmentFilter === 'unassigned'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Unassigned
-
-                    </option>
-
-
-                </select>
-
-
-
-                <select
-                    name="lesson_status"
+                <option
+                    value="scheduled"
+                    <?= $lessonFilter === 'scheduled'
+                        ? 'selected'
+                        : ''
+                    ?>
                 >
+                    Scheduled
+                </option>
 
-                    <option value="">
+                <option
+                    value="completed"
+                    <?= $lessonFilter === 'completed'
+                        ? 'selected'
+                        : ''
+                    ?>
+                >
+                    Completed
+                </option>
 
-                        All Lesson Status
+                <option
+                    value="cancelled"
+                    <?= $lessonFilter === 'cancelled'
+                        ? 'selected'
+                        : ''
+                    ?>
+                >
+                    Cancelled
+                </option>
 
-                    </option>
-
-
-                    <option
-                        value="Scheduled"
-                        <?= strtolower(
-                            $lessonFilter
-                        ) === 'scheduled'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Scheduled
-
-                    </option>
-
-
-                    <option
-                        value="Completed"
-                        <?= strtolower(
-                            $lessonFilter
-                        ) === 'completed'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Completed
-
-                    </option>
+            </select>
 
 
-                    <option
-                        value="Cancelled"
-                        <?= strtolower(
-                            $lessonFilter
-                        ) === 'cancelled'
-                            ? 'selected'
-                            : ''
-                        ?>
-                    >
-
-                        Cancelled
-
-                    </option>
-
-
-                </select>
-
-
+            <div>
 
                 <button
                     type="submit"
-                    class="filter-btn"
+                    class="filter-button"
                 >
 
-                    Filter
+                    Search
 
                 </button>
 
 
-            </div>
+                <a
+                    href="bookings.php"
+                    class="clear-button"
+                >
 
+                    Clear
+
+                </a>
+
+            </div>
 
         </form>
 
-
-        <?php if (
-            $search !== ''
-            ||
-            $curriculumFilter !== ''
-            ||
-            $paymentFilter !== ''
-            ||
-            $assignmentFilter !== ''
-            ||
-            $lessonFilter !== ''
-        ): ?>
-
-
-            <a
-                href="booking.php"
-                class="clear-btn"
-            >
-
-                ✕ Clear Filters
-
-            </a>
-
-
-        <?php endif; ?>
-
-
-    </section>
-
+    </div>
 
 
     <!-- =================================================
          BOOKINGS
     ================================================== -->
 
-    <?php if (
-        empty($bookings)
-    ): ?>
+    <div class="table-card">
 
 
-        <div class="empty">
+        <div class="table-header">
+
+            <h2>
+
+                All NISEL Bookings
+
+            </h2>
 
 
-            <div class="empty-icon">
+            <div>
 
-                📚
+                <?= $totalBookings ?>
+
+                booking(s)
 
             </div>
-
-
-            <h3>
-
-                No bookings found
-
-            </h3>
-
-
-            <p>
-
-                There are no bookings matching
-                your current filters.
-
-            </p>
-
 
         </div>
 
 
-    <?php else: ?>
+        <div class="table-wrapper">
 
 
-        <?php foreach (
-            $bookings
-            as $booking
-        ): ?>
+            <?php if (
+                count($bookings) > 0
+            ): ?>
 
 
-            <?php
+                <table>
 
 
-            $studentName =
-                trim(
-                    $booking[
-                        'student_name'
-                    ]
-                    ??
-                    'Student'
-                );
+                    <thead>
 
+                    <tr>
 
-            $words =
-                preg_split(
-                    '/\s+/',
-                    $studentName
-                );
+                        <th>
+                            Booking
+                        </th>
 
+                        <th>
+                            Student
+                        </th>
 
-            $initials = '';
-
-
-            foreach (
-                $words as $word
-            ) {
-
-                if (
-                    $word === ''
-                ) {
-                    continue;
-                }
-
-
-                $initials .=
-                    strtoupper(
-                        substr(
-                            $word,
-                            0,
-                            1
-                        )
-                    );
-
-
-                if (
-                    strlen(
-                        $initials
-                    ) >= 2
-                ) {
-                    break;
-                }
-
-            }
-
-
-            if (
-                $initials === ''
-            ) {
-                $initials = 'ST';
-            }
-
-
-            $payment =
-                strtolower(
-                    trim(
-                        $booking[
-                            'payment_status'
-                        ]
-                        ??
-                        ''
-                    )
-                );
-
-
-            $paymentClass =
-                (
-                    $payment === 'paid'
-                    ||
-                    $payment === 'success'
-                )
-                    ? 'paid'
-                    : 'pending';
-
-
-            $isAssigned =
-                !empty(
-                    $booking[
-                        'teacher_id'
-                    ]
-                );
-
-
-            $lesson =
-                strtolower(
-                    trim(
-                        $booking[
-                            'lesson_status'
-                        ]
-                        ??
-                        ''
-                    )
-                );
-
-
-            if (
-                $lesson === 'completed'
-            ) {
-
-                $lessonClass =
-                    'completed';
-
-            }
-
-            elseif (
-                $lesson === 'cancelled'
-            ) {
-
-                $lessonClass =
-                    'cancelled';
-
-            }
-
-            else {
-
-                $lessonClass =
-                    'scheduled';
-
-            }
-
-
-            ?>
-
-
-            <section class="booking-card">
-
-
-                <!-- BOOKING HEADER -->
-
-                <div class="booking-top">
-
-
-                    <div class="student">
-
-
-                        <div class="student-avatar">
-
-                            <?= h(
-                                $initials
-                            ) ?>
-
-                        </div>
-
-
-                        <div>
-
-
-                            <h3
-                                class="student-name"
-                            >
-
-                                <?= h(
-                                    $studentName
-                                ) ?>
-
-                            </h3>
-
-
-                            <div
-                                class="student-meta"
-                            >
-
-                                Student ID:
-                                <?= h(
-                                    $booking[
-                                        'student_id'
-                                    ]
-                                    ??
-                                    'N/A'
-                                ) ?>
-
-                                &nbsp; • &nbsp;
-
-                                📧
-                                <?= h(
-                                    $booking[
-                                        'email'
-                                    ]
-                                ) ?>
-
-                            </div>
-
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div
-                        class="reference"
-                    >
-
-                        Booking Reference
-
-                        <br>
-
-                        <strong>
-
-                            <?= h(
-                                $booking[
-                                    'booking_reference'
-                                ]
-                                ??
-                                'N/A'
-                            ) ?>
-
-                        </strong>
-
-                    </div>
-
-
-                </div>
-
-
-
-                <!-- BOOKING INFORMATION -->
-
-                <div class="booking-grid">
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
+                        <th>
                             Curriculum
+                        </th>
 
-                        </div>
+                        <th>
+                            Class
+                        </th>
 
+                        <th>
+                            Subject(s)
+                        </th>
 
-                        <div class="info-value">
-
-                            <?= h(
-                                $booking[
-                                    'curriculum'
-                                ]
-                                ??
-                                'Not provided'
-                            ) ?>
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Class / Year
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $booking[
-                                    'class_year'
-                                ]
-                                ??
-                                'Not provided'
-                            ) ?>
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Subject
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?= h(
-                                $booking[
-                                    'subjects'
-                                ]
-                                ??
-                                'Not provided'
-                            ) ?>
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Amount
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            GHS
-                            <?= number_format(
-                                (float)(
-                                    $booking[
-                                        'amount'
-                                    ]
-                                    ??
-                                    0
-                                ),
-                                2
-                            ) ?>
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
+                        <th>
                             Payment
+                        </th>
 
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <span
-                                class="
-                                    badge
-                                    <?= $paymentClass ?>
-                                "
-                            >
-
-                                <?= (
-                                    $payment ===
-                                    'paid'
-                                    ||
-                                    $payment ===
-                                    'success'
-                                )
-                                    ? '✓ PAID'
-                                    : '⏳ PENDING'
-                                ?>
-
-                            </span>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
+                        <th>
                             Teacher
+                        </th>
 
-                        </div>
+                        <th>
+                            Schedule
+                        </th>
 
+                        <th>
+                            Lesson
+                        </th>
 
-                        <div class="info-value">
+                        <th>
+                            Live Classroom
+                        </th>
 
+                        <th>
+                            Actions
+                        </th>
 
-                            <?php if (
-                                $isAssigned
-                            ): ?>
+                    </tr>
 
+                    </thead>
 
-                                <span
-                                    class="
-                                        badge
-                                        assigned
-                                    "
-                                >
 
-                                    👨‍🏫
-                                    <?= h(
-                                        $booking[
-                                            'teacher_name'
-                                        ]
-                                    ) ?>
+                    <tbody>
 
-                                </span>
 
-
-                            <?php else: ?>
-
-
-                                <span
-                                    class="
-                                        badge
-                                        unassigned
-                                    "
-                                >
-
-                                    Not Assigned
-
-                                </span>
-
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Lesson Date
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?php if (
-                                !empty(
-                                    $booking[
-                                        'lesson_date'
-                                    ]
-                                )
-                            ): ?>
-
-
-                                📅
-                                <?= h(
-                                    date(
-                                        'd M Y',
-                                        strtotime(
-                                            $booking[
-                                                'lesson_date'
-                                            ]
-                                        )
-                                    )
-                                ) ?>
-
-
-                            <?php else: ?>
-
-
-                                Not scheduled
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Lesson Time
-
-                        </div>
-
-
-                        <div class="info-value">
-
-                            <?php if (
-                                !empty(
-                                    $booking[
-                                        'lesson_time'
-                                    ]
-                                )
-                            ): ?>
-
-
-                                🕐
-                                <?= h(
-                                    date(
-                                        'h:i A',
-                                        strtotime(
-                                            $booking[
-                                                'lesson_time'
-                                            ]
-                                        )
-                                    )
-                                ) ?>
-
-
-                            <?php else: ?>
-
-
-                                Not set
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Assignment
-
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <?php if (
-                                $isAssigned
-                            ): ?>
-
-
-                                <span
-                                    class="
-                                        badge
-                                        assigned
-                                    "
-                                >
-
-                                    Assigned
-
-                                </span>
-
-
-                            <?php else: ?>
-
-
-                                <span
-                                    class="
-                                        badge
-                                        unassigned
-                                    "
-                                >
-
-                                    Unassigned
-
-                                </span>
-
-
-                            <?php endif; ?>
-
-
-                        </div>
-
-
-                    </div>
-
-
-
-                    <div class="info">
-
-
-                        <div class="info-label">
-
-                            Lesson Status
-
-                        </div>
-
-
-                        <div class="info-value">
-
-
-                            <span
-                                class="
-                                    badge
-                                    <?= $lessonClass ?>
-                                "
-                            >
-
-                                <?php
-
-                                if (
-                                    $lesson ===
-                                    'completed'
-                                ) {
-
-                                    echo '✓ Completed';
-
-                                }
-
-                                elseif (
-                                    $lesson ===
-                                    'cancelled'
-                                ) {
-
-                                    echo '✕ Cancelled';
-
-                                }
-
-                                else {
-
-                                    echo '● Scheduled';
-
-                                }
-
-                                ?>
-
-                            </span>
-
-
-                        </div>
-
-
-                    </div>
-
-
-                </div>
-
-
-
-                <!-- =================================================
-                     TEACHER ASSIGNMENT
-                ================================================== -->
-
-                <div class="assignment">
-
-
-                    <div
-                        class="assignment-title"
-                    >
-
-                        <h3>
-
-                            👨‍🏫
-                            Teacher Assignment &
-                            Lesson Scheduling
-
-                        </h3>
-
-                    </div>
-
-
-
-                    <?php if (
-                        $isAssigned
+                    <?php foreach (
+                        $bookings
+                        as $row
                     ): ?>
 
 
-                        <div
-                            class="teacher-current"
-                        >
+                        <?php
+
+                        $payment =
+                            strtolower(
+                                trim(
+                                    $row['payment_status']
+                                    ?? ''
+                                )
+                            );
 
 
-                            <span>
-
-                                Currently assigned teacher:
-
-                            </span>
-
-
-                            <strong>
-
-                                <?= h(
-                                    $booking[
-                                        'teacher_name'
-                                    ]
-                                ) ?>
-
-                            </strong>
+                        $lessonStatus =
+                            strtolower(
+                                trim(
+                                    $row['lesson_status']
+                                    ?? 'scheduled'
+                                )
+                            );
 
 
-                        </div>
+                        $liveStatus =
+                            strtolower(
+                                trim(
+                                    $row['live_status']
+                                    ?? 'waiting'
+                                )
+                            );
 
 
-                    <?php endif; ?>
+                        $isPaid =
+                            in_array(
+                                $payment,
+                                [
+                                    'paid',
+                                    'success'
+                                ],
+                                true
+                            );
 
 
-
-                    <form
-                        method="POST"
-                        action=""
-                        class="assignment-form"
-                    >
+                        $hasTeacher =
+                            !empty(
+                                $row['teacher_id']
+                            );
 
 
-                        <input
-                            type="hidden"
-                            name="booking_id"
-                            value="<?= h(
-                                $booking[
-                                    'id'
-                                ]
-                            ) ?>"
-                        >
+                        ?>
 
 
-                        <input
-                            type="hidden"
-                            name="assign_booking"
-                            value="1"
-                        >
+                        <tr>
 
 
-                        <!-- TEACHER -->
+                            <!-- BOOKING -->
 
-                        <div class="form-field">
+                            <td>
+
+                                <strong>
+
+                                    <?= h(
+                                        $row['booking_reference']
+                                    ) ?>
+
+                                </strong>
+
+                                <br>
+
+                                <small
+                                    style="
+                                        color:#888;
+                                    "
+                                >
+
+                                    ID:
+                                    <?= (int)$row['id'] ?>
+
+                                </small>
+
+                            </td>
 
 
-                            <label>
+                            <!-- STUDENT -->
 
-                                Select Teacher
+                            <td>
 
-                            </label>
+                                <div
+                                    class="student-name"
+                                >
 
+                                    <?= h(
+                                        $row['student_name']
+                                    ) ?>
 
-                            <select
-                                name="teacher_id"
-                                required
-                            >
-
-
-                                <option value="">
-
-                                    Select a teacher...
-
-                                </option>
+                                </div>
 
 
-                                <?php foreach (
-                                    $teachers
-                                    as $teacher
+                                <div
+                                    class="student-contact"
+                                >
+
+                                    📧
+                                    <?= h(
+                                        $row['email']
+                                    ) ?>
+
+                                </div>
+
+
+                                <?php if (
+                                    !empty(
+                                        $row['phone']
+                                    )
                                 ): ?>
 
+                                    <div
+                                        class="student-contact"
+                                    >
 
-                                    <option
-                                        value="<?= h(
-                                            $teacher[
-                                                'teacher_id'
-                                            ]
-                                        ) ?>"
-                                        <?= (
-                                            $booking[
-                                                'teacher_id'
-                                            ]
-                                            ==
-                                            $teacher[
-                                                'teacher_id'
-                                            ]
-                                        )
-                                            ? 'selected'
-                                            : ''
-                                        ?>
+                                        📞
+                                        <?= h(
+                                            $row['phone']
+                                        ) ?>
+
+                                    </div>
+
+                                <?php endif; ?>
+
+
+                            </td>
+
+
+                            <!-- CURRICULUM -->
+
+                            <td>
+
+                                <?= h(
+                                    $row['curriculum']
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- CLASS -->
+
+                            <td>
+
+                                <?= h(
+                                    $row['class_year']
+                                    ?? ''
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- SUBJECT -->
+
+                            <td>
+
+                                <?= h(
+                                    $row['subjects']
+                                ) ?>
+
+                            </td>
+
+
+                            <!-- PAYMENT -->
+
+                            <td>
+
+                                <?php if (
+                                    $isPaid
+                                ): ?>
+
+                                    <span
+                                        class="badge paid"
+                                    >
+
+                                        PAID
+
+                                    </span>
+
+                                <?php else: ?>
+
+                                    <span
+                                        class="badge pending"
                                     >
 
                                         <?= h(
-                                            $teacher[
-                                                'teacher_name'
-                                            ]
+                                            strtoupper(
+                                                $row['payment_status']
+                                                ?? 'PENDING'
+                                            )
                                         ) ?>
 
-                                        <?php if (
-                                            !empty(
-                                                $teacher[
-                                                    'subjects'
-                                                ]
-                                            )
-                                        ): ?>
+                                    </span>
 
-                                            —
+                                <?php endif; ?>
+
+
+                                <?php if (
+                                    !empty(
+                                        $row['amount']
+                                    )
+                                ): ?>
+
+                                    <br>
+
+                                    <small
+                                        style="
+                                            color:#777;
+                                        "
+                                    >
+
+                                        GHS
+                                        <?= number_format(
+                                            (float)
+                                            $row['amount'],
+                                            2
+                                        ) ?>
+
+                                    </small>
+
+                                <?php endif; ?>
+
+                            </td>
+
+
+                            <!-- TEACHER -->
+
+                            <td>
+
+
+                                <?php if (
+                                    $hasTeacher
+                                ): ?>
+
+                                    <div
+                                        class="teacher-name"
+                                    >
+
+                                        <?= h(
+                                            $row['assigned_teacher_name']
+                                            ??
+                                            $row['teacher_name']
+                                        ) ?>
+
+                                    </div>
+
+
+                                    <?php if (
+                                        !empty(
+                                            $row['teacher_phone']
+                                        )
+                                    ): ?>
+
+                                        <div
+                                            class="teacher-phone"
+                                        >
+
+                                            📞
                                             <?= h(
-                                                $teacher[
-                                                    'subjects'
-                                                ]
+                                                $row['teacher_phone']
                                             ) ?>
 
-                                        <?php endif; ?>
+                                        </div>
+
+                                    <?php endif; ?>
 
 
-                                    </option>
+                                    <span
+                                        class="badge assigned"
+                                    >
+
+                                        ASSIGNED
+
+                                    </span>
 
 
-                                <?php endforeach; ?>
+                                <?php else: ?>
+
+                                    <span
+                                        class="
+                                            badge
+                                            not-assigned
+                                        "
+                                    >
+
+                                        NOT ASSIGNED
+
+                                    </span>
+
+                                <?php endif; ?>
 
 
-                            </select>
+                            </td>
 
 
-                        </div>
+                            <!-- SCHEDULE -->
+
+                            <td>
 
 
+                                <form
+                                    method="POST"
+                                    class="action-form"
+                                >
 
-                        <!-- DATE -->
-
-                        <div class="form-field">
-
-
-                            <label>
-
-                                Lesson Date
-
-                            </label>
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="<?= h(
+                                            $csrfToken
+                                        ) ?>"
+                                    >
 
 
-                            <input
-                                type="date"
-                                name="lesson_date"
-                                value="<?= !empty(
-                                    $booking[
-                                        'lesson_date'
-                                    ]
-                                )
-                                    ? h(
-                                        $booking[
-                                            'lesson_date'
-                                        ]
+                                    <input
+                                        type="hidden"
+                                        name="action"
+                                        value="update_lesson"
+                                    >
+
+
+                                    <input
+                                        type="hidden"
+                                        name="booking_id"
+                                        value="<?= (int)$row['id'] ?>"
+                                    >
+
+
+                                    <input
+                                        type="date"
+                                        name="lesson_date"
+                                        class="date-input"
+                                        value="<?= h(
+                                            $row['lesson_date']
+                                            ?? ''
+                                        ) ?>"
+                                    >
+
+
+                                    <input
+                                        type="time"
+                                        name="lesson_time"
+                                        class="time-input"
+                                        value="<?= h(
+                                            $row['lesson_time']
+                                            ?? ''
+                                        ) ?>"
+                                    >
+
+
+                                    <select
+                                        name="lesson_status"
+                                        class="status-select"
+                                    >
+
+                                        <option
+                                            value="Scheduled"
+                                            <?= $lessonStatus === 'scheduled'
+                                                ? 'selected'
+                                                : ''
+                                            ?>
+                                        >
+
+                                            Scheduled
+
+                                        </option>
+
+
+                                        <option
+                                            value="Completed"
+                                            <?= $lessonStatus === 'completed'
+                                                ? 'selected'
+                                                : ''
+                                            ?>
+                                        >
+
+                                            Completed
+
+                                        </option>
+
+
+                                        <option
+                                            value="Cancelled"
+                                            <?= $lessonStatus === 'cancelled'
+                                                ? 'selected'
+                                                : ''
+                                            ?>
+                                        >
+
+                                            Cancelled
+
+                                        </option>
+
+                                    </select>
+
+
+                                    <br>
+
+
+                                    <button
+                                        type="submit"
+                                        class="
+                                            btn
+                                            btn-primary
+                                        "
+                                    >
+
+                                        💾 Save
+
+                                    </button>
+
+                                </form>
+
+
+                            </td>
+
+
+                            <!-- LESSON STATUS -->
+
+                            <td>
+
+
+                                <?php if (
+                                    $lessonStatus
+                                    ===
+                                    'completed'
+                                ): ?>
+
+                                    <span
+                                        class="
+                                            badge
+                                            completed
+                                        "
+                                    >
+
+                                        COMPLETED
+
+                                    </span>
+
+
+                                <?php elseif (
+                                    $lessonStatus
+                                    ===
+                                    'cancelled'
+                                ): ?>
+
+                                    <span
+                                        class="
+                                            badge
+                                            cancelled
+                                        "
+                                    >
+
+                                        CANCELLED
+
+                                    </span>
+
+
+                                <?php else: ?>
+
+                                    <span
+                                        class="
+                                            badge
+                                            scheduled
+                                        "
+                                    >
+
+                                        SCHEDULED
+
+                                    </span>
+
+                                <?php endif; ?>
+
+
+                            </td>
+
+
+                            <!-- LIVE CLASSROOM -->
+
+                            <td>
+
+
+                                <?php if (
+                                    !empty(
+                                        $row['live_room_code']
                                     )
-                                    : ''
-                                ?>"
-                                min="<?= date(
-                                    'Y-m-d'
-                                ) ?>"
-                                required
-                            >
+                                ): ?>
 
 
-                        </div>
+                                    <div
+                                        class="room-code"
+                                    >
+
+                                        <?= h(
+                                            $row['live_room_code']
+                                        ) ?>
+
+                                    </div>
 
 
-
-                        <!-- TIME -->
-
-                        <div class="form-field">
+                                    <br>
 
 
-                            <label>
+                                    <?php if (
+                                        $liveStatus
+                                        ===
+                                        'live'
+                                    ): ?>
 
-                                Lesson Time
+                                        <span
+                                            class="
+                                                badge
+                                                live-badge
+                                            "
+                                        >
 
-                            </label>
+                                            🔴 LIVE
+
+                                        </span>
 
 
-                            <input
-                                type="time"
-                                name="lesson_time"
-                                value="<?= !empty(
-                                    $booking[
-                                        'lesson_time'
-                                    ]
-                                )
-                                    ? h(
-                                        $booking[
-                                            'lesson_time'
-                                        ]
+                                    <?php elseif (
+                                        $liveStatus
+                                        ===
+                                        'ended'
+                                    ): ?>
+
+                                        <span
+                                            class="
+                                                badge
+                                                ended-badge
+                                            "
+                                        >
+
+                                            ENDED
+
+                                        </span>
+
+
+                                    <?php else: ?>
+
+                                        <span
+                                            class="
+                                                badge
+                                                waiting-badge
+                                            "
+                                        >
+
+                                            WAITING
+
+                                        </span>
+
+                                    <?php endif; ?>
+
+
+                                    <br><br>
+
+
+                                    <?php if (
+                                        $hasTeacher
+                                        &&
+                                        $isPaid
+                                        &&
+                                        $lessonStatus
+                                        !==
+                                        'cancelled'
+                                    ): ?>
+
+                                        <a
+                                            href="../teacher/classroom.php?id=<?= (int)$row['id'] ?>"
+                                            target="_blank"
+                                            class="
+                                                btn
+                                                btn-success
+                                            "
+                                        >
+
+                                            🎥 Open
+
+                                        </a>
+
+                                    <?php endif; ?>
+
+
+                                <?php else: ?>
+
+
+                                    <span
+                                        class="no-room"
+                                    >
+
+                                        No classroom
+
+                                    </span>
+
+
+                                <?php endif; ?>
+
+
+                            </td>
+
+
+                            <!-- ACTIONS -->
+
+                            <td>
+
+
+                                <!-- ASSIGN TEACHER -->
+
+                                <form
+                                    method="POST"
+                                    class="action-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="csrf_token"
+                                        value="<?= h(
+                                            $csrfToken
+                                        ) ?>"
+                                    >
+
+
+                                    <input
+                                        type="hidden"
+                                        name="action"
+                                        value="assign_teacher"
+                                    >
+
+
+                                    <input
+                                        type="hidden"
+                                        name="booking_id"
+                                        value="<?= (int)$row['id'] ?>"
+                                    >
+
+
+                                    <select
+                                        name="teacher_id"
+                                        class="small-select"
+                                        required
+                                    >
+
+                                        <option value="">
+
+                                            Select Teacher
+
+                                        </option>
+
+
+                                        <?php foreach (
+                                            $teachers
+                                            as $teacher
+                                        ): ?>
+
+                                            <option
+                                                value="<?= h(
+                                                    $teacher['teacher_id']
+                                                ) ?>"
+
+                                                <?= (
+                                                    $row['teacher_id']
+                                                    ===
+                                                    $teacher['teacher_id']
+                                                )
+                                                    ? 'selected'
+                                                    : ''
+                                                ?>
+                                            >
+
+                                                <?= h(
+                                                    $teacher['teacher_name']
+                                                ) ?>
+
+                                            </option>
+
+                                        <?php endforeach; ?>
+
+
+                                    </select>
+
+
+                                    <br>
+
+
+                                    <button
+                                        type="submit"
+                                        class="
+                                            btn
+                                            btn-primary
+                                        "
+                                    >
+
+                                        👨‍🏫
+                                        Assign
+
+                                    </button>
+
+                                </form>
+
+
+                                <!-- UNASSIGN -->
+
+                                <?php if (
+                                    $hasTeacher
+                                ): ?>
+
+                                    <form
+                                        method="POST"
+                                        class="action-form"
+                                        onsubmit="
+                                            return confirm(
+                                                'Remove this teacher assignment?'
+                                            );
+                                        "
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="csrf_token"
+                                            value="<?= h(
+                                                $csrfToken
+                                            ) ?>"
+                                        >
+
+
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="unassign_teacher"
+                                        >
+
+
+                                        <input
+                                            type="hidden"
+                                            name="booking_id"
+                                            value="<?= (int)$row['id'] ?>"
+                                        >
+
+
+                                        <button
+                                            type="submit"
+                                            class="
+                                                btn
+                                                btn-danger
+                                            "
+                                        >
+
+                                            ❌ Unassign
+
+                                        </button>
+
+                                    </form>
+
+                                <?php endif; ?>
+
+
+                                <!-- CREATE ROOM -->
+
+                                <?php if (
+                                    $hasTeacher
+                                    &&
+                                    $isPaid
+                                    &&
+                                    $lessonStatus
+                                    !==
+                                    'cancelled'
+                                    &&
+                                    empty(
+                                        $row['live_room_code']
                                     )
-                                    : ''
-                                ?>"
-                                required
-                            >
+                                ): ?>
 
 
-                        </div>
+                                    <form
+                                        method="POST"
+                                        class="action-form"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="csrf_token"
+                                            value="<?= h(
+                                                $csrfToken
+                                            ) ?>"
+                                        >
 
 
-
-                        <!-- BUTTON -->
-
-                        <div
-                            class="form-field"
-                        >
-
-                            <label>
-
-                                &nbsp;
-
-                            </label>
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="create_live_room"
+                                        >
 
 
-                            <button
-                                type="submit"
-                                class="assign-btn"
-                            >
-
-                                <?= $isAssigned
-                                    ? '↻ Update Schedule'
-                                    : '✓ Assign Teacher'
-                                ?>
-
-                            </button>
+                                        <input
+                                            type="hidden"
+                                            name="booking_id"
+                                            value="<?= (int)$row['id'] ?>"
+                                        >
 
 
-                        </div>
+                                        <button
+                                            type="submit"
+                                            class="
+                                                btn
+                                                btn-success
+                                            "
+                                        >
+
+                                            🎥 Create Classroom
+
+                                        </button>
+
+                                    </form>
 
 
-                    </form>
+                                <?php endif; ?>
 
 
+                                <!-- RESET ROOM -->
 
-                    <!-- ACTIONS -->
-
-                    <div
-                        class="actions"
-                    >
-
-
-                        <?php if (
-                            $isAssigned
-                            &&
-                            $lesson !==
-                            'completed'
-                        ): ?>
+                                <?php if (
+                                    !empty(
+                                        $row['live_room_code']
+                                    )
+                                ): ?>
 
 
-                            <form
-                                method="POST"
-                                action=""
-                                onsubmit="
-                                    return confirm(
-                                        'Mark this lesson as completed?'
-                                    );
-                                "
-                            >
+                                    <form
+                                        method="POST"
+                                        class="action-form"
+                                        onsubmit="
+                                            return confirm(
+                                                'Reset this live classroom?'
+                                            );
+                                        "
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="csrf_token"
+                                            value="<?= h(
+                                                $csrfToken
+                                            ) ?>"
+                                        >
 
 
-                                <input
-                                    type="hidden"
-                                    name="booking_id"
-                                    value="<?= h(
-                                        $booking[
-                                            'id'
-                                        ]
-                                    ) ?>"
-                                >
+                                        <input
+                                            type="hidden"
+                                            name="action"
+                                            value="reset_live_room"
+                                        >
 
 
-                                <button
-                                    type="submit"
-                                    name="complete_lesson"
-                                    class="
-                                        action-btn
-                                        complete-btn
-                                    "
-                                >
-
-                                    ✓ Mark Lesson
-                                    Completed
-
-                                </button>
+                                        <input
+                                            type="hidden"
+                                            name="booking_id"
+                                            value="<?= (int)$row['id'] ?>"
+                                        >
 
 
-                            </form>
+                                        <button
+                                            type="submit"
+                                            class="
+                                                btn
+                                                btn-warning
+                                            "
+                                        >
+
+                                            🔄 Reset Room
+
+                                        </button>
+
+                                    </form>
 
 
-                        <?php endif; ?>
+                                <?php endif; ?>
 
 
-
-                        <?php if (
-                            $isAssigned
-                        ): ?>
+                            </td>
 
 
-                            <form
-                                method="POST"
-                                action=""
-                                onsubmit="
-                                    return confirm(
-                                        'Remove this teacher assignment?'
-                                    );
-                                "
-                            >
+                        </tr>
 
 
-                                <input
-                                    type="hidden"
-                                    name="booking_id"
-                                    value="<?= h(
-                                        $booking[
-                                            'id'
-                                        ]
-                                    ) ?>"
-                                >
+                    <?php endforeach; ?>
 
 
-                                <button
-                                    type="submit"
-                                    name="remove_assignment"
-                                    class="
-                                        action-btn
-                                        remove-btn
-                                    "
-                                >
+                    </tbody>
 
-                                    ✕ Remove Assignment
-
-                                </button>
+                </table>
 
 
-                            </form>
+            <?php else: ?>
 
 
-                        <?php endif; ?>
+                <div class="empty">
 
+                    <div class="empty-icon">
+
+                        📚
 
                     </div>
 
 
+                    <h3>
+
+                        No Bookings Found
+
+                    </h3>
+
+
+                    <p>
+
+                        There are no bookings
+                        matching your search.
+
+                    </p>
+
                 </div>
 
 
-            </section>
+            <?php endif; ?>
 
 
-        <?php endforeach; ?>
-
-
-    <?php endif; ?>
-
-
-
-    <div class="footer">
-
-        NISEL ONLINE EDUCATION
-        ·
-        Administrator Booking Management
+        </div>
 
     </div>
 
 
-</main>
+</div>
 
 
 </body>
