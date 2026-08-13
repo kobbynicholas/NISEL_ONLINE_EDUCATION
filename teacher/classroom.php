@@ -197,27 +197,183 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) 
         }
 
         if ($action === "send_signal") {
-            $signal_type = trim((string)($_POST["signal_type"] ?? ""));
-            $signal_data = (string)($_POST["signal_data"] ?? "");
-            $allowed = ["ready", "offer", "ice-candidate", "hangup"];
 
-            if (!in_array($signal_type, $allowed, true)) {
-                json_response(["success" => false, "message" => "Invalid signal type."]);
-            }
-            if ($signal_data === "" || strlen($signal_data) > 1000000) {
-                json_response(["success" => false, "message" => "Invalid signal data."]);
+            $signal_type =
+                trim((string)($_POST["signal_type"] ?? ""));
+
+            $signal_data =
+                (string)($_POST["signal_data"] ?? "");
+
+            $allowed = [
+                "ready",
+                "offer",
+                "ice-candidate",
+                "hangup"
+            ];
+
+            if (!in_array(
+                $signal_type,
+                $allowed,
+                true
+            )) {
+                json_response([
+                    "success" => false,
+                    "message" => "Invalid signal type."
+                ]);
             }
 
-            $stmt = $pdo->prepare("INSERT INTO classroom_signals (booking_id, room_code, sender_role, signal_type, signal_data) VALUES (?, ?, 'teacher', ?, ?)");
-            $stmt->execute([$booking_id, $room_code, $signal_type, $signal_data]);
-            json_response(["success" => true, "id" => (int)$pdo->lastInsertId()]);
+            if (
+                $signal_data === "" ||
+                strlen($signal_data) > 1000000
+            ) {
+                json_response([
+                    "success" => false,
+                    "message" => "Invalid signal data."
+                ]);
+            }
+
+            /*
+             * IMPORTANT:
+             * Do not use the PHP $room_code captured when the page
+             * was first opened. The teacher may start a NEW room
+             * after the page has already loaded.
+             *
+             * Always read the current room from bookings.
+             */
+            $roomStmt = $pdo->prepare("
+                SELECT live_status, live_room_code
+                FROM bookings
+                WHERE id = ?
+                  AND teacher_id = ?
+                LIMIT 1
+            ");
+
+            $roomStmt->execute([
+                $booking_id,
+                $teacher_id
+            ]);
+
+            $roomRow =
+                $roomStmt->fetch(PDO::FETCH_ASSOC);
+
+            $currentRoom =
+                trim((string)(
+                    $roomRow["live_room_code"] ?? ""
+                ));
+
+            if (
+                !$roomRow ||
+                strtolower(
+                    trim(
+                        (string)(
+                            $roomRow["live_status"] ?? ""
+                        )
+                    )
+                ) !== "live" ||
+                $currentRoom === ""
+            ) {
+                json_response([
+                    "success" => false,
+                    "message" => "The live classroom is not active."
+                ]);
+            }
+
+            $stmt = $pdo->prepare("
+                INSERT INTO classroom_signals
+                (
+                    booking_id,
+                    room_code,
+                    sender_role,
+                    signal_type,
+                    signal_data
+                )
+                VALUES (?, ?, 'teacher', ?, ?)
+            ");
+
+            $stmt->execute([
+                $booking_id,
+                $currentRoom,
+                $signal_type,
+                $signal_data
+            ]);
+
+            json_response([
+                "success" => true,
+                "id" => (int)$pdo->lastInsertId()
+            ]);
         }
 
+
         if ($action === "get_signals") {
-            $last_id = max(0, (int)($_POST["last_id"] ?? 0));
-            $stmt = $pdo->prepare("SELECT id, signal_type, signal_data, created_at FROM classroom_signals WHERE booking_id = ? AND room_code = ? AND sender_role = 'student' AND id > ? ORDER BY id ASC LIMIT 100");
-            $stmt->execute([$booking_id, $room_code, $last_id]);
-            json_response(["success" => true, "signals" => $stmt->fetchAll()]);
+
+            $last_id =
+                max(
+                    0,
+                    (int)(
+                        $_POST["last_id"] ?? 0
+                    )
+                );
+
+            /*
+             * Always use the current live room.
+             */
+            $roomStmt = $pdo->prepare("
+                SELECT live_status, live_room_code
+                FROM bookings
+                WHERE id = ?
+                  AND teacher_id = ?
+                LIMIT 1
+            ");
+
+            $roomStmt->execute([
+                $booking_id,
+                $teacher_id
+            ]);
+
+            $roomRow =
+                $roomStmt->fetch(PDO::FETCH_ASSOC);
+
+            $currentRoom =
+                trim((string)(
+                    $roomRow["live_room_code"] ?? ""
+                ));
+
+            if (
+                !$roomRow ||
+                $currentRoom === ""
+            ) {
+                json_response([
+                    "success" => true,
+                    "signals" => []
+                ]);
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT
+                    id,
+                    signal_type,
+                    signal_data,
+                    created_at
+                FROM classroom_signals
+                WHERE booking_id = ?
+                  AND room_code = ?
+                  AND sender_role = 'student'
+                  AND id > ?
+                ORDER BY id ASC
+                LIMIT 100
+            ");
+
+            $stmt->execute([
+                $booking_id,
+                $currentRoom,
+                $last_id
+            ]);
+
+            json_response([
+                "success" => true,
+                "signals" =>
+                    $stmt->fetchAll(PDO::FETCH_ASSOC)
+            ]);
         }
 
         if ($action === "send_message") {
@@ -776,7 +932,22 @@ async function processPendingCandidates() {
 async function processSignal(signal) {
     try {
         if (signal.signal_type === "ready") {
+
+            console.log(
+                "NISEL teacher: student READY received."
+            );
+
             await createOffer();
+
+            /*
+             * A short retry protects against the browser still
+             * negotiating its local description when READY arrives.
+             */
+            setTimeout(
+                () => createOffer(),
+                300
+            );
+
             return;
         }
 
