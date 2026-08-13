@@ -80,10 +80,21 @@ BOOKING ID
 =========================================================
 */
 
-$booking_id =
-    isset($_GET["id"])
-        ? (int) $_GET["id"]
-        : 0;
+$booking_id = 0;
+
+if (isset($_GET["id"])) {
+
+    $booking_id = (int)$_GET["id"];
+
+} elseif (isset($_GET["booking_id"])) {
+
+    $booking_id = (int)$_GET["booking_id"];
+
+} elseif (isset($_GET["classroom_id"])) {
+
+    $booking_id = (int)$_GET["classroom_id"];
+
+}
 
 
 if ($booking_id <= 0) {
