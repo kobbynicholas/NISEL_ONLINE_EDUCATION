@@ -167,7 +167,21 @@ if ($booking_id <= 0) {
 
         </div>
 
-    </body>
+    
+<div id="niseLDiagnostic" style="
+position:fixed;right:18px;bottom:82px;z-index:9999;
+width:320px;max-width:calc(100vw - 36px);
+background:rgba(5,18,31,.96);color:#fff;
+border:1px solid rgba(255,255,255,.16);
+border-radius:14px;padding:14px;
+font:12px/1.45 Arial,sans-serif;
+box-shadow:0 20px 50px rgba(0,0,0,.4);
+display:none;">
+  <div style="font-weight:800;font-size:13px;margin-bottom:8px">NISEL WebRTC Diagnostic</div>
+  <div id="niseLDiagBody">Waiting...</div>
+</div>
+
+</body>
 
     </html>
 
@@ -3191,6 +3205,33 @@ body {
 
 
 <script>
+function niselDiagShow() {
+    const p = document.getElementById("niseLDiagnostic");
+    if (p) p.style.display = "block";
+}
+function niselDiagSet(extra) {
+    niselDiagShow();
+    const body = document.getElementById("niseLDiagBody");
+    const pc = window.peerConnection || null;
+    if (!body) return;
+    body.innerHTML = [
+        ["Class", window.joined ? "JOINED" : "WAITING"],
+        ["READY sent", window.niselReadySent ? "YES" : "NO"],
+        ["Offer received", window.niselOfferReceived ? "YES" : "NO"],
+        ["Answer sent", window.niselAnswerSent ? "YES" : "NO"],
+        ["Camera", window.localStream && window.localStream.getVideoTracks().length ? "YES" : "NO"],
+        ["Microphone", window.localStream && window.localStream.getAudioTracks().length ? "YES" : "NO"],
+        ["Signaling", pc ? pc.signalingState : "none"],
+        ["ICE gathering", pc ? pc.iceGatheringState : "none"],
+        ["ICE connection", pc ? pc.iceConnectionState : "none"],
+        ["Connection", pc ? pc.connectionState : "none"],
+        ["Remote video", window.remoteVideo && window.remoteVideo.srcObject ? "YES" : "NO"],
+        ["Last event", extra || "—"]
+    ].map(function(r) {
+        return '<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #ffffff12;padding:4px 0"><span>'+r[0]+'</span><strong>'+r[1]+'</strong></div>';
+    }).join("");
+}
+
 
 /* =========================================================
    NISEL STUDENT CLASSROOM JAVASCRIPT
@@ -3254,6 +3295,14 @@ let lastMessageId = 0;
 let joined = false;
 
 let pendingCandidates = [];
+
+window.peerConnection = null;
+window.joined = false;
+window.localStream = null;
+window.remoteVideo = document.getElementById("remoteVideo");
+window.niselReadySent = false;
+window.niselOfferReceived = false;
+window.niselAnswerSent = false;
 
 const rtcConfiguration = {
     iceServers: [
@@ -3372,6 +3421,8 @@ function createPeerConnection() {
             rtcConfiguration
         );
 
+    window.peerConnection = peerConnection;
+
     peerConnection.ontrack =
         function(event) {
 
@@ -3459,7 +3510,7 @@ function createPeerConnection() {
             console.log(
                 "NISEL student WebRTC connection:",
                 state
-            );
+            ); niselDiagSet("connection=" + state);
 
             if (
                 state === "connected" &&
@@ -3599,6 +3650,8 @@ async function prepareLocalMedia() {
         } catch (cameraError) {}
     }
 
+    window.localStream = localStream;
+
     if (!localStream) {
         localVideo.style.display = "none";
         return;
@@ -3676,7 +3729,7 @@ async function tellTeacherReady() {
 
     try {
 
-        await sendStudentSignal(
+        const readyResult = await sendStudentSignal(
             "ready",
             {
                 booking_id: bookingId,
@@ -3684,11 +3737,26 @@ async function tellTeacherReady() {
             }
         );
 
+        window.niselReadySent =
+            !!readyResult &&
+            !!readyResult.success;
+
+        niselDiagSet(
+            window.niselReadySent
+                ? "READY sent"
+                : "READY failed"
+        );
+
     } catch (error) {
 
         console.error(
             "Ready signal:",
             error
+        );
+
+        niselDiagSet(
+            "READY error: " +
+            error.message
         );
     }
 }
@@ -3768,7 +3836,7 @@ async function processTeacherSignal(
         if (
             signal.signal_type ===
             "offer"
-        ) {
+        ) { window.niselOfferReceived = true; niselDiagSet("OFFER received");
 
             if (!peerConnection) {
                 createPeerConnection();
@@ -3825,7 +3893,7 @@ async function processTeacherSignal(
 
             console.log(
                 "NISEL student: answer sent."
-            );
+            ); window.niselAnswerSent = true; niselDiagSet("ANSWER sent");
 
             if (liveStatus) {
                 liveStatus.innerHTML =
@@ -4073,7 +4141,7 @@ async function joinClassroom() {
 
         await prepareLocalMedia();
 
-        joined = true;
+        joined = true; window.joined = true; niselDiagShow(); niselDiagSet("joined");
 
         if (videoControls) {
             videoControls.style.display =
