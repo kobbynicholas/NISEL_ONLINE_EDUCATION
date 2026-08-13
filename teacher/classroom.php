@@ -109,13 +109,7 @@ background:rgba(11,130,198,.95)!important;
 box-shadow:0 0 0 3px rgba(11,130,198,.2)
 }
 </style>
-<style id="nisel-v15-audio">
-#remoteAudioButton.active{
-    background:rgba(16,185,129,.92)!important;
-    box-shadow:0 0 0 3px rgba(16,185,129,.2);
-}
-</style>
-</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v15</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -1134,7 +1128,6 @@ function createPeerConnection() {
                 audio.autoplay = true;
                 audio.playsInline = true;
                 audio.muted = true;
-                audio.volume = 1;
 
                 console.log("NISEL v14: student audio track received.");
             }
@@ -1158,28 +1151,41 @@ function createPeerConnection() {
 
     if (remoteAudioButton) {
         remoteAudioButton.addEventListener("click", async function() {
-            const audio = document.getElementById("remoteAudio");
-            if (!audio) return;
 
-            if (!audio.srcObject && remoteVideo.srcObject instanceof MediaStream) {
-                const tracks = remoteVideo.srcObject.getAudioTracks();
-                if (tracks.length) audio.srcObject = new MediaStream(tracks);
-            }
+            const audio =
+                document.getElementById("remoteAudio");
 
-            if (!audio.srcObject) {
-                remoteAudioButton.title = "Waiting for student audio...";
+            if (!audio || !audio.srcObject) {
+                console.warn(
+                    "NISEL v14: student audio has not arrived yet."
+                );
                 return;
             }
 
             try {
-                audio.muted = false;
-                audio.volume = 1;
-                await audio.play();
-                remoteAudioButton.classList.add("active");
-                remoteAudioButton.innerHTML = "🔊<span>Audio On</span>";
-                remoteAudioButton.title = "Mute student audio";
+                const enable = audio.muted;
+
+                audio.muted = !enable;
+
+                if (enable) {
+                    await audio.play();
+                } else {
+                    audio.pause();
+                }
+
+                remoteAudioButton.classList.toggle("active", enable);
+                remoteAudioButton.innerHTML =
+                    enable
+                        ? "🔊<span>Audio</span>"
+                        : "🔇<span>Audio</span>";
+
+                remoteAudioButton.title =
+                    enable
+                        ? "Mute student audio"
+                        : "Enable student audio";
+
             } catch (error) {
-                console.error("Student audio:", error);
+                console.error("NISEL v14 audio:", error);
                 audio.muted = true;
                 remoteAudioButton.classList.remove("active");
                 remoteAudioButton.innerHTML = "🔇<span>Audio</span>";
