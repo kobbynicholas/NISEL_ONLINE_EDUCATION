@@ -1806,14 +1806,16 @@ tr:hover td {
         </a>
 
 
-        <a
-            href="schedule.php"
-            class="active"
-        >
+        <div class="lesson-actions">
 
-            📅 My Schedule
+    <a
+        href="classroom.php?id=<?= (int)$booking['id'] ?>"
+        class="join-class"
+    >
+        🎥 Join Live Classroom
+    </a>
 
-        </a>
+</div>
 
 
         <a href="book_lesson.php">
