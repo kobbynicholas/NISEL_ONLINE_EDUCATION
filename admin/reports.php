@@ -2288,14 +2288,15 @@ tr:hover td {
         </h2>
 
 
-        <small>
+        <p>
 
             EDUCATION
 
-        </small>
+        </p>
 
 
     </div>
+
 
 
     <div class="menu-title">
@@ -2305,132 +2306,152 @@ tr:hover td {
     </div>
 
 
-    <a href="dashboard.php">
 
-        <span class="icon">
+    <a
+        href="dashboard.php"
+        class="active"
+    >
+
+        <span class="menu-icon">
             🏠
         </span>
 
-        Dashboard
+        <span class="text">
+            Dashboard
+        </span>
 
     </a>
+
 
 
     <a href="students.php">
 
-        <span class="icon">
+        <span class="menu-icon">
             👨‍🎓
         </span>
 
-        Students
+        <span class="text">
+            Students
+        </span>
 
     </a>
+
 
 
     <a href="teachers.php">
 
-        <span class="icon">
+        <span class="menu-icon">
             👨‍🏫
         </span>
 
-        Teachers
+        <span class="text">
+            Teachers
+        </span>
 
     </a>
+
 
 
     <a href="teacher_applications.php">
 
-        <span class="icon">
+        <span class="menu-icon">
             📋
         </span>
 
-        Teacher Applications
-
-    </a>
-
-
-    <a href="assign_teachers.php">
-
-        <span class="icon">
-            👨‍🏫
+        <span class="text">
+            Teacher Applications
         </span>
 
-        Assign Teachers
-
     </a>
 
 
-    <a href="booking.php">
 
-        <span class="icon">
+    <a href="bookings.php">
+
+        <span class="menu-icon">
             📚
         </span>
 
-        Bookings
+        <span class="text">
+            Bookings
+        </span>
 
     </a>
+
 
 
     <a href="payments.php">
 
-        <span class="icon">
+        <span class="menu-icon">
             💳
         </span>
 
-        Payments
+        <span class="text">
+            Payments
+        </span>
 
     </a>
 
 
-    <a
-        href="report.php"
-        class="active"
-    >
 
-        <span class="icon">
+    <a href="reports.php">
+
+        <span class="menu-icon">
             📊
         </span>
 
-        Reports
+        <span class="text">
+            Reports
+        </span>
 
     </a>
+
 
 
     <a href="schedules.php">
 
-        <span class="icon">
+        <span class="menu-icon">
             📅
         </span>
 
-        Schedules
+        <span class="text">
+            Schedules
+        </span>
 
     </a>
 
-
+    
     <a href="settings.php">
 
-        <span class="icon">
+        <span class="menu-icon">
             ⚙️
         </span>
 
-        Settings
+        <span class="text">
+            Settings
+        </span>
 
     </a>
 
 
-    <a href="logout.php">
 
-        <span class="icon">
+    <a
+        href="logout.php"
+        class="logout"
+    >
+
+        <span class="menu-icon">
             🚪
         </span>
 
-        Logout
+        <span class="text">
+            Logout
+        </span>
 
     </a>
 
 
 </aside>
-
 
 
 <!-- =====================================================
