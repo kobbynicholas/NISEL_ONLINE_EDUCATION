@@ -60,7 +60,17 @@ if ($booking_id <= 0) {
     if ($_SERVER["REQUEST_METHOD"] === "POST") {
         json_response(["success" => false, "message" => "No valid booking was selected."]);
     }
-    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style></head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style>
+<style id="nisel-remote-video-fix">
+#remoteVideo{
+    background:#020a12;
+}
+#remoteVideo.remote-connected{
+    display:block !important;
+}
+</style>
+
+</head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -1019,12 +1029,115 @@ function createPeerConnection() {
         audioTransceiver.sender;
 
     peerConnection.ontrack = event => {
-        if (event.streams && event.streams[0]) {
-            remoteVideo.srcObject = event.streams[0];
-            remoteVideo.style.display = "block";
-            remotePlaceholder.style.display = "none";
-            remoteVideo.play().catch(() => {});
+
+        /*
+         * Some browsers deliver the remote track with
+         * event.streams[0], while others can deliver the
+         * track without a MediaStream attached.
+         *
+         * Build/extend a MediaStream so the teacher can
+         * always see the student's camera.
+         */
+        let remoteStream =
+            (
+                event.streams &&
+                event.streams[0]
+            );
+
+        if (!remoteStream) {
+
+            remoteStream =
+                remoteVideo.srcObject;
+
+            if (
+                !remoteStream ||
+                !(
+                    remoteStream instanceof
+                    MediaStream
+                )
+            ) {
+                remoteStream =
+                    new MediaStream();
+            }
+
+            /*
+             * Avoid adding the same track twice.
+             */
+            const alreadyAdded =
+                remoteStream
+                    .getTracks()
+                    .some(function(track) {
+                        return (
+                            track.id ===
+                            event.track.id
+                        );
+                    });
+
+            if (!alreadyAdded) {
+                remoteStream.addTrack(
+                    event.track
+                );
+            }
         }
+
+        remoteVideo.srcObject =
+            remoteStream;
+
+        remoteVideo.style.display =
+            "block";
+
+        remoteVideo.classList.add(
+            "remote-connected"
+        );
+
+        remotePlaceholder.style.display =
+            "none";
+
+        /*
+         * Explicitly start playback after the
+         * remote stream is attached.
+         */
+        remoteVideo
+            .play()
+            .then(function() {
+                console.log(
+                    "NISEL teacher: student remote video playing."
+                );
+            })
+            .catch(function(error) {
+                console.warn(
+                    "NISEL teacher remote video autoplay:",
+                    error
+                );
+            });
+
+        /*
+         * Track lifecycle diagnostics.
+         */
+        event.track.onunmute = function() {
+            remoteVideo
+                .play()
+                .catch(function() {});
+        };
+
+        event.track.onended = function() {
+            console.log(
+                "NISEL teacher: student",
+                event.track.kind,
+                "track ended."
+            );
+        };
+
+        console.log(
+            "NISEL teacher: received student",
+            event.track.kind,
+            "track.",
+            "streamed:",
+            !!(
+                event.streams &&
+                event.streams[0]
+            )
+        );
     };
 
     /*
