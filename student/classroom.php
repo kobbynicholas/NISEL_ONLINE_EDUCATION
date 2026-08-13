@@ -816,15 +816,17 @@ if ($teacher_initial === '') {
 
 /* =========================================================
    STUDENT CLASSROOM API
-   Handles WebRTC signaling and classroom chat.
 ========================================================= */
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" &&
-    isset($_POST["classroom_action"])) {
+if (
+    $_SERVER["REQUEST_METHOD"] === "POST" &&
+    isset($_POST["classroom_action"])
+) {
 
     header("Content-Type: application/json; charset=UTF-8");
 
-    function student_json_response(array $data) {
+    function student_classroom_json(array $data): void
+    {
         echo json_encode($data);
         exit;
     }
@@ -834,10 +836,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
         $action =
             trim((string)($_POST["classroom_action"] ?? ""));
 
-        /*
-         * Always re-check that the booking belongs to
-         * the logged-in student.
-         */
         $check = $pdo->prepare("
             SELECT *
             FROM bookings
@@ -845,14 +843,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
             LIMIT 1
         ");
 
-        $check->execute([
-            $booking_id
-        ]);
+        $check->execute([$booking_id]);
 
-        $apiBooking = $check->fetch(PDO::FETCH_ASSOC);
+        $apiBooking =
+            $check->fetch(PDO::FETCH_ASSOC);
 
         if (!$apiBooking) {
-            student_json_response([
+            student_classroom_json([
                 "success" => false,
                 "message" => "Booking not found."
             ]);
@@ -865,9 +862,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
             $apiStudentId > 0 &&
             $apiStudentId !== $student_id
         ) {
-            student_json_response([
+            student_classroom_json([
                 "success" => false,
-                "message" => "You do not have access to this classroom."
+                "message" => "Classroom access denied."
             ]);
         }
 
@@ -876,14 +873,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 $apiBooking["live_room_code"] ?? ""
             ));
 
-        /*
-         * -----------------------------------------------------
-         * CLASS STATUS
-         * -----------------------------------------------------
-         */
         if ($action === "get_status") {
 
-            student_json_response([
+            student_classroom_json([
                 "success" => true,
                 "status" =>
                     strtolower(
@@ -898,11 +890,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
             ]);
         }
 
-        /*
-         * -----------------------------------------------------
-         * STUDENT SENDS WEBRTC SIGNAL
-         * -----------------------------------------------------
-         */
         if ($action === "send_signal") {
 
             $signalType =
@@ -915,7 +902,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                     $_POST["signal_data"] ?? ""
                 );
 
-            $allowedSignals = [
+            $allowed = [
                 "ready",
                 "answer",
                 "ice-candidate",
@@ -924,12 +911,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
 
             if (!in_array(
                 $signalType,
-                $allowedSignals,
+                $allowed,
                 true
             )) {
-                student_json_response([
+                student_classroom_json([
                     "success" => false,
-                    "message" => "Invalid classroom signal."
+                    "message" => "Invalid signal type."
                 ]);
             }
 
@@ -937,16 +924,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 $signalData === "" ||
                 strlen($signalData) > 1000000
             ) {
-                student_json_response([
+                student_classroom_json([
                     "success" => false,
                     "message" => "Invalid signal data."
                 ]);
             }
 
             if ($apiRoom === "") {
-                student_json_response([
+                student_classroom_json([
                     "success" => false,
-                    "message" => "The teacher has not started the classroom yet."
+                    "message" => "The teacher has not started the live classroom."
                 ]);
             }
 
@@ -959,8 +946,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                     signal_type,
                     signal_data
                 )
-                VALUES
-                (?, ?, 'student', ?, ?)
+                VALUES (?, ?, 'student', ?, ?)
             ");
 
             $stmt->execute([
@@ -970,17 +956,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 $signalData
             ]);
 
-            student_json_response([
+            student_classroom_json([
                 "success" => true,
                 "id" => (int)$pdo->lastInsertId()
             ]);
         }
 
-        /*
-         * -----------------------------------------------------
-         * STUDENT RECEIVES TEACHER SIGNALS
-         * -----------------------------------------------------
-         */
         if ($action === "get_signals") {
 
             $lastId =
@@ -992,7 +973,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 );
 
             if ($apiRoom === "") {
-                student_json_response([
+                student_classroom_json([
                     "success" => true,
                     "signals" => []
                 ]);
@@ -1019,17 +1000,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 $lastId
             ]);
 
-            student_json_response([
+            student_classroom_json([
                 "success" => true,
-                "signals" => $stmt->fetchAll(PDO::FETCH_ASSOC)
+                "signals" =>
+                    $stmt->fetchAll(PDO::FETCH_ASSOC)
             ]);
         }
 
-        /*
-         * -----------------------------------------------------
-         * STUDENT CHAT MESSAGE
-         * -----------------------------------------------------
-         */
         if ($action === "send_message") {
 
             $message =
@@ -1038,7 +1015,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 ));
 
             if ($message === "") {
-                student_json_response([
+                student_classroom_json([
                     "success" => false,
                     "message" => "Message cannot be empty."
                 ]);
@@ -1048,139 +1025,97 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 function_exists("mb_strlen") &&
                 mb_strlen($message) > 2000
             ) {
-                student_json_response([
+                student_classroom_json([
                     "success" => false,
                     "message" => "Message is too long."
                 ]);
             }
 
             if ($apiRoom === "") {
-                student_json_response([
+                student_classroom_json([
                     "success" => false,
-                    "message" => "The classroom is not active yet."
+                    "message" => "Classroom is not active."
                 ]);
             }
 
-            $columnsStmt =
+            $columns =
                 $pdo->query(
                     "SHOW COLUMNS FROM classroom_messages"
-                );
-
-            $columns =
-                $columnsStmt->fetchAll(
+                )->fetchAll(
                     PDO::FETCH_COLUMN,
                     0
                 );
 
-            $columnMap =
-                array_flip($columns);
+            $has = array_flip($columns);
 
-            $insertColumns = [
+            if (!isset($has["message"])) {
+                student_classroom_json([
+                    "success" => false,
+                    "message" => "classroom_messages.message is missing."
+                ]);
+            }
+
+            $fields = [
                 "booking_id",
                 "room_code"
             ];
 
-            $insertValues = [
+            $values = [
                 $booking_id,
                 $apiRoom
             ];
 
-            $placeholders = [
+            $marks = [
                 "?",
                 "?"
             ];
 
-            if (isset($columnMap["sender_role"])) {
+            if (isset($has["sender_role"])) {
 
-                $insertColumns[] =
-                    "sender_role";
+                $fields[] = "sender_role";
+                $values[] = "student";
+                $marks[] = "?";
 
-                $insertValues[] =
-                    "student";
+            } elseif (isset($has["sender_type"])) {
 
-                $placeholders[] =
-                    "?";
-
-            } elseif (
-                isset($columnMap["sender_type"])
-            ) {
-
-                $insertColumns[] =
-                    "sender_type";
-
-                $insertValues[] =
-                    "student";
-
-                $placeholders[] =
-                    "?";
+                $fields[] = "sender_type";
+                $values[] = "student";
+                $marks[] = "?";
             }
 
-            if (isset($columnMap["sender_name"])) {
+            if (isset($has["sender_name"])) {
 
-                $insertColumns[] =
-                    "sender_name";
+                $fields[] = "sender_name";
+                $values[] = $student_name;
+                $marks[] = "?";
 
-                $insertValues[] =
-                    $student_name;
+            } elseif (isset($has["user_name"])) {
 
-                $placeholders[] =
-                    "?";
-
-            } elseif (
-                isset($columnMap["user_name"])
-            ) {
-
-                $insertColumns[] =
-                    "user_name";
-
-                $insertValues[] =
-                    $student_name;
-
-                $placeholders[] =
-                    "?";
+                $fields[] = "user_name";
+                $values[] = $student_name;
+                $marks[] = "?";
             }
 
-            if (!isset($columnMap["message"])) {
-                student_json_response([
-                    "success" => false,
-                    "message" => "The classroom_messages table is missing the message column."
-                ]);
-            }
+            $fields[] = "message";
+            $values[] = $message;
+            $marks[] = "?";
 
-            $insertColumns[] =
-                "message";
-
-            $insertValues[] =
-                $message;
-
-            $placeholders[] =
-                "?";
-
-            $sql =
+            $stmt = $pdo->prepare(
                 "INSERT INTO classroom_messages (" .
-                implode(", ", $insertColumns) .
+                implode(", ", $fields) .
                 ") VALUES (" .
-                implode(", ", $placeholders) .
-                ")";
-
-            $stmt =
-                $pdo->prepare($sql);
-
-            $stmt->execute(
-                $insertValues
+                implode(", ", $marks) .
+                ")"
             );
 
-            student_json_response([
+            $stmt->execute($values);
+
+            student_classroom_json([
                 "success" => true,
                 "id" => (int)$pdo->lastInsertId()
             ]);
         }
 
-        /*
-         * -----------------------------------------------------
-         * LOAD CHAT MESSAGES
-         * -----------------------------------------------------
-         */
         if ($action === "get_messages") {
 
             $lastMessageId =
@@ -1192,46 +1127,42 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 );
 
             if ($apiRoom === "") {
-                student_json_response([
+                student_classroom_json([
                     "success" => true,
                     "messages" => []
                 ]);
             }
 
-            $columnsStmt =
+            $columns =
                 $pdo->query(
                     "SHOW COLUMNS FROM classroom_messages"
-                );
-
-            $columns =
-                $columnsStmt->fetchAll(
+                )->fetchAll(
                     PDO::FETCH_COLUMN,
                     0
                 );
 
-            $columnMap =
-                array_flip($columns);
+            $has = array_flip($columns);
 
             $senderColumn =
-                isset($columnMap["sender_role"])
+                isset($has["sender_role"])
                     ? "sender_role"
                     : (
-                        isset($columnMap["sender_type"])
+                        isset($has["sender_type"])
                             ? "sender_type"
                             : "NULL"
                     );
 
             $nameColumn =
-                isset($columnMap["sender_name"])
+                isset($has["sender_name"])
                     ? "sender_name"
                     : (
-                        isset($columnMap["user_name"])
+                        isset($has["user_name"])
                             ? "user_name"
                             : "''"
                     );
 
             $createdColumn =
-                isset($columnMap["created_at"])
+                isset($has["created_at"])
                     ? "created_at"
                     : "NULL";
 
@@ -1256,14 +1187,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
                 $lastMessageId
             ]);
 
-            student_json_response([
+            student_classroom_json([
                 "success" => true,
                 "messages" =>
                     $stmt->fetchAll(PDO::FETCH_ASSOC)
             ]);
         }
 
-        student_json_response([
+        student_classroom_json([
             "success" => false,
             "message" => "Unknown classroom action."
         ]);
@@ -1271,14 +1202,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" &&
     } catch (PDOException $e) {
 
         error_log(
-            "NISEL student classroom error: " .
+            "NISEL student classroom: " .
             $e->getMessage()
         );
 
-        student_json_response([
+        student_classroom_json([
             "success" => false,
-            "message" =>
-                "A classroom database error occurred."
+            "message" => "Classroom database error."
         ]);
     }
 }
@@ -2368,29 +2298,2265 @@ body {
 
 
 /* =========================================================
+   CHAT
+========================================================= */
+
+.chat-panel {
+
+    min-height:
+        250px;
+
+}
+
+
+.chat-messages {
+
+    height:
+        190px;
+
+    overflow-y:
+        auto;
+
+    padding:
+        15px;
+
+}
+
+
+.chat-empty {
+
+    height:
+        100%;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    justify-content:
+        center;
+
+    color:
+        var(--muted);
+
+    font-size:
+        12px;
+
+    text-align:
+        center;
+
+}
+
+
+.chat-form {
+
+    display:
+        flex;
+
+    border-top:
+        1px solid
+        var(--border);
+
+}
+
+
+.chat-form input {
+
+    flex:
+        1;
+
+    border:
+        none;
+
+    outline:
+        none;
+
+    padding:
+        13px;
+
+    font-size:
+        12px;
+
+}
+
+
+.chat-form button {
+
+    width:
+        48px;
+
+    border:
+        none;
+
+    background:
+        var(--navy);
+
+    color:
+        white;
+
+    cursor:
+        pointer;
+
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer {
+
+    text-align:
+        center;
+
+    color:
+        #98a2b3;
+
+    font-size:
+        11px;
+
+    padding:
+        25px 0;
+
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1050px) {
+
+    .classroom-grid {
+
+        grid-template-columns:
+            1fr;
+
+    }
+
+    .side-panel {
+
+        display:
+            grid;
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
+    }
+
+}
+
+
+@media (max-width: 700px) {
+
+    .topbar {
+
+        padding:
+            0 14px;
+
+    }
+
+    .user-name {
+
+        display:
+            none;
+
+    }
+
+    .page {
+
+        width:
+            94%;
+
+    }
+
+    .class-header {
+
+        align-items:
+            flex-start;
+
+        flex-direction:
+            column;
+
+    }
+
+    .class-info h1 {
+
+        font-size:
+            19px;
+
+    }
+
+    .side-panel {
+
+        display:
+            flex;
+
+    }
+
+    .video-card,
+    .video-stage,
+    #remoteVideo {
+
+        min-height:
+            420px;
+
+    }
+
+    .local-video {
+
+        width:
+            140px;
+
+        height:
+            90px;
+
+        right:
+            12px;
+
+        bottom:
+            80px;
+
+    }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<!-- =====================================================
+     TOP BAR
+===================================================== -->
+
+<header class="topbar">
+
+    <div class="brand">
+
+        <div class="brand-logo">
+            🎓
+        </div>
+
+        <div class="brand-text">
+
+            <strong>
+                NISEL ONLINE EDUCATION
+            </strong>
+
+            <span>
+                VIRTUAL CLASSROOM
+            </span>
+
+        </div>
+
+    </div>
+
+
+    <div class="user-area">
+
+        <div class="user-name">
+
+            <?php
+            echo htmlspecialchars(
+                $student_name
+            );
+            ?>
+
+        </div>
+
+        <div class="user-avatar">
+
+            <?php
+            echo htmlspecialchars(
+                $student_initial
+            );
+            ?>
+
+        </div>
+
+    </div>
+
+</header>
+
+
+
+<!-- =====================================================
+     PAGE
+===================================================== -->
+
+<main class="page">
+
+
+    <!-- =================================================
+         CLASS HEADER
+    ================================================== -->
+
+    <section class="class-header">
+
+        <div class="class-info">
+
+            <div class="subject-icon">
+                🎓
+            </div>
+
+            <div>
+
+                <h1>
+
+                    <?php
+                    echo htmlspecialchars(
+                        $subject
+                    );
+                    ?>
+
+                </h1>
+
+                <div class="class-meta">
+
+
+                    <?php if ($curriculum !== ''): ?>
+
+                        <span>
+
+                            📚
+
+                            <?php
+                            echo htmlspecialchars(
+                                $curriculum
+                            );
+                            ?>
+
+                        </span>
+
+                    <?php endif; ?>
+
+
+                    <?php if ($display_date !== ''): ?>
+
+                        <span>
+
+                            📅
+
+                            <?php
+                            echo htmlspecialchars(
+                                $display_date
+                            );
+                            ?>
+
+                        </span>
+
+                    <?php endif; ?>
+
+
+                    <span>
+
+                        🆔
+
+                        Class #
+
+                        <?php
+                        echo $booking_id;
+                        ?>
+
+                    </span>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div
+            class="live-status"
+            id="liveStatus"
+        >
+
+            <span class="live-dot"></span>
+
+            Classroom Ready
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =================================================
+         PAYMENT NOTICE
+    ================================================== -->
+
+    <?php if (!$is_paid): ?>
+
+        <div class="notice">
+
+            ⚠️
+
+            Your payment has not yet been confirmed.
+
+            You may view the classroom, but the live
+            lesson will only become available after
+            payment confirmation.
+
+        </div>
+
+    <?php endif; ?>
+
+
+
+    <!-- =================================================
+         CLASSROOM GRID
+    ================================================== -->
+
+    <div class="classroom-grid">
+
+
+        <!-- =============================================
+             VIDEO AREA
+        ============================================== -->
+
+        <section class="video-card">
+
+            <div class="video-stage">
+
+
+                <!-- REMOTE TEACHER VIDEO -->
+
+                <video
+                    id="remoteVideo"
+                    autoplay
+                    playsinline
+                ></video>
+
+
+                <!-- LOCAL STUDENT VIDEO -->
+
+                <video
+                    id="localVideo"
+                    class="local-video"
+                    autoplay
+                    muted
+                    playsinline
+                ></video>
+
+
+                <!-- VIDEO PLACEHOLDER -->
+
+                <div
+                    class="video-placeholder"
+                    id="videoPlaceholder"
+                >
+
+                    <div
+                        class="video-placeholder-icon"
+                    >
+                        🎥
+                    </div>
+
+
+                    <h2>
+                        Live Virtual Classroom
+                    </h2>
+
+
+                    <p>
+                        Join the classroom when your
+                        lesson is ready. Your teacher's
+                        live video will appear here.
+                    </p>
+
+
+                    <?php if ($is_paid): ?>
+
+                        <button
+                            type="button"
+                            class="start-btn"
+                            id="joinClassBtn"
+                        >
+                            🎥 Join Live Classroom
+                        </button>
+
+                    <?php else: ?>
+
+                        <button
+                            type="button"
+                            class="start-btn"
+                            disabled
+                            style="
+                                opacity:.5;
+                                cursor:not-allowed;
+                            "
+                        >
+                            🔒 Payment Required
+                        </button>
+
+                    <?php endif; ?>
+
+                </div>
+
+
+            </div>
+
+
+            <!-- VIDEO CONTROLS -->
+
+            <div
+                class="video-controls"
+                id="videoControls"
+                style="display:none;"
+            >
+
+                <button
+                    type="button"
+                    class="control-btn"
+                    id="micBtn"
+                    title="Microphone"
+                >
+                    🎤
+                </button>
+
+
+                <button
+                    type="button"
+                    class="control-btn"
+                    id="cameraBtn"
+                    title="Camera"
+                >
+                    📷
+                </button>
+
+
+                <button
+                    type="button"
+                    class="control-btn"
+                    id="screenBtn"
+                    title="Share Screen"
+                >
+                    🖥️
+                </button>
+
+
+                <button
+                    type="button"
+                    class="control-btn leave"
+                    id="leaveBtn"
+                    title="Leave Classroom"
+                >
+                    📞
+                </button>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =============================================
+             RIGHT PANEL
+        ============================================== -->
+
+        <aside class="side-panel">
+
+
+            <!-- TEACHER -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <h3>
+                        Your Teacher
+                    </h3>
+
+                </div>
+
+
+                <div class="panel-body">
+
+                    <div class="teacher-card">
+
+                        <div class="teacher-avatar">
+
+                            <?php
+                            echo htmlspecialchars(
+                                $teacher_initial
+                            );
+                            ?>
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+
+                                <?php
+                                echo htmlspecialchars(
+                                    $teacher_name
+                                );
+                                ?>
+
+                            </strong>
+
+                            <span>
+                                Teacher
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- LESSON INFORMATION -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <h3>
+                        Lesson Information
+                    </h3>
+
+                </div>
+
+
+                <div class="panel-body">
+
+
+                    <div class="detail">
+
+                        <div class="detail-icon">
+                            📚
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                SUBJECT
+                            </strong>
+
+                            <span>
+
+                                <?php
+                                echo htmlspecialchars(
+                                    $subject
+                                );
+                                ?>
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="detail">
+
+                        <div class="detail-icon">
+                            📅
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                DATE
+                            </strong>
+
+                            <span>
+
+                                <?php
+
+                                echo htmlspecialchars(
+                                    $display_date !== ''
+                                        ? $display_date
+                                        : 'Not specified'
+                                );
+
+                                ?>
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="detail">
+
+                        <div class="detail-icon">
+                            ⏰
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                TIME
+                            </strong>
+
+                            <span>
+
+                                <?php
+                                echo htmlspecialchars(
+                                    $display_time
+                                );
+                                ?>
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="detail">
+
+                        <div class="detail-icon">
+                            🆔
+                        </div>
+
+                        <div>
+
+                            <strong>
+                                CLASSROOM ID
+                            </strong>
+
+                            <span>
+
+                                <?php
+                                echo $booking_id;
+                                ?>
+
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+            </section>
+
+
+
+            <!-- PAYMENT -->
+
+            <section class="panel">
+
+                <div class="panel-header">
+
+                    <h3>
+                        Payment
+                    </h3>
+
+                </div>
+
+
+                <div class="panel-body">
+
+                    <?php if ($is_paid): ?>
+
+                        <div class="payment paid">
+
+                            ✓ Payment confirmed
+
+                        </div>
+
+                    <?php else: ?>
+
+                        <div class="payment unpaid">
+
+                            ⚠ Payment confirmation pending
+
+                        </div>
+
+                    <?php endif; ?>
+
+                </div>
+
+            </section>
+
+
+
+            <!-- CHAT -->
+
+            <section class="panel chat-panel">
+
+                <div class="panel-header">
+
+                    <h3>
+                        Classroom Chat
+                    </h3>
+
+                    <span>
+                        💬
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="chat-messages"
+                    id="chatMessages"
+                >
+
+                    <div class="chat-empty">
+
+                        Chat will become available
+                        when the live classroom
+                        connection is established.
+
+                    </div>
+
+                </div>
+
+
+                <form
+                    class="chat-form"
+                    id="chatForm"
+                >
+
+                    <input
+                        type="text"
+                        id="chatInput"
+                        placeholder="Type a message..."
+                        autocomplete="off"
+                    >
+
+
+                    <button
+                        type="submit"
+                        title="Send"
+                    >
+                        ➤
+                    </button>
+
+                </form>
+
+            </section>
+
+
+        </aside>
+
+
+    </div>
+
+
+
+    <!-- FOOTER -->
+
+    <div class="footer">
+
+        ©
+        <?php echo date('Y'); ?>
+
+        NISEL ONLINE EDUCATION.
+
+        All Rights Reserved.
+
+    </div>
+
+
+</main>
+
+
+
+<script>
+
+/* =========================================================
+   NISEL STUDENT CLASSROOM JAVASCRIPT
+   ========================================================= */
+
+
+/* =========================================================
+   CLASSROOM DATA
+========================================================= */
+
+const bookingId =
+    <?php
+    echo (int) $booking_id;
+    ?>;
+
+
+const classroomKey =
+    <?php
+    echo json_encode(
+        $classroom_key
+    );
+    ?>;
+
+
+const isPaid =
+    <?php
+    echo $is_paid
+        ? 'true'
+        : 'false';
+    ?>;
+
+
+const studentName =
+    <?php
+    echo json_encode(
+        $student_name
+    );
+    ?>;
+
+
+const teacherName =
+    <?php
+    echo json_encode(
+        $teacher_name
+    );
+    ?>;
+
+
+
+
+/* =========================================================
+   WEBRTC VARIABLES
+========================================================= */
+
+let localStream = null;
+let peerConnection = null;
+let screenStream = null;
+
+let lastSignalId = 0;
+let lastMessageId = 0;
+let joined = false;
+
+let pendingCandidates = [];
+
+const rtcConfiguration = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" }
+    ]
+};
+
+
+/* =========================================================
+   DOM ELEMENTS
+========================================================= */
+
+const joinClassBtn =
+    document.getElementById("joinClassBtn");
+
+const remoteVideo =
+    document.getElementById("remoteVideo");
+
+const localVideo =
+    document.getElementById("localVideo");
+
+const videoPlaceholder =
+    document.getElementById("videoPlaceholder");
+
+const videoControls =
+    document.getElementById("videoControls");
+
+const micBtn =
+    document.getElementById("micBtn");
+
+const cameraBtn =
+    document.getElementById("cameraBtn");
+
+const screenBtn =
+    document.getElementById("screenBtn");
+
+const leaveBtn =
+    document.getElementById("leaveBtn");
+
+const liveStatus =
+    document.getElementById("liveStatus");
+
+
+/* =========================================================
+   SERVER REQUEST
+========================================================= */
+
+async function classroomPost(data) {
+
+    const form =
+        new FormData();
+
+    Object.keys(data).forEach(function(key) {
+        form.append(key, data[key]);
+    });
+
+    const response =
+        await fetch(
+            "classroom.php?id=" +
+            encodeURIComponent(bookingId),
+            {
+                method: "POST",
+                body: form,
+                credentials: "same-origin",
+                cache: "no-store"
+            }
+        );
+
+    const text =
+        await response.text();
+
+    try {
+
+        return JSON.parse(text);
+
+    } catch (error) {
+
+        console.error(
+            "Classroom server response:",
+            text
+        );
+
+        throw new Error(
+            "The classroom server returned an invalid response."
+        );
+    }
+}
+
+
+/* =========================================================
+   SIGNALING
+========================================================= */
+
+async function sendStudentSignal(
+    type,
+    data
+) {
+
+    return classroomPost({
+        classroom_action: "send_signal",
+        signal_type: type,
+        signal_data: JSON.stringify(data)
+    });
+}
+
+
+function createPeerConnection() {
+
+    if (peerConnection) {
+        return peerConnection;
+    }
+
+    peerConnection =
+        new RTCPeerConnection(
+            rtcConfiguration
+        );
+
+    peerConnection.ontrack =
+        function(event) {
+
+            if (
+                event.streams &&
+                event.streams[0]
+            ) {
+
+                remoteVideo.srcObject =
+                    event.streams[0];
+
+                remoteVideo.style.display =
+                    "block";
+
+                videoPlaceholder.style.display =
+                    "none";
+
+                if (liveStatus) {
+
+                    liveStatus.innerHTML =
+                        '<span class="live-dot"></span> LIVE CLASS';
+                }
+
+                remoteVideo
+                    .play()
+                    .catch(function() {});
+            }
+        };
+
+
+    peerConnection.onicecandidate =
+        function(event) {
+
+            if (event.candidate) {
+
+                sendStudentSignal(
+                    "ice-candidate",
+                    event.candidate.toJSON
+                        ? event.candidate.toJSON()
+                        : event.candidate
+                ).catch(console.error);
+            }
+        };
+
+
+    peerConnection.onconnectionstatechange =
+        function() {
+
+            const state =
+                peerConnection.connectionState;
+
+            if (
+                state === "connected" &&
+                liveStatus
+            ) {
+
+                liveStatus.innerHTML =
+                    '<span class="live-dot"></span> LIVE CLASS';
+            }
+
+            if (
+                (
+                    state === "disconnected" ||
+                    state === "failed"
+                ) &&
+                liveStatus
+            ) {
+
+                liveStatus.innerHTML =
+                    '<span class="live-dot"></span> CONNECTION INTERRUPTED';
+            }
+        };
+
+
+    try {
+
+        peerConnection.addTransceiver(
+            "video",
+            { direction: "sendrecv" }
+        );
+
+        peerConnection.addTransceiver(
+            "audio",
+            { direction: "sendrecv" }
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "Transceiver setup:",
+            error
+        );
+    }
+
+    return peerConnection;
+}
+
+
+/* =========================================================
+   LOCAL MEDIA
+========================================================= */
+
+async function prepareLocalMedia() {
+
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
+        return;
+    }
+
+    try {
+
+        localStream =
+            await navigator.mediaDevices
+                .getUserMedia({
+                    video: true,
+                    audio: true
+                });
+
+    } catch (bothError) {
+
+        localStream = null;
+
+        try {
+
+            localStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        audio: true
+                    });
+
+        } catch (audioError) {}
+
+        try {
+
+            const cameraStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        video: true
+                    });
+
+            if (!localStream) {
+
+                localStream =
+                    cameraStream;
+
+            } else {
+
+                cameraStream
+                    .getVideoTracks()
+                    .forEach(function(track) {
+
+                        localStream.addTrack(
+                            track
+                        );
+                    });
+            }
+
+        } catch (cameraError) {}
+    }
+
+    if (!localStream) {
+        localVideo.style.display = "none";
+        return;
+    }
+
+    localVideo.srcObject =
+        localStream;
+
+    localVideo.style.display =
+        "block";
+
+    localStream
+        .getTracks()
+        .forEach(function(track) {
+
+            const sender =
+                peerConnection
+                    .getSenders()
+                    .find(function(item) {
+
+                        return (
+                            item.track &&
+                            item.track.kind ===
+                            track.kind
+                        );
+                    });
+
+            if (sender) {
+
+                sender
+                    .replaceTrack(track)
+                    .catch(console.error);
+
+            } else {
+
+                peerConnection.addTrack(
+                    track,
+                    localStream
+                );
+            }
+        });
+}
+
+
+/* =========================================================
+   READY SIGNAL
+========================================================= */
+
+async function tellTeacherReady() {
+
+    try {
+
+        await sendStudentSignal(
+            "ready",
+            {
+                booking_id: bookingId,
+                student: studentName
+            }
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Ready signal:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   TEACHER SIGNAL PROCESSING
+========================================================= */
+
+async function processTeacherSignal(
+    signal
+) {
+
+    try {
+
+        if (
+            signal.signal_type ===
+            "offer"
+        ) {
+
+            if (!peerConnection) {
+                createPeerConnection();
+            }
+
+            const offer =
+                JSON.parse(
+                    signal.signal_data
+                );
+
+            await peerConnection
+                .setRemoteDescription(
+                    new RTCSessionDescription(
+                        offer
+                    )
+                );
+
+            await processPendingCandidates();
+
+            const answer =
+                await peerConnection
+                    .createAnswer();
+
+            await peerConnection
+                .setLocalDescription(
+                    answer
+                );
+
+            const localDescription =
+                peerConnection.localDescription;
+
+            await sendStudentSignal(
+                "answer",
+                localDescription.toJSON
+                    ? localDescription.toJSON()
+                    : localDescription
+            );
+
+            return;
+        }
+
+
+        if (
+            signal.signal_type ===
+            "ice-candidate"
+        ) {
+
+            const candidate =
+                new RTCIceCandidate(
+                    JSON.parse(
+                        signal.signal_data
+                    )
+                );
+
+            if (
+                peerConnection &&
+                peerConnection.remoteDescription
+            ) {
+
+                await peerConnection
+                    .addIceCandidate(
+                        candidate
+                    );
+
+            } else {
+
+                pendingCandidates.push(
+                    candidate
+                );
+            }
+
+            return;
+        }
+
+
+        if (
+            signal.signal_type ===
+            "hangup"
+        ) {
+
+            if (peerConnection) {
+
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            remoteVideo.srcObject =
+                null;
+
+            if (liveStatus) {
+
+                liveStatus.innerHTML =
+                    '<span class="live-dot"></span> CLASS ENDED';
+            }
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Teacher signal error:",
+            error
+        );
+    }
+}
+
+
+async function processPendingCandidates() {
+
+    if (
+        !peerConnection ||
+        !peerConnection.remoteDescription
+    ) {
+        return;
+    }
+
+    while (
+        pendingCandidates.length
+    ) {
+
+        const candidate =
+            pendingCandidates.shift();
+
+        try {
+
+            await peerConnection
+                .addIceCandidate(
+                    candidate
+                );
+
+        } catch (error) {
+
+            console.error(
+                "ICE error:",
+                error
+            );
+        }
+    }
+}
+
+
+/* =========================================================
+   POLL SIGNALS
+========================================================= */
+
+async function pollTeacherSignals() {
+
+    if (!joined) {
+        return;
+    }
+
+    try {
+
+        const result =
+            await classroomPost({
+                classroom_action:
+                    "get_signals",
+                last_id:
+                    lastSignalId
+            });
+
+        if (
+            !result.success ||
+            !Array.isArray(result.signals)
+        ) {
+            return;
+        }
+
+        for (
+            const signal of
+            result.signals
+        ) {
+
+            lastSignalId =
+                Math.max(
+                    lastSignalId,
+                    parseInt(
+                        signal.id,
+                        10
+                    ) || 0
+                );
+
+            await processTeacherSignal(
+                signal
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Signal polling:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   JOIN CLASSROOM
+========================================================= */
+
+if (joinClassBtn) {
+
+    joinClassBtn.addEventListener(
+        "click",
+        joinClassroom
+    );
+}
+
+
+async function joinClassroom() {
+
+    if (!isPaid) {
+
+        alert(
+            "Your payment has not yet been confirmed."
+        );
+
+        return;
+    }
+
+    if (joined) {
+        return;
+    }
+
+    try {
+
+        createPeerConnection();
+
+        await prepareLocalMedia();
+
+        joined = true;
+
+        if (videoControls) {
+            videoControls.style.display =
+                "flex";
+        }
+
+        if (videoPlaceholder) {
+            videoPlaceholder.style.display =
+                "none";
+        }
+
+        await tellTeacherReady();
+
+        await pollTeacherSignals();
+
+        const stage =
+            document.querySelector(
+                ".video-stage"
+            );
+
+        if (stage) {
+
+            const old =
+                document.getElementById(
+                    "classroomConnectedMessage"
+                );
+
+            if (!old) {
+
+                const message =
+                    document.createElement(
+                        "div"
+                    );
+
+                message.id =
+                    "classroomConnectedMessage";
+
+                message.style.position =
+                    "absolute";
+
+                message.style.top =
+                    "20px";
+
+                message.style.left =
+                    "20px";
+
+                message.style.right =
+                    "20px";
+
+                message.style.padding =
+                    "12px 16px";
+
+                message.style.background =
+                    "rgba(0,59,112,.92)";
+
+                message.style.color =
+                    "white";
+
+                message.style.borderRadius =
+                    "10px";
+
+                message.style.fontSize =
+                    "13px";
+
+                message.style.zIndex =
+                    "20";
+
+                message.textContent =
+                    "✓ You joined the classroom. Waiting for your teacher...";
+
+                stage.appendChild(
+                    message
+                );
+            }
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Join classroom error:",
+            error
+        );
+
+        joined = false;
+
+        alert(
+            error.message ||
+            "Unable to connect to the classroom."
+        );
+    }
+}
+
+
+setInterval(
+    function() {
+
+        if (joined) {
+            pollTeacherSignals();
+        }
+
+    },
+    700
+);
+
+
+
+/* =========================================================
+   MICROPHONE
+========================================================= */
+
+if (micBtn) {
+
+    micBtn.addEventListener(
+        'click',
+        toggleMicrophone
+    );
+
+}
+
+
+async function toggleMicrophone() {
+
+    /*
+     * If no local stream exists,
+     * request microphone only.
+     */
+
+    if (!localStream) {
+
+        try {
+
+            const audioStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+
+                        audio: true
+
+                    });
+
+
+            localStream =
+                audioStream;
+
+
+            const audioTrack =
+                audioStream
+                    .getAudioTracks()[0];
+
+
+            if (
+                peerConnection &&
+                audioTrack
+            ) {
+
+                peerConnection.addTrack(
+                    audioTrack,
+                    localStream
+                );
+
+            }
+
+
+            micBtn.textContent =
+                '🎤';
+
+
+            return;
+
+        } catch (error) {
+
+            alert(
+                'Microphone permission was not granted or no microphone was detected.'
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    const audioTracks =
+        localStream.getAudioTracks();
+
+
+    if (
+        audioTracks.length === 0
+    ) {
+
+        try {
+
+            const audioStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        audio: true
+                    });
+
+
+            const audioTrack =
+                audioStream.getAudioTracks()[0];
+
+
+            localStream.addTrack(
+                audioTrack
+            );
+
+
+            if (peerConnection) {
+
+                peerConnection.addTrack(
+                    audioTrack,
+                    localStream
+                );
+
+            }
+
+
+            micBtn.textContent =
+                '🎤';
+
+
+        } catch (error) {
+
+            alert(
+                'No microphone was detected.'
+            );
+
+        }
+
+
+        return;
+    }
+
+
+    const enabled =
+        audioTracks[0].enabled;
+
+
+    audioTracks.forEach(
+        function(track) {
+
+            track.enabled =
+                !enabled;
+
+        }
+    );
+
+
+    micBtn.textContent =
+        enabled
+            ? '🔇'
+            : '🎤';
+
+}
+
+
+/* =========================================================
+   CAMERA
+========================================================= */
+
+if (cameraBtn) {
+
+    cameraBtn.addEventListener(
+        'click',
+        toggleCamera
+    );
+
+}
+
+
+async function toggleCamera() {
+
+    /*
+     * If there is no local stream,
+     * request camera only.
+     */
+
+    if (!localStream) {
+
+        try {
+
+            const cameraStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+
+                        video: true
+
+                    });
+
+
+            localStream =
+                cameraStream;
+
+
+            const videoTrack =
+                cameraStream.getVideoTracks()[0];
+
+
+            if (
+                peerConnection &&
+                videoTrack
+            ) {
+
+                peerConnection.addTrack(
+                    videoTrack,
+                    localStream
+                );
+
+            }
+
+
+            localVideo.srcObject =
+                localStream;
+
+
+            localVideo.style.display =
+                'block';
+
+
+            cameraBtn.textContent =
+                '📷';
+
+
+            return;
+
+        } catch (error) {
+
+            alert(
+                'Camera permission was not granted or no camera was detected.'
+            );
+
+            return;
+
+        }
+
+    }
+
+
+    const videoTracks =
+        localStream.getVideoTracks();
+
+
+    if (
+        videoTracks.length === 0
+    ) {
+
+        try {
+
+            const cameraStream =
+                await navigator.mediaDevices
+                    .getUserMedia({
+                        video: true
+                    });
+
+
+            const videoTrack =
+                cameraStream.getVideoTracks()[0];
+
+
+            localStream.addTrack(
+                videoTrack
+            );
+
+
+            if (peerConnection) {
+
+                peerConnection.addTrack(
+                    videoTrack,
+                    localStream
+                );
+
+            }
+
+
+            localVideo.srcObject =
+                localStream;
+
+
+            localVideo.style.display =
+                'block';
+
+
+            cameraBtn.textContent =
+                '📷';
+
+
+        } catch (error) {
+
+            alert(
+                'No camera was detected.'
+            );
+
+        }
+
+
+        return;
+    }
+
+
+    const enabled =
+        videoTracks[0].enabled;
+
+
+    videoTracks.forEach(
+        function(track) {
+
+            track.enabled =
+                !enabled;
+
+        }
+    );
+
+
+    cameraBtn.textContent =
+        enabled
+            ? '🚫'
+            : '📷';
+
+}
+
+
+/* =========================================================
+   SCREEN SHARING
+========================================================= */
+
+if (screenBtn) {
+
+    screenBtn.addEventListener(
+        'click',
+        shareScreen
+    );
+
+}
+
+
+async function shareScreen() {
+
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getDisplayMedia
+    ) {
+
+        alert(
+            'Screen sharing is not supported by this browser.'
+        );
+
+        return;
+    }
+
+
+    try {
+
+        screenStream =
+            await navigator.mediaDevices
+                .getDisplayMedia({
+
+                    video: true
+
+                });
+
+
+        const screenTrack =
+            screenStream.getVideoTracks()[0];
+
+
+        if (!screenTrack) {
+            return;
+        }
+
+
+        localVideo.srcObject =
+            screenStream;
+
+
+        localVideo.style.display =
+            'block';
+
+
+        /*
+         * Replace camera track if WebRTC sender exists.
+         */
+
+        if (peerConnection) {
+
+            const sender =
+                peerConnection
+                    .getSenders()
+                    .find(
+                        function(item) {
+
+                            return (
+                                item.track &&
+                                item.track.kind ===
+                                'video'
+                            );
+
+                        }
+                    );
+
+
+            if (sender) {
+
+                await sender.replaceTrack(
+                    screenTrack
+                );
+
+            }
+
+        }
+
+
+        screenTrack.onended =
+            async function() {
+
+                /*
+                 * Restore camera after
+                 * screen sharing ends.
+                 */
+
+                if (
+                    localStream &&
+                    peerConnection
+                ) {
+
+                    const cameraTrack =
+                        localStream
+                            .getVideoTracks()
+                            [0];
+
+
+                    if (cameraTrack) {
+
+                        const sender =
+                            peerConnection
+                                .getSenders()
+                                .find(
+                                    function(item) {
+
+                                        return (
+                                            item.track &&
+                                            item.track.kind ===
+                                            'video'
+                                        );
+
+                                    }
+                                );
+
+
+                        if (sender) {
+
+                            await sender.replaceTrack(
+                                cameraTrack
+                            );
+
+                        }
+
+
+                        localVideo.srcObject =
+                            localStream;
+
+                    } else {
+
+                        localVideo.srcObject =
+                            null;
+
+                        localVideo.style.display =
+                            'none';
+
+                    }
+
+                }
+
+            };
+
+
+    } catch (error) {
+
+        console.log(
+            'Screen sharing cancelled.'
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   LEAVE CLASSROOM
+========================================================= */
+
+if (leaveBtn) {
+
+    leaveBtn.addEventListener(
+        'click',
+        leaveClassroom
+    );
+
+}
+
+
+function leaveClassroom() {
+
+    /*
+     * Stop camera and microphone.
+     */
+
+    if (localStream) {
+
+        localStream
+            .getTracks()
+            .forEach(
+                function(track) {
+
+                    track.stop();
+
+                }
+            );
+
+    }
+
+
+    /*
+     * Stop screen sharing.
+     */
+
+    if (screenStream) {
+
+        screenStream
+            .getTracks()
+            .forEach(
+                function(track) {
+
+                    track.stop();
+
+                }
+            );
+
+    }
+
+
+    /*
+     * Close WebRTC.
+     */
+
+    if (peerConnection) {
+
+        peerConnection.close();
+
+    }
+
+
+    localStream =
+        null;
+
+    screenStream =
+        null;
+
+    peerConnection =
+        null;
+
+
+    localVideo.srcObject =
+        null;
+
+
+    remoteVideo.srcObject =
+        null;
+
+
+    localVideo.style.display =
+        'none';
+
+
+    remoteVideo.style.display =
+        'none';
+
+
+    videoControls.style.display =
+        'none';
+
+
+    videoPlaceholder.style.display =
+        'block';
+
+
+    if (liveStatus) {
+
+        liveStatus.innerHTML =
+            '<span class="live-dot"></span> Classroom Ready';
+
+    }
+
+
+    const connectedMessage =
+        document.getElementById(
+            'classroomConnectedMessage'
+        );
+
+
+    if (connectedMessage) {
+
+        connectedMessage.remove();
+
+    }
+
+}
+
+
+
+/* =========================================================
    LIVE CLASSROOM CHAT
 ========================================================= */
 
 const chatForm =
-    document.getElementById(
-        'chatForm'
-    );
+    document.getElementById("chatForm");
 
 const chatInput =
-    document.getElementById(
-        'chatInput'
-    );
+    document.getElementById("chatInput");
 
 const chatMessages =
-    document.getElementById(
-        'chatMessages'
-    );
+    document.getElementById("chatMessages");
 
 
 if (chatForm) {
 
     chatForm.addEventListener(
-        'submit',
+        "submit",
         async function(event) {
 
             event.preventDefault();
@@ -2402,15 +4568,12 @@ if (chatForm) {
                 return;
             }
 
-            chatInput.disabled =
-                true;
-
             try {
 
                 const result =
                     await classroomPost({
                         classroom_action:
-                            'send_message',
+                            "send_message",
                         message:
                             message
                     });
@@ -2419,35 +4582,28 @@ if (chatForm) {
 
                     alert(
                         result.message ||
-                        'Unable to send message.'
+                        "Unable to send message."
                     );
 
                     return;
                 }
 
                 chatInput.value =
-                    '';
+                    "";
 
                 await loadChatMessages();
 
             } catch (error) {
 
                 console.error(
-                    'Chat error:',
+                    "Chat error:",
                     error
                 );
 
                 alert(
                     error.message ||
-                    'Unable to send message.'
+                    "Unable to send message."
                 );
-
-            } finally {
-
-                chatInput.disabled =
-                    false;
-
-                chatInput.focus();
             }
         }
     );
@@ -2465,7 +4621,7 @@ async function loadChatMessages() {
         const result =
             await classroomPost({
                 classroom_action:
-                    'get_messages',
+                    "get_messages",
                 last_message_id:
                     lastMessageId
             });
@@ -2489,70 +4645,63 @@ async function loadChatMessages() {
                         ) || 0
                     );
 
-                const emptyMessage =
+                const empty =
                     chatMessages.querySelector(
-                        '.chat-empty'
+                        ".chat-empty"
                     );
 
-                if (emptyMessage) {
-                    emptyMessage.remove();
+                if (empty) {
+                    empty.remove();
                 }
 
                 const row =
                     document.createElement(
-                        'div'
+                        "div"
                     );
 
                 row.style.padding =
-                    '9px 11px';
+                    "9px 11px";
 
                 row.style.marginBottom =
-                    '8px';
+                    "8px";
 
                 row.style.background =
                     item.sender_role ===
-                        'student'
-                        ? '#e8f3ff'
-                        : '#f1f7fc';
+                    "student"
+                        ? "#e8f3ff"
+                        : "#f1f7fc";
 
                 row.style.borderRadius =
-                    '9px';
+                    "9px";
 
                 row.style.fontSize =
-                    '12px';
+                    "12px";
 
                 const sender =
                     document.createElement(
-                        'strong'
+                        "strong"
                     );
 
                 sender.textContent =
-                    (
-                        item.sender_role ===
-                        'student'
-                    )
-                        ? 'You: '
+                    item.sender_role ===
+                    "student"
+                        ? "You: "
                         : (
                             (item.sender_name ||
-                            'Teacher') +
-                            ': '
+                            "Teacher") +
+                            ": "
                         );
 
                 const body =
                     document.createElement(
-                        'span'
+                        "span"
                     );
 
                 body.textContent =
-                    item.message || '';
+                    item.message || "";
 
-                row.appendChild(
-                    sender
-                );
-
-                row.appendChild(
-                    body
-                );
+                row.appendChild(sender);
+                row.appendChild(body);
 
                 chatMessages.appendChild(
                     row
@@ -2569,7 +4718,7 @@ async function loadChatMessages() {
     } catch (error) {
 
         console.error(
-            'Load chat error:',
+            "Chat polling:",
             error
         );
     }
