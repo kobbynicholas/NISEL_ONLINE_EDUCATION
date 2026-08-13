@@ -393,34 +393,67 @@ if (
     =====================================================
     */
 
-    if (
-        $action ===
-        'start_class'
-    ) {
+   if (
+    $action ===
+    'start_class'
+) {
 
-        if (!$is_paid) {
+    if (!$is_paid) {
 
-            echo json_encode([
-                'success' => false,
-                'message' =>
-                    'The student's payment has not been confirmed.'
-            ]);
+        echo json_encode([
+            'success' => false,
+            'message' =>
+                "The student's payment has not been confirmed."
+        ]);
 
-            exit;
-        }
+        exit;
+    }
 
+    if ($is_cancelled) {
 
-        if ($is_cancelled) {
+        echo json_encode([
+            'success' => false,
+            'message' =>
+                'This lesson has been cancelled.'
+        ]);
 
-            echo json_encode([
-                'success' => false,
-                'message' =>
-                    'This lesson has been cancelled.'
-            ]);
+        exit;
+    }
 
-            exit;
-        }
+    /*
+    ==============================================
+    UPDATE CLASS STATUS
+    ==============================================
+    */
 
+    $start = $pdo->prepare("
+        UPDATE bookings
+        SET
+            live_status = 'live',
+            live_started_at = COALESCE(
+                live_started_at,
+                NOW()
+            ),
+            live_ended_at = NULL
+        WHERE
+            id = ?
+            AND teacher_id = ?
+    ");
+
+    $start->execute([
+        $booking_id,
+        $teacher_id
+    ]);
+
+    echo json_encode([
+        'success' => true,
+        'status' => 'live',
+        'room_code' =>
+            $booking['live_room_code']
+    ]);
+
+    exit;
+}
 
         /*
         ---------------------------------------------
