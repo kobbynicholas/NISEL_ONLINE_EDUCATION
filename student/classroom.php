@@ -167,21 +167,7 @@ if ($booking_id <= 0) {
 
         </div>
 
-    
-<div id="niseLDiagnostic" style="
-position:fixed;right:18px;bottom:82px;z-index:9999;
-width:320px;max-width:calc(100vw - 36px);
-background:rgba(5,18,31,.96);color:#fff;
-border:1px solid rgba(255,255,255,.16);
-border-radius:14px;padding:14px;
-font:12px/1.45 Arial,sans-serif;
-box-shadow:0 20px 50px rgba(0,0,0,.4);
-display:none;">
-  <div style="font-weight:800;font-size:13px;margin-bottom:8px">NISEL WebRTC Diagnostic</div>
-  <div id="niseLDiagBody">Waiting...</div>
-</div>
-
-</body>
+    </body>
 
     </html>
 
@@ -2538,6 +2524,91 @@ body {
 
 </style>
 
+
+<style id="niseL-modern-student">
+.classroom-grid{align-items:stretch}
+.video-card{
+    min-height:clamp(420px,68vh,760px) !important;
+    height:clamp(420px,68vh,760px);
+}
+.video-stage{
+    min-height:0 !important;
+    height:100%;
+    overflow:hidden;
+}
+#remoteVideo{
+    width:100%;
+    height:100%;
+    min-height:0 !important;
+    object-fit:cover;
+}
+.video-controls{
+    bottom:0;
+    padding:20px 18px 18px;
+    gap:10px;
+    background:linear-gradient(transparent,rgba(2,9,17,.95));
+}
+.control-btn{
+    width:50px;
+    height:50px;
+    border-radius:15px;
+    border:1px solid rgba(255,255,255,.12);
+    background:rgba(255,255,255,.10);
+    box-shadow:0 10px 25px rgba(0,0,0,.25);
+    backdrop-filter:blur(12px);
+    transition:transform .18s ease,background .18s ease,box-shadow .18s ease;
+}
+.control-btn:hover{
+    transform:translateY(-2px);
+    background:rgba(255,255,255,.19);
+    box-shadow:0 14px 30px rgba(0,0,0,.35);
+}
+.control-btn.active{
+    background:#0b82c6;
+    box-shadow:0 0 0 3px rgba(11,130,198,.18);
+}
+.control-btn.leave{background:#d92d20}
+.local-video{
+    width:230px;
+    height:145px;
+    right:22px;
+    bottom:92px;
+    border:2px solid rgba(255,255,255,.9);
+    box-shadow:0 16px 35px rgba(0,0,0,.5);
+}
+.class-timer{
+    margin-left:auto;
+    padding:5px 10px;
+    border-radius:999px;
+    background:rgba(255,255,255,.10);
+    border:1px solid rgba(255,255,255,.14);
+    font-size:11px;
+    font-weight:800;
+    letter-spacing:.6px;
+}
+@media(max-width:1050px){
+    .video-card{height:clamp(420px,62vh,680px)}
+}
+@media(max-width:700px){
+    .video-card{
+        height:clamp(390px,60vh,560px);
+        min-height:390px !important;
+    }
+    .control-btn{
+        width:44px;
+        height:44px;
+        border-radius:13px;
+    }
+    .local-video{
+        width:145px;
+        height:92px;
+        right:12px;
+        bottom:78px;
+    }
+    .class-timer{display:none}
+}
+</style>
+
 </head>
 
 
@@ -2694,6 +2765,11 @@ body {
             <span class="live-dot"></span>
 
             Classroom Ready
+
+            <span
+                id="classTimer"
+                class="class-timer"
+            >00:00</span>
 
         </div>
 
@@ -2876,9 +2952,20 @@ body {
 
                 <button
                     type="button"
+                    class="control-btn"
+                    id="fullscreenBtn"
+                    title="Fullscreen"
+                    aria-label="Fullscreen"
+                >
+                    ⛶
+                </button>
+
+                <button
+                    type="button"
                     class="control-btn leave"
                     id="leaveBtn"
                     title="Leave Classroom"
+                    aria-label="Leave Classroom"
                 >
                     📞
                 </button>
@@ -3205,33 +3292,6 @@ body {
 
 
 <script>
-function niselDiagShow() {
-    const p = document.getElementById("niseLDiagnostic");
-    if (p) p.style.display = "block";
-}
-function niselDiagSet(extra) {
-    niselDiagShow();
-    const body = document.getElementById("niseLDiagBody");
-    const pc = window.peerConnection || null;
-    if (!body) return;
-    body.innerHTML = [
-        ["Class", window.joined ? "JOINED" : "WAITING"],
-        ["READY sent", window.niselReadySent ? "YES" : "NO"],
-        ["Offer received", window.niselOfferReceived ? "YES" : "NO"],
-        ["Answer sent", window.niselAnswerSent ? "YES" : "NO"],
-        ["Camera", window.localStream && window.localStream.getVideoTracks().length ? "YES" : "NO"],
-        ["Microphone", window.localStream && window.localStream.getAudioTracks().length ? "YES" : "NO"],
-        ["Signaling", pc ? pc.signalingState : "none"],
-        ["ICE gathering", pc ? pc.iceGatheringState : "none"],
-        ["ICE connection", pc ? pc.iceConnectionState : "none"],
-        ["Connection", pc ? pc.connectionState : "none"],
-        ["Remote video", window.remoteVideo && window.remoteVideo.srcObject ? "YES" : "NO"],
-        ["Last event", extra || "—"]
-    ].map(function(r) {
-        return '<div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #ffffff12;padding:4px 0"><span>'+r[0]+'</span><strong>'+r[1]+'</strong></div>';
-    }).join("");
-}
-
 
 /* =========================================================
    NISEL STUDENT CLASSROOM JAVASCRIPT
@@ -3295,14 +3355,6 @@ let lastMessageId = 0;
 let joined = false;
 
 let pendingCandidates = [];
-
-window.peerConnection = null;
-window.joined = false;
-window.localStream = null;
-window.remoteVideo = document.getElementById("remoteVideo");
-window.niselReadySent = false;
-window.niselOfferReceived = false;
-window.niselAnswerSent = false;
 
 const rtcConfiguration = {
     iceServers: [
@@ -3421,8 +3473,6 @@ function createPeerConnection() {
             rtcConfiguration
         );
 
-    window.peerConnection = peerConnection;
-
     peerConnection.ontrack =
         function(event) {
 
@@ -3510,7 +3560,7 @@ function createPeerConnection() {
             console.log(
                 "NISEL student WebRTC connection:",
                 state
-            ); niselDiagSet("connection=" + state);
+            );
 
             if (
                 state === "connected" &&
@@ -3650,8 +3700,6 @@ async function prepareLocalMedia() {
         } catch (cameraError) {}
     }
 
-    window.localStream = localStream;
-
     if (!localStream) {
         localVideo.style.display = "none";
         return;
@@ -3729,7 +3777,7 @@ async function tellTeacherReady() {
 
     try {
 
-        const readyResult = await sendStudentSignal(
+        await sendStudentSignal(
             "ready",
             {
                 booking_id: bookingId,
@@ -3737,26 +3785,11 @@ async function tellTeacherReady() {
             }
         );
 
-        window.niselReadySent =
-            !!readyResult &&
-            !!readyResult.success;
-
-        niselDiagSet(
-            window.niselReadySent
-                ? "READY sent"
-                : "READY failed"
-        );
-
     } catch (error) {
 
         console.error(
             "Ready signal:",
             error
-        );
-
-        niselDiagSet(
-            "READY error: " +
-            error.message
         );
     }
 }
@@ -3836,7 +3869,7 @@ async function processTeacherSignal(
         if (
             signal.signal_type ===
             "offer"
-        ) { window.niselOfferReceived = true; niselDiagSet("OFFER received");
+        ) {
 
             if (!peerConnection) {
                 createPeerConnection();
@@ -3893,7 +3926,7 @@ async function processTeacherSignal(
 
             console.log(
                 "NISEL student: answer sent."
-            ); window.niselAnswerSent = true; niselDiagSet("ANSWER sent");
+            );
 
             if (liveStatus) {
                 liveStatus.innerHTML =
@@ -4141,7 +4174,7 @@ async function joinClassroom() {
 
         await prepareLocalMedia();
 
-        joined = true; window.joined = true; niselDiagShow(); niselDiagSet("joined");
+        joined = true;
 
         if (videoControls) {
             videoControls.style.display =
@@ -5135,6 +5168,87 @@ window.addEventListener(
 
 </script>
 
+
+
+<script>
+(function(){
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    const stage = document.querySelector(".video-stage");
+    if (!fullscreenBtn || !stage) return;
+
+    function update(){
+        const active = !!document.fullscreenElement;
+        fullscreenBtn.classList.toggle("active", active);
+        fullscreenBtn.title = active ? "Exit Fullscreen" : "Fullscreen";
+        fullscreenBtn.setAttribute(
+            "aria-label",
+            active ? "Exit Fullscreen" : "Fullscreen"
+        );
+    }
+
+    fullscreenBtn.addEventListener("click", async function(){
+        try{
+            if (!document.fullscreenElement){
+                if (stage.requestFullscreen){
+                    await stage.requestFullscreen();
+                }else if(stage.webkitRequestFullscreen){
+                    stage.webkitRequestFullscreen();
+                }else{
+                    throw new Error("Fullscreen is not supported.");
+                }
+            }else{
+                if (document.exitFullscreen){
+                    await document.exitFullscreen();
+                }else if(document.webkitExitFullscreen){
+                    document.webkitExitFullscreen();
+                }
+            }
+        }catch(error){
+            console.warn("Student fullscreen:", error);
+            alert("Fullscreen is not available in this browser.");
+        }
+    });
+
+    document.addEventListener("fullscreenchange", update);
+    update();
+})();
+</script>
+
+
+<script>
+(function(){
+    const timer = document.getElementById("classTimer");
+    if (!timer) return;
+    let startedAt = null;
+
+    function render(){
+        if (!startedAt){
+            timer.textContent = "00:00";
+            return;
+        }
+        const seconds = Math.max(
+            0,
+            Math.floor((Date.now() - startedAt) / 1000)
+        );
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        timer.textContent =
+            String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+    }
+
+    setInterval(function(){
+        const status = document.getElementById("liveStatus");
+        if (status && /LIVE CLASS/i.test(status.textContent)){
+            if (!startedAt) startedAt = Date.now();
+        } else {
+            startedAt = null;
+        }
+        render();
+    },1000);
+
+    render();
+})();
+</script>
 
 </body>
 
