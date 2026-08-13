@@ -154,9 +154,15 @@ background:rgba(11,130,198,.95);color:#fff;
 font:800 10px/1 Arial,sans-serif;letter-spacing:.5px
 }
 </style>
+<style id="nisel-v15-audio">
+#remoteAudioButton.active{
+    background:rgba(16,185,129,.92)!important;
+    box-shadow:0 0 0 3px rgba(16,185,129,.2);
+}
+</style>
 </head>
 
-    <body><div class="nisel-v14-badge">NISEL CLASSROOM v14</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div>
+    <body><div class="nisel-v14-badge">NISEL CLASSROOM v15</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div>
 
         <div class="box">
 
@@ -183,7 +189,8 @@ font:800 10px/1 Arial,sans-serif;letter-spacing:.5px
 
         </div>
 
-    </body>
+    <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
+</body>
 
     </html>
 
@@ -2966,6 +2973,8 @@ body {
                 </button>
 
 
+                <button type="button" class="control-btn" id="remoteAudioButton" title="Enable tutor audio" aria-label="Enable tutor audio">🔊</button>
+
                 <button
                     type="button"
                     class="control-btn"
@@ -3517,6 +3526,16 @@ function createPeerConnection() {
                         .some(t => t.id === event.track.id)
                 ) {
                     remoteStream.addTrack(event.track);
+                }
+            }
+
+            if (event.track.kind === "audio") {
+                const audio = document.getElementById("remoteAudio");
+                if (audio) {
+                    audio.srcObject = new MediaStream([event.track]);
+                    audio.muted = true;
+                    audio.volume = 1;
+                    console.log("NISEL v15: tutor audio received.");
                 }
             }
 
@@ -5140,6 +5159,40 @@ window.addEventListener(
     }
 );
 
+
+const remoteAudioButton =
+        document.getElementById("remoteAudioButton");
+
+    if (remoteAudioButton) {
+        remoteAudioButton.addEventListener("click", async function() {
+            const audio = document.getElementById("remoteAudio");
+            if (!audio) return;
+
+            if (!audio.srcObject && remoteVideo.srcObject instanceof MediaStream) {
+                const tracks = remoteVideo.srcObject.getAudioTracks();
+                if (tracks.length) audio.srcObject = new MediaStream(tracks);
+            }
+
+            if (!audio.srcObject) {
+                remoteAudioButton.title = "Waiting for tutor audio...";
+                return;
+            }
+
+            try {
+                audio.muted = false;
+                audio.volume = 1;
+                await audio.play();
+                remoteAudioButton.classList.add("active");
+                remoteAudioButton.textContent = "🔊";
+                remoteAudioButton.title = "Mute tutor audio";
+            } catch (error) {
+                console.error("Tutor audio:", error);
+                audio.muted = true;
+                remoteAudioButton.classList.remove("active");
+                remoteAudioButton.textContent = "🔇";
+            }
+        });
+    }
 </script>
 
 
