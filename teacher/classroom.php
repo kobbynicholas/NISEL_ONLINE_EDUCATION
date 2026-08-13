@@ -61,17 +61,20 @@ if ($booking_id <= 0) {
         json_response(["success" => false, "message" => "No valid booking was selected."]);
     }
     die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style></head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+
 <div id="niseLDiagnostic" style="
-position:fixed;right:18px;bottom:82px;z-index:9999;
-width:320px;max-width:calc(100vw - 36px);
-background:rgba(5,18,31,.96);color:#fff;
+position:fixed;right:18px;bottom:78px;z-index:99999;
+width:310px;max-width:calc(100vw - 36px);
+background:rgba(5,18,31,.97);color:#fff;
 border:1px solid rgba(255,255,255,.16);
 border-radius:14px;padding:14px;
 font:12px/1.45 Arial,sans-serif;
-box-shadow:0 20px 50px rgba(0,0,0,.4);
+box-shadow:0 20px 50px rgba(0,0,0,.45);
 display:none;">
-  <div style="font-weight:800;font-size:13px;margin-bottom:8px">NISEL WebRTC Diagnostic</div>
-  <div id="niseLDiagBody">Waiting...</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:8px">
+        NISEL WebRTC Diagnostic
+    </div>
+    <div id="niseLDiagBody">Waiting...</div>
 </div>
 
 </body></html>');
@@ -570,11 +573,11 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 .topbar{height:68px;background:linear-gradient(135deg,#032b4f,#0874b7);display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--line)}
 .brand{display:flex;align-items:center;gap:12px}.brand-icon{width:40px;height:40px;border-radius:12px;background:#ffffff18;display:grid;place-items:center;font-size:20px}.brand-title{font-size:14px;font-weight:900}.brand-sub{font-size:9px;letter-spacing:1px;color:#b9d9ec;margin-top:3px}
 .top-actions{display:flex;gap:9px;align-items:center}.status-pill{display:flex;gap:7px;align-items:center;padding:8px 12px;border-radius:99px;background:#ffffff12;font-size:10px;font-weight:900}.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}.status-pill.live .dot{background:#22c55e;box-shadow:0 0 0 5px #22c55e1c}.back{color:#fff;text-decoration:none;background:#ffffff14;padding:9px 13px;border-radius:10px;font-size:11px;font-weight:800}
-.layout{height:calc(100vh - 68px);height:calc(100dvh - 68px);min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 340px}.stage{position:relative;min-width:0;background:#020711;overflow:hidden}.remote-wrap{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#0a35521c,transparent 38%),#020711}.remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#8ea1b6;padding:30px}.remote-placeholder div{max-width:460px}.remote-placeholder .icon{font-size:48px;margin-bottom:12px}.remote-placeholder h2{margin:0 0 8px;color:#d9e5ef}.remote-placeholder p{margin:0;line-height:1.6;font-size:13px}
+.layout{height:calc(100vh - 68px);height:calc(100dvh - 68px);min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 340px}.stage{min-height:0;position:relative;min-width:0;background:#020711;overflow:hidden}.remote-wrap{position:absolute;inset:0;background:radial-gradient(circle at 50% 40%,#0a35521c,transparent 38%),#020711}.remote-placeholder{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#8ea1b6;padding:30px}.remote-placeholder div{max-width:460px}.remote-placeholder .icon{font-size:48px;margin-bottom:12px}.remote-placeholder h2{margin:0 0 8px;color:#d9e5ef}.remote-placeholder p{margin:0;line-height:1.6;font-size:13px}
 #remoteVideo{width:100%;height:100%;object-fit:contain;background:#020711;display:none}.remote-name{position:absolute;left:18px;bottom:18px;background:#000a;padding:9px 12px;border-radius:10px;font-size:11px;font-weight:800;z-index:4}
 #localVideo{position:absolute;right:20px;bottom:88px;width:230px;height:145px;object-fit:cover;border:2px solid #ffffff38;border-radius:16px;background:#101827;box-shadow:0 15px 40px #0009;transform:scaleX(-1);display:none;z-index:5}.screen-active #localVideo{transform:none}
 .start-overlay{position:absolute;inset:0;z-index:10;display:grid;place-items:center;background:#020711f2}.start-card{text-align:center;width:min(92%,520px);padding:35px}.start-icon{width:78px;height:78px;border-radius:24px;background:linear-gradient(135deg,#075a9e,#0b8ddd);display:grid;place-items:center;margin:0 auto 18px;font-size:35px;box-shadow:0 18px 45px #0877c933}.start-card h1{font-size:27px;margin:0 0 8px}.start-card p{color:#9aabba;font-size:13px;line-height:1.6;margin:0 auto 20px;max-width:430px}.button-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.btn{border:0;color:#fff;border-radius:12px;padding:13px 19px;font-size:12px;font-weight:900;cursor:pointer}.btn-start{background:linear-gradient(135deg,#16a34a,#0e8b3e)}.btn-end{background:linear-gradient(135deg,#dc3545,#b91c1c);display:none}.btn:disabled{opacity:.55;cursor:not-allowed}
-.controls{position:absolute;z-index:100;bottom:14px;left:50%;transform:translateX(-50%);display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto;gap:8px;padding:9px;border-radius:999px;background:rgba(10,20,34,.94);border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 45px rgba(0,0,0,.55);backdrop-filter:blur(14px)}.control{width:46px;height:46px;flex:0 0 46px;border:0;border-radius:50%;background:#243249;color:#fff;cursor:pointer;font-size:17px}.control:hover{background:#30415d;transform:translateY(-1px)}.control.active{background:#0b84d8}.control.off{background:#b42336}.control.share{width:auto;border-radius:23px;padding:0 15px;font-size:11px;font-weight:900}.control.share.active{background:#16a34a}
+.controls{position:absolute;z-index:1000;bottom:14px;left:50%;transform:translateX(-50%);display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto;gap:8px;padding:9px;border-radius:999px;background:rgba(10,20,34,.94);border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 45px rgba(0,0,0,.55);backdrop-filter:blur(14px)}.control{width:46px;height:46px;flex:0 0 46px;border:0;border-radius:50%;background:#243249;color:#fff;cursor:pointer;font-size:17px}.control:hover{background:#30415d;transform:translateY(-1px)}.control.active{background:#0b84d8}.control.off{background:#b42336}.control.share{width:auto;border-radius:23px;padding:0 15px;font-size:11px;font-weight:900}.control.share.active{background:#16a34a}
 .sidebar{background:#0a1422;border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}.lesson{padding:19px;border-bottom:1px solid var(--line)}.lesson-head{display:flex;justify-content:space-between;gap:10px}.lesson h2{margin:0;font-size:17px}.sub{font-size:10px;color:var(--muted);margin-top:6px}.badge{padding:6px 9px;border-radius:99px;background:#243249;color:#cbd5e1;font-size:8px;font-weight:900}.badge.live{background:#16a34a24;color:#4ade80}.rows{margin-top:15px}.row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #ffffff09;font-size:10px}.row span:first-child{color:#718198}.row span:last-child{text-align:right;font-weight:800}.device-box{margin-top:13px;padding:11px;border-radius:12px;background:#ffffff06;border:1px solid #ffffff0a}.device-title{font-size:10px;font-weight:900;margin-bottom:7px}.device-status{display:flex;justify-content:space-between;font-size:9px;color:#9aaabd;padding:4px 0}.ok{color:#4ade80}.warn{color:#fbbf24}.chat-title{padding:14px 18px;border-bottom:1px solid var(--line);font-size:11px;font-weight:900}.messages{flex:1;min-height:0;overflow:auto;padding:14px}.empty{color:#6e8096;text-align:center;padding:30px 10px;font-size:10px}.message{margin-bottom:12px}.message.mine{text-align:right}.message-name{font-size:9px;color:#708198;margin-bottom:4px}.bubble{display:inline-block;max-width:90%;padding:9px 11px;background:#1c2b41;border-radius:11px 11px 11px 3px;font-size:10px;line-height:1.45;overflow-wrap:anywhere}.mine .bubble{background:#075a9e;border-radius:11px 11px 3px 11px}.chat{display:flex;gap:7px;padding:10px;border-top:1px solid var(--line)}.chat input{flex:1;min-width:0;border:1px solid #ffffff0b;background:#152238;color:#fff;border-radius:10px;padding:11px;outline:0}.chat input:focus{border-color:#0b84d8}.chat button{border:0;background:#0877c9;color:#fff;border-radius:10px;padding:0 14px;font-weight:900;cursor:pointer}.toast{position:fixed;top:84px;left:50%;transform:translate(-50%,-15px);opacity:0;pointer-events:none;z-index:99;background:#111c2c;border:1px solid #ffffff12;border-radius:12px;padding:12px 16px;box-shadow:0 15px 40px #0007;font-size:11px;transition:.25s}.toast.show{opacity:1;transform:translate(-50%,0)}.toast.error{background:#641e29}
 @media(max-width:900px){body{overflow:auto}.layout{height:auto;min-height:calc(100vh - 68px);grid-template-columns:1fr}.stage{height:68vh;min-height:500px}.sidebar{min-height:430px;border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:560px){.topbar{padding:0 12px}.status-pill{display:none}.brand-title{font-size:11px}.back{font-size:10px}.controls{bottom:10px}.control{width:40px;height:40px}.control.share{padding:0 12px}.start-card h1{font-size:23px}#localVideo{width:155px;height:100px;right:12px;bottom:75px}}
@@ -633,6 +636,59 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 
 
 <script>
+
+/* =========================================================
+   NISEL DIAGNOSTIC - SAFE
+========================================================= */
+
+function niselDiagShow() {
+    var panel = document.getElementById("niseLDiagnostic");
+    if (panel) panel.style.display = "block";
+}
+
+function niselDiagUpdate(lastEvent) {
+
+    var body =
+        document.getElementById("niseLDiagBody");
+
+    if (!body) return;
+
+    var pc =
+        (typeof peerConnection !== "undefined")
+            ? peerConnection
+            : null;
+
+    var rows = [
+        ["Class", (typeof started !== "undefined" && started) ? "LIVE" : "WAITING"],
+        ["Student READY", window.niselStudentReady ? "YES" : "NO"],
+        ["Offer sent", window.niselOfferSent ? "YES" : "NO"],
+        ["Answer received", window.niselAnswerReceived ? "YES" : "NO"],
+        ["Camera", (typeof cameraTrack !== "undefined" && cameraTrack) ? "YES" : "NO"],
+        ["Microphone", (typeof microphoneTrack !== "undefined" && microphoneTrack) ? "YES" : "NO"],
+        ["Signaling", pc ? pc.signalingState : "none"],
+        ["ICE gathering", pc ? pc.iceGatheringState : "none"],
+        ["ICE connection", pc ? pc.iceConnectionState : "none"],
+        ["Connection", pc ? pc.connectionState : "none"],
+        ["Remote video", (
+            typeof remoteVideo !== "undefined" &&
+            remoteVideo &&
+            remoteVideo.srcObject
+        ) ? "YES" : "NO"],
+        ["Last event", lastEvent || "—"]
+    ];
+
+    body.innerHTML =
+        rows.map(function(row) {
+            return (
+                '<div style="display:flex;justify-content:space-between;' +
+                'gap:12px;border-bottom:1px solid #ffffff12;padding:4px 0">' +
+                '<span>' + row[0] + '</span>' +
+                '<strong>' + row[1] + '</strong>' +
+                '</div>'
+            );
+        }).join("");
+}
+
 "use strict";
 
 const niselDiag = document.getElementById("niseLDiagnostic");
@@ -726,11 +782,6 @@ let lastMessageId = 0;
 let pendingCandidates = [];
 let offerInProgress = false;
 
-window.peerConnection = null;
-window.started = false;
-window.cameraTrack = null;
-window.microphoneTrack = null;
-window.remoteVideo = document.getElementById("remoteVideo");
 window.niselStudentReady = false;
 window.niselOfferSent = false;
 window.niselAnswerReceived = false;
@@ -820,6 +871,7 @@ async function openOptionalMedia() {
 
     if (localStream.getVideoTracks().length) {
         localVideo.srcObject = localStream;
+        localVideo.play().catch(function() {});
         localVideo.style.display = "block";
         const localLabel = document.getElementById("localLabel");
         if (localLabel) localLabel.style.display = "block";
@@ -900,7 +952,7 @@ function createPeerConnection() {
     peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
 
-        console.log("NISEL teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state);
+        console.log("NISEL teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state); niselDiagUpdate("connection=" + state);
 
         if (state === "connected") {
             remotePlaceholder.style.display = "none";
