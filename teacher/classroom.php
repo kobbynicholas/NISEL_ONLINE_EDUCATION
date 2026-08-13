@@ -157,7 +157,14 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
 }
 </style>
 
-</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14 + RECORDING</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+
+<style id="nisel-teacher-focused-recording">
+.recording-indicator{
+    letter-spacing:.5px;
+}
+</style>
+
+</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14 + TEACHER FOCUSED RECORDING</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -2087,6 +2094,15 @@ window.addEventListener("beforeunload", () => {
         const height =
             canvas.height;
 
+        /*
+         * TEACHER-FOCUSED RECORDING LAYOUT
+         *
+         * The teacher is the main subject of the recording.
+         * The student's camera is kept as a small picture-in-picture.
+         *
+         * This also naturally records the teacher's shared screen if
+         * the existing classroom switches localVideo to screen sharing.
+         */
         canvasContext.fillStyle =
             "#020711";
 
@@ -2100,10 +2116,10 @@ window.addEventListener("beforeunload", () => {
         const padding = 22;
 
         /*
-         * Main student video.
+         * MAIN: TEACHER / TEACHER SCREEN SHARE
          */
         drawVideoCover(
-            studentVideo,
+            teacherVideo,
             padding,
             padding,
             width - padding * 2,
@@ -2111,28 +2127,28 @@ window.addEventListener("beforeunload", () => {
         );
 
         /*
-         * Teacher picture-in-picture.
+         * Small STUDENT picture-in-picture.
          */
-        const pipWidth = 350;
-        const pipHeight = 220;
+        const pipWidth = 300;
+        const pipHeight = 190;
 
         const pipX =
             width -
             pipWidth -
-            40;
+            42;
 
         const pipY =
             height -
             pipHeight -
-            40;
+            42;
 
         canvasContext.save();
 
         canvasContext.shadowColor =
-            "rgba(0,0,0,.65)";
+            "rgba(0,0,0,.72)";
 
         canvasContext.shadowBlur =
-            25;
+            26;
 
         canvasContext.fillStyle =
             "#111827";
@@ -2145,7 +2161,7 @@ window.addEventListener("beforeunload", () => {
         );
 
         drawVideoCover(
-            teacherVideo,
+            studentVideo,
             pipX,
             pipY,
             pipWidth,
@@ -2155,7 +2171,7 @@ window.addEventListener("beforeunload", () => {
         canvasContext.restore();
 
         /*
-         * Student label.
+         * Main teacher label.
          */
         canvasContext.fillStyle =
             "rgba(0,0,0,.72)";
@@ -2163,42 +2179,75 @@ window.addEventListener("beforeunload", () => {
         canvasContext.fillRect(
             padding + 12,
             padding + 12,
-            105,
-            30
+            125,
+            32
         );
 
         canvasContext.fillStyle =
             "#fff";
 
         canvasContext.font =
-            "700 14px Arial";
+            "700 15px Arial";
 
         canvasContext.fillText(
-            "Student",
-            padding + 26,
-            padding + 32
+            "Teacher",
+            padding + 27,
+            padding + 34
         );
 
         /*
-         * Teacher label.
+         * Student PIP label.
          */
         canvasContext.fillStyle =
             "rgba(0,0,0,.72)";
 
         canvasContext.fillRect(
-            pipX + 12,
-            pipY + 12,
+            pipX + 10,
+            pipY + 10,
             100,
-            30
+            29
         );
 
         canvasContext.fillStyle =
             "#fff";
 
+        canvasContext.font =
+            "700 13px Arial";
+
         canvasContext.fillText(
-            "Teacher",
-            pipX + 26,
-            pipY + 32
+            "Student",
+            pipX + 23,
+            pipY + 30
+        );
+
+        /*
+         * Recording watermark.
+         */
+        canvasContext.fillStyle =
+            "rgba(185,28,28,.92)";
+
+        canvasContext.beginPath();
+
+        canvasContext.arc(
+            32,
+            height - 30,
+            6,
+            0,
+            Math.PI * 2
+        );
+
+        canvasContext.fill();
+
+        canvasContext.fillStyle =
+            "#fff";
+
+        canvasContext.font =
+            "700 12px Arial";
+
+        canvasContext.fillText(
+            "NISEL LIVE CLASS",
+            47,
+            height - 25
         );
 
         animationFrame =
