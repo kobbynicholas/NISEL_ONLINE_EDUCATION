@@ -100,39 +100,9 @@ if ($room_code === "") {
     }
 }
 
-
-/* =========================================================
-   CHAT TABLE CHECK
-   Creates classroom_messages only if it does not exist.
-   This does not change the rest of the classroom system.
-========================================================= */
-function ensureClassroomMessagesTable(PDO $pdo) {
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS classroom_messages (
-            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-            booking_id INT NOT NULL,
-            room_code VARCHAR(150) NOT NULL,
-            sender_role VARCHAR(30) NOT NULL,
-            sender_name VARCHAR(255) NOT NULL,
-            message TEXT NOT NULL,
-            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id),
-            KEY idx_booking_room (booking_id, room_code),
-            KEY idx_created_at (created_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    ");
-}
-
 /* ========================= API ========================= */
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) {
     try {
-
-        /*
-         * Make sure classroom chat storage exists before
-         * send_message/get_messages is used.
-         */
-        ensureClassroomMessagesTable($pdo);
-
         $action = trim((string)$_POST["classroom_action"]);
 
         if ($action === "start_class") {
@@ -219,23 +189,155 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) 
         }
 
         if ($action === "send_message") {
+
             $message = trim((string)($_POST["message"] ?? ""));
+
             if ($message === "") {
-                json_response(["success" => false, "message" => "Message cannot be empty."]);
+                json_response([
+                    "success" => false,
+                    "message" => "Message cannot be empty."
+                ]);
             }
+
             if (function_exists("mb_strlen") && mb_strlen($message) > 2000) {
-                json_response(["success" => false, "message" => "Message is too long."]);
+                json_response([
+                    "success" => false,
+                    "message" => "Message is too long."
+                ]);
             }
-            $stmt = $pdo->prepare("INSERT INTO classroom_messages (booking_id, room_code, sender_role, sender_name, message) VALUES (?, ?, 'teacher', ?, ?)");
-            $stmt->execute([$booking_id, $room_code, $teacher_name, $message]);
-            json_response(["success" => true, "id" => (int)$pdo->lastInsertId()]);
+
+            /*
+             * Chat-only fix:
+             * Verify the actual classroom_messages columns before
+             * inserting. This prevents a schema mismatch from causing
+             * the generic classroom database error.
+             */
+            $columnsStmt = $pdo->query("SHOW COLUMNS FROM classroom_messages");
+            $columns = $columnsStmt->fetchAll(PDO::FETCH_COLUMN, 0);
+            $columnMap = array_flip($columns);
+
+            $required = ["booking_id", "room_code", "message"];
+
+            foreach ($required as $requiredColumn) {
+                if (!isset($columnMap[$requiredColumn])) {
+                    json_response([
+                        "success" => false,
+                        "message" => "The classroom_messages table is missing the '" .
+                            $requiredColumn . "' column."
+                    ]);
+                }
+            }
+
+            $insertColumns = ["booking_id", "room_code"];
+            $insertValues = [$booking_id, $room_code];
+            $placeholders = ["?", "?"];
+
+            if (isset($columnMap["sender_role"])) {
+                $insertColumns[] = "sender_role";
+                $insertValues[] = "teacher";
+                $placeholders[] = "?";
+            } elseif (isset($columnMap["sender_type"])) {
+                $insertColumns[] = "sender_type";
+                $insertValues[] = "teacher";
+                $placeholders[] = "?";
+            }
+
+            if (isset($columnMap["sender_name"])) {
+                $insertColumns[] = "sender_name";
+                $insertValues[] = $teacher_name;
+                $placeholders[] = "?";
+            } elseif (isset($columnMap["user_name"])) {
+                $insertColumns[] = "user_name";
+                $insertValues[] = $teacher_name;
+                $placeholders[] = "?";
+            }
+
+            $insertColumns[] = "message";
+            $insertValues[] = $message;
+            $placeholders[] = "?";
+
+            $sql = "INSERT INTO classroom_messages (" .
+                implode(", ", $insertColumns) .
+                ") VALUES (" .
+                implode(", ", $placeholders) .
+                ")";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($insertValues);
+
+            json_response([
+                "success" => true,
+                "id" => (int)$pdo->lastInsertId()
+            ]);
         }
 
         if ($action === "get_messages") {
-            $last_message_id = max(0, (int)($_POST["last_message_id"] ?? 0));
-            $stmt = $pdo->prepare("SELECT id, sender_role, sender_name, message, created_at FROM classroom_messages WHERE booking_id = ? AND room_code = ? AND id > ? ORDER BY id ASC LIMIT 100");
-            $stmt->execute([$booking_id, $room_code, $last_message_id]);
-            json_response(["success" => true, "messages" => $stmt->fetchAll()]);
+
+            $last_message_id =
+                max(
+                    0,
+                    (int)($_POST["last_message_id"] ?? 0)
+                );
+
+            $columnsStmt = $pdo->query(
+                "SHOW COLUMNS FROM classroom_messages"
+            );
+
+            $columns =
+                $columnsStmt->fetchAll(PDO::FETCH_COLUMN, 0);
+
+            $columnMap = array_flip($columns);
+
+            $senderColumn =
+                isset($columnMap["sender_role"])
+                    ? "sender_role"
+                    : (
+                        isset($columnMap["sender_type"])
+                            ? "sender_type"
+                            : "NULL"
+                    );
+
+            $nameColumn =
+                isset($columnMap["sender_name"])
+                    ? "sender_name"
+                    : (
+                        isset($columnMap["user_name"])
+                            ? "user_name"
+                            : "''"
+                    );
+
+            $createdColumn =
+                isset($columnMap["created_at"])
+                    ? "created_at"
+                    : "NULL";
+
+            $sql = "
+                SELECT
+                    id,
+                    {$senderColumn} AS sender_role,
+                    {$nameColumn} AS sender_name,
+                    message,
+                    {$createdColumn} AS created_at
+                FROM classroom_messages
+                WHERE booking_id = ?
+                  AND room_code = ?
+                  AND id > ?
+                ORDER BY id ASC
+                LIMIT 100
+            ";
+
+            $stmt = $pdo->prepare($sql);
+
+            $stmt->execute([
+                $booking_id,
+                $room_code,
+                $last_message_id
+            ]);
+
+            json_response([
+                "success" => true,
+                "messages" => $stmt->fetchAll()
+            ]);
         }
 
         json_response(["success" => false, "message" => "Unknown classroom action."]);
