@@ -1981,124 +1981,192 @@ tbody tr:hover {
 <body>
 
 
-<!-- =========================================================
+<!-- =====================================================
      SIDEBAR
-========================================================= -->
+===================================================== -->
 
 <aside class="sidebar">
 
 
     <div class="logo">
 
-        <div class="logo-main">
-            NISEL
+
+        <div class="logo-icon">
+
+            🎓
+
         </div>
 
-        <div class="logo-small">
-            ONLINE EDUCATION
-        </div>
+
+        <h2>
+
+            NISEL ONLINE
+
+        </h2>
+
+
+        <p>
+
+            EDUCATION
+
+        </p>
+
 
     </div>
 
 
-    <nav class="menu">
+
+    <div class="menu-title">
+
+        Main Menu
+
+    </div>
 
 
-        <a href="dashboard.php">
 
-            <span class="menu-icon">
-                🏠
-            </span>
+    <a
+        href="dashboard.php"
+        class="active"
+    >
 
+        <span class="menu-icon">
+            🏠
+        </span>
+
+        <span class="text">
             Dashboard
+        </span>
 
-        </a>
+    </a>
 
 
-        <a href="students.php">
 
-            <span class="menu-icon">
-                👨‍🎓
-            </span>
+    <a href="students.php">
 
+        <span class="menu-icon">
+            👨‍🎓
+        </span>
+
+        <span class="text">
             Students
+        </span>
 
-        </a>
+    </a>
 
 
-        <a href="teachers.php">
 
-            <span class="menu-icon">
-                👨‍🏫
-            </span>
+    <a href="teachers.php">
 
+        <span class="menu-icon">
+            👨‍🏫
+        </span>
+
+        <span class="text">
             Teachers
+        </span>
 
-        </a>
-
-
-      
+    </a>
 
 
-        <a href="bookings.php">
 
-            <span class="menu-icon">
-                📚
-            </span>
+    <a href="teacher_applications.php">
 
+        <span class="menu-icon">
+            📋
+        </span>
+
+        <span class="text">
+            Teacher Applications
+        </span>
+
+    </a>
+
+
+
+    <a href="bookings.php">
+
+        <span class="menu-icon">
+            📚
+        </span>
+
+        <span class="text">
             Bookings
+        </span>
 
-        </a>
+    </a>
 
 
-        <a href="payments.php">
 
-            <span class="menu-icon">
-                💳
-            </span>
+    <a href="payments.php">
 
+        <span class="menu-icon">
+            💳
+        </span>
+
+        <span class="text">
             Payments
+        </span>
 
-        </a>
+    </a>
 
 
-        <a href="reports.php">
 
-            <span class="menu-icon">
-                📊
-            </span>
+    <a href="reports.php">
 
+        <span class="menu-icon">
+            📊
+        </span>
+
+        <span class="text">
             Reports
+        </span>
 
-        </a>
+    </a>
 
 
-        <a href="settings.php">
 
-            <span class="menu-icon">
-                ⚙️
-            </span>
+    <a href="schedules.php">
 
+        <span class="menu-icon">
+            📅
+        </span>
+
+        <span class="text">
+            Schedules
+        </span>
+
+    </a>
+
+    
+    <a href="settings.php">
+
+        <span class="menu-icon">
+            ⚙️
+        </span>
+
+        <span class="text">
             Settings
+        </span>
 
-        </a>
+    </a>
 
 
-        <a
-            href="logout.php"
-            class="logout"
-        >
 
-            <span class="menu-icon">
-                🚪
-            </span>
+    <a
+        href="logout.php"
+        class="logout"
+    >
 
+        <span class="menu-icon">
+            🚪
+        </span>
+
+        <span class="text">
             Logout
+        </span>
 
-        </a>
+    </a>
 
-
-    </nav>
 
 </aside>
 
