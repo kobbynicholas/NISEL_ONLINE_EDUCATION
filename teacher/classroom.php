@@ -737,7 +737,7 @@ function niselDiagUpdate(extra) {
         ["Last event", extra || "—"]
     ]);
 }
-</script>
+
 
 
 const BOOKING_ID = <?= (int)$booking_id ?>;
