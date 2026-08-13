@@ -164,7 +164,26 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
 }
 </style>
 
-</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14 + TEACHER FOCUSED RECORDING</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+
+<style id="nisel-mirror-camera">
+/*
+ * Mirror camera feeds horizontally so hand/body movement appears
+ * in the same visual direction as the participant's self-view.
+ * Screen sharing is automatically kept normal (not mirrored).
+ */
+.mirror-camera{
+    transform:scaleX(-1) !important;
+}
+
+/* Never mirror a screen-share presentation. */
+.screen-active #localVideo,
+.screen-active .local-video,
+.no-mirror{
+    transform:none !important;
+}
+</style>
+
+</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14 + MIRRORED CAMERA + RECORDING</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -2748,6 +2767,84 @@ window.addEventListener("beforeunload", () => {
             true
         );
     }
+
+})();
+</script>
+
+
+<script>
+/*
+ * NISEL Camera Mirror
+ *
+ * Camera video is mirrored horizontally.
+ * Screen-share video is kept normal so text and documents are readable.
+ */
+(function(){
+
+    function shouldMirror(stream){
+        if (!(stream instanceof MediaStream)){
+            return false;
+        }
+
+        const track =
+            stream.getVideoTracks()[0];
+
+        if (!track){
+            return false;
+        }
+
+        const label =
+            String(track.label || "").toLowerCase();
+
+        /*
+         * Browser screen-capture tracks normally contain one of these
+         * words. If so, do NOT mirror the image.
+         */
+        const isScreen =
+            /screen|window|display|monitor|tab|entire/.test(label);
+
+        return !isScreen;
+    }
+
+    function updateMirror(video){
+        if (!video){
+            return;
+        }
+
+        const mirror =
+            shouldMirror(video.srcObject);
+
+        video.classList.toggle(
+            "mirror-camera",
+            mirror
+        );
+
+        video.classList.toggle(
+            "no-mirror",
+            !mirror
+        );
+    }
+
+    function refresh(){
+        updateMirror(
+            document.getElementById("localVideo")
+        );
+
+        updateMirror(
+            document.getElementById("remoteVideo")
+        );
+
+        updateMirror(
+            document.querySelector(".local-video")
+        );
+    }
+
+    /*
+     * srcObject changes are made by the existing WebRTC code, so
+     * refresh periodically without touching the signaling logic.
+     */
+    refresh();
+    setInterval(refresh, 800);
 
 })();
 </script>
