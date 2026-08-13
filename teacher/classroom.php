@@ -61,24 +61,34 @@ if ($booking_id <= 0) {
         json_response(["success" => false, "message" => "No valid booking was selected."]);
     }
     die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style>
-<style id="nisel-remote-video-fix">
-#remoteVideo{
-    background:#020a12;
-}
-#remoteVideo.remote-connected{
-    display:block !important;
+<style id="nisel-v12-style">
+.nisel-v12-badge{
+    position:fixed;
+    top:78px;
+    left:18px;
+    z-index:9990;
+    padding:6px 10px;
+    border-radius:999px;
+    background:rgba(11,130,198,.92);
+    color:#fff;
+    font:800 10px/1 Arial,sans-serif;
+    letter-spacing:.5px;
+    box-shadow:0 8px 22px rgba(0,0,0,.25);
 }
 </style>
 
 
-<style id="nisel-remote-audio-style">
+<style id="nisel-v12-audio-style">
 #remoteAudioButton.active{
-    background:rgba(11,130,198,.9) !important;
-    box-shadow:0 0 0 3px rgba(11,130,198,.18);
+    background:rgba(11,130,198,.95) !important;
+    box-shadow:0 0 0 3px rgba(11,130,198,.20);
+}
+#remoteVideo{
+    background:#020a12 !important;
 }
 </style>
 
-</head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+</head><body><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -1044,14 +1054,115 @@ function createPeerConnection() {
     window.niselAudioSender =
         audioTransceiver.sender;
 
-    
-    /*
-     * Chrome can block autoplay when a remote stream contains audio.
-     * Start the remote video muted so the student's FACE is always
-     * rendered, then let the teacher explicitly enable student audio.
-     */
-    remoteVideo.muted = true;
+    peerConnection.ontrack = event => {
 
+        console.log(
+            "NISEL v12: remote track received:",
+            event.track.kind,
+            "stream count:",
+            event.streams ? event.streams.length : 0
+        );
+
+        /*
+         * Always render the student's video track.
+         * Some browsers provide event.streams[0], while others
+         * provide only event.track.
+         */
+        let stream =
+            event.streams &&
+            event.streams[0]
+                ? event.streams[0]
+                : null;
+
+        if (!stream) {
+
+            stream =
+                remoteVideo.srcObject;
+
+            if (
+                !stream ||
+                !(stream instanceof MediaStream)
+            ) {
+                stream = new MediaStream();
+            }
+
+            const exists =
+                stream
+                    .getTracks()
+                    .some(
+                        track =>
+                            track.id ===
+                            event.track.id
+                    );
+
+            if (!exists) {
+                stream.addTrack(event.track);
+            }
+        }
+
+        remoteVideo.srcObject = stream;
+
+        remoteVideo.style.display =
+            "block";
+
+        remoteVideo.style.visibility =
+            "visible";
+
+        remoteVideo.classList.add(
+            "remote-connected"
+        );
+
+        remotePlaceholder.style.display =
+            "none";
+
+        /*
+         * Start the student's face/video muted.
+         * This avoids browser autoplay restrictions.
+         */
+        remoteVideo.muted = true;
+
+        remoteVideo
+            .play()
+            .then(() => {
+                console.log(
+                    "NISEL v12: student video is playing."
+                );
+            })
+            .catch(error => {
+                console.warn(
+                    "NISEL v12: remote video autoplay:",
+                    error
+                );
+            });
+
+        event.track.onunmute = () => {
+
+            remoteVideo.muted = true;
+
+            remoteVideo
+                .play()
+                .catch(error => {
+                    console.warn(
+                        "NISEL v12: remote play:",
+                        error
+                    );
+                });
+        };
+
+        event.track.onended = () => {
+
+            console.log(
+                "NISEL v12: student",
+                event.track.kind,
+                "track ended."
+            );
+        };
+    };
+
+    /*
+     * Teacher can explicitly enable/disable student audio.
+     * The video remains available even when muted.
+     */
     const remoteAudioButton =
         document.getElementById(
             "remoteAudioButton"
@@ -1061,7 +1172,7 @@ function createPeerConnection() {
 
         remoteAudioButton.addEventListener(
             "click",
-            async function() {
+            async () => {
 
                 try {
 
@@ -1088,163 +1199,23 @@ function createPeerConnection() {
                 } catch (error) {
 
                     console.warn(
-                        "Remote audio:",
+                        "NISEL v12 audio:",
                         error
                     );
 
                     remoteVideo.muted = true;
 
+                    remoteAudioButton.innerHTML =
+                        "🔇<span>Audio</span>";
+
                     remoteAudioButton.classList.remove(
                         "active"
                     );
-
-                    remoteAudioButton.innerHTML =
-                        "🔇<span>Audio</span>";
                 }
             }
         );
     }
 
-peerConnection.ontrack = event => {
-
-        /*
-         * Some browsers deliver the remote track with
-         * event.streams[0], while others can deliver the
-         * track without a MediaStream attached.
-         *
-         * Build/extend a MediaStream so the teacher can
-         * always see the student's camera.
-         */
-        let remoteStream =
-            (
-                event.streams &&
-                event.streams[0]
-            );
-
-        if (!remoteStream) {
-
-            remoteStream =
-                remoteVideo.srcObject;
-
-            if (
-                !remoteStream ||
-                !(
-                    remoteStream instanceof
-                    MediaStream
-                )
-            ) {
-                remoteStream =
-                    new MediaStream();
-            }
-
-            /*
-             * Avoid adding the same track twice.
-             */
-            const alreadyAdded =
-                remoteStream
-                    .getTracks()
-                    .some(function(track) {
-                        return (
-                            track.id ===
-                            event.track.id
-                        );
-                    });
-
-            if (!alreadyAdded) {
-                remoteStream.addTrack(
-                    event.track
-                );
-            }
-        }
-
-        remoteVideo.srcObject =
-            remoteStream;
-
-        remoteVideo.style.display =
-            "block";
-
-        remoteVideo.classList.add(
-            "remote-connected"
-        );
-
-        remotePlaceholder.style.display =
-            "none";
-
-        /*
-         * Explicitly start playback after the
-         * remote stream is attached.
-         */
-        /*
-         * Always start muted. This bypasses Chrome's autoplay
-         * restriction when the student sends an audio track.
-         * The teacher can then click Audio to hear the student.
-         */
-        remoteVideo.muted = true;
-
-        remoteVideo
-            .play()
-            .then(function() {
-
-                console.log(
-                    "NISEL teacher: student video playing."
-                );
-
-                remoteVideo.style.visibility =
-                    "visible";
-
-            })
-            .catch(function(error) {
-
-                console.warn(
-                    "NISEL teacher remote video autoplay:",
-                    error
-                );
-
-                /*
-                 * The video element is still displayed. The
-                 * teacher can click the classroom area/control
-                 * to satisfy browser autoplay policy.
-                 */
-                remoteVideo.style.display =
-                    "block";
-            });
-
-        /*
-         * Track lifecycle diagnostics.
-         */
-        event.track.onunmute = function() {
-
-            remoteVideo.muted = true;
-
-            remoteVideo
-                .play()
-                .catch(function(error) {
-                    console.warn(
-                        "NISEL teacher remote video play:",
-                        error
-                    );
-                });
-        };
-
-        event.track.onended = function() {
-            console.log(
-                "NISEL teacher: student",
-                event.track.kind,
-                "track ended."
-            );
-        };
-
-        console.log(
-            "NISEL teacher: received student",
-            event.track.kind,
-            "track.",
-            "streamed:",
-            !!(
-                event.streams &&
-                event.streams[0]
-            )
-        );
-    };
 
     /*
      * NISEL v8 uses non-trickle ICE.
@@ -1262,7 +1233,7 @@ peerConnection.ontrack = event => {
     peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
 
-        console.log("NISEL teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state); niselDiagUpdate("connection=" + state);
+        console.log("NISEL v12 teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state); niselDiagUpdate("connection=" + state);
 
         if (state === "connected") {
             remotePlaceholder.style.display = "none";
