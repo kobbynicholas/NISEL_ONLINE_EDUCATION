@@ -1,6 +1,7 @@
 <?php
 
-require "db.php";
+require "../admin_auth.php";
+require "../config/db.php";
 
 if($_SERVER["REQUEST_METHOD"]!="POST"){
 
