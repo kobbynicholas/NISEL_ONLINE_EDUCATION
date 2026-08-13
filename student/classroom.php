@@ -2,68 +2,24 @@
 
 session_start();
 
-require "../config/db.php";
+require_once "../config/db.php";
 
 /*
 =========================================================
 NISEL ONLINE EDUCATION
-STUDENT CLASSROOM
-
-URL:
-
-student/classroom.php?id=BOOKING_ID
-
-Example:
-
-student/classroom.php?id=42
+STUDENT LIVE CLASSROOM
 =========================================================
 */
 
+$pdo->setAttribute(
+    PDO::ATTR_ERRMODE,
+    PDO::ERRMODE_EXCEPTION
+);
 
-/*
-=========================================================
-DATABASE
-=========================================================
-*/
-
-if ($pdo instanceof PDO) {
-
-    $pdo->setAttribute(
-        PDO::ATTR_ERRMODE,
-        PDO::ERRMODE_EXCEPTION
-    );
-
-    $pdo->setAttribute(
-        PDO::ATTR_DEFAULT_FETCH_MODE,
-        PDO::FETCH_ASSOC
-    );
-}
-
-
-/*
-=========================================================
-STUDENT LOGIN
-=========================================================
-*/
-
-if (
-    !isset($_SESSION['student_id']) ||
-    empty($_SESSION['student_id'])
-) {
-
-    header("Location: login.php");
-
-    exit;
-}
-
-
-$student_id =
-    (int)$_SESSION['student_id'];
-
-
-$student_name =
-    $_SESSION['student_name']
-    ?? 'Student';
+$pdo->setAttribute(
+    PDO::ATTR_DEFAULT_FETCH_MODE,
+    PDO::FETCH_ASSOC
+);
 
 
 /*
@@ -72,13 +28,33 @@ HELPER
 =========================================================
 */
 
-function h($value)
+function e($value)
 {
     return htmlspecialchars(
         (string)$value,
         ENT_QUOTES,
-        'UTF-8'
+        "UTF-8"
     );
+}
+
+
+/*
+=========================================================
+STUDENT SESSION
+=========================================================
+*/
+
+$student_id =
+    $_SESSION["student_id"] ?? null;
+
+$student_name =
+    $_SESSION["student_name"] ?? "Student";
+
+
+if (!$student_id) {
+
+    header("Location: login.php");
+    exit;
 }
 
 
@@ -89,190 +65,182 @@ BOOKING ID
 */
 
 $booking_id =
-    isset($_GET['id'])
-        ? (int)$_GET['id']
+    isset($_GET["id"])
+        ? (int)$_GET["id"]
         : 0;
 
 
 if ($booking_id <= 0) {
 
-    http_response_code(400);
-
     die("
-        <div style='
-            font-family:Arial;
-            text-align:center;
-            padding:70px;
-        '>
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <title>Invalid Classroom</title>
 
-            <h2 style='color:#003366;'>
-                Invalid Classroom
-            </h2>
+        <style>
+        body{
+            margin:0;
+            font-family:Arial,sans-serif;
+            background:#eef3f8;
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+
+        .box{
+            background:#fff;
+            padding:40px;
+            border-radius:18px;
+            text-align:center;
+            box-shadow:0 15px 40px rgba(0,0,0,.12);
+        }
+
+        h2{
+            color:#003b70;
+        }
+
+        a{
+            display:inline-block;
+            margin-top:20px;
+            padding:12px 20px;
+            background:#003b70;
+            color:#fff;
+            text-decoration:none;
+            border-radius:8px;
+        }
+        </style>
+
+        </head>
+
+        <body>
+
+        <div class='box'>
+
+            <h2>Invalid Classroom</h2>
 
             <p>
-                No valid booking was supplied.
+                No valid lesson was selected.
             </p>
 
-            <a
-                href='schedule.php'
-                style='
-                    display:inline-block;
-                    margin-top:20px;
-                    padding:12px 20px;
-                    background:#003366;
-                    color:white;
-                    text-decoration:none;
-                    border-radius:7px;
-                '
-            >
-                ← Back to My Schedule
+            <a href='schedule.php'>
+                Return to Schedule
             </a>
 
         </div>
+
+        </body>
+        </html>
     ");
+
 }
 
 
 /*
 =========================================================
-GET BOOKING
+LOAD STUDENT BOOKING
+=========================================================
 
-IMPORTANT SECURITY:
-
-booking ID AND student_id are checked.
-
-A student cannot simply change:
-
-?id=45
-
-to view another student's booking.
+The booking must belong to the logged-in student.
 =========================================================
 */
 
-$stmt =
-    $pdo->prepare("
+$stmt = $pdo->prepare("
+    SELECT
+        b.*
+    FROM bookings b
 
-        SELECT
+    WHERE
+        b.id = ?
+        AND b.student_id = ?
 
-            b.id,
-
-            b.booking_reference,
-
-            b.student_id,
-
-            b.student_name,
-
-            b.email,
-
-            b.phone,
-
-            b.curriculum,
-
-            b.class_year,
-
-            b.subjects,
-
-            b.amount,
-
-            b.payment_status,
-
-            b.paystack_reference,
-
-            b.teacher_id,
-
-            b.teacher_name,
-
-            b.assignment_status,
-
-            b.lesson_date,
-
-            b.lesson_time,
-
-            b.lesson_status,
-
-            b.live_room_code,
-
-            b.live_status,
-
-            b.live_started_at,
-
-            b.live_ended_at,
-
-            t.teacher_name AS assigned_teacher_name,
-
-            t.email AS teacher_email,
-
-            t.phone AS teacher_phone
-
-        FROM bookings b
-
-        LEFT JOIN teachers t
-
-            ON b.teacher_id =
-               t.teacher_id
-
-        WHERE
-            b.id = ?
-
-            AND b.student_id = ?
-
-        LIMIT 1
-
-    ");
-
+    LIMIT 1
+");
 
 $stmt->execute([
     $booking_id,
     $student_id
 ]);
 
+$booking = $stmt->fetch();
 
-$booking =
-    $stmt->fetch();
-
-
-/*
-=========================================================
-BOOKING NOT FOUND
-=========================================================
-*/
 
 if (!$booking) {
 
     http_response_code(403);
 
     die("
-        <div style='
-            font-family:Arial;
-            text-align:center;
-            padding:70px;
-        '>
+        <!DOCTYPE html>
 
-            <h2 style='color:#003366;'>
+        <html>
+
+        <head>
+
+        <title>
+            Classroom Access Denied
+        </title>
+
+        <style>
+
+        body{
+            margin:0;
+            font-family:Arial,sans-serif;
+            background:#eef3f8;
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+
+        .box{
+            background:#fff;
+            padding:45px;
+            border-radius:18px;
+            text-align:center;
+            box-shadow:0 15px 40px rgba(0,0,0,.12);
+            max-width:480px;
+        }
+
+        h2{
+            color:#003b70;
+        }
+
+        a{
+            display:inline-block;
+            margin-top:20px;
+            padding:12px 20px;
+            background:#003b70;
+            color:#fff;
+            text-decoration:none;
+            border-radius:8px;
+        }
+
+        </style>
+
+        </head>
+
+        <body>
+
+        <div class='box'>
+
+            <h2>
                 Classroom Access Denied
             </h2>
 
             <p>
-                This classroom does not exist,
-                or it does not belong to your account.
+                This lesson does not belong to your student account.
             </p>
 
-            <a
-                href='schedule.php'
-                style='
-                    display:inline-block;
-                    margin-top:20px;
-                    padding:12px 20px;
-                    background:#003366;
-                    color:white;
-                    text-decoration:none;
-                    border-radius:7px;
-                '
-            >
-                ← Back to My Schedule
+            <a href='schedule.php'>
+                Return to Schedule
             </a>
 
         </div>
+
+        </body>
+
+        </html>
     ");
 
 }
@@ -280,117 +248,202 @@ if (!$booking) {
 
 /*
 =========================================================
-BOOKING VALUES
+BOOKING INFORMATION
 =========================================================
 */
+
+$subject =
+    $booking["subjects"]
+    ?? "Lesson";
+
+$curriculum =
+    $booking["curriculum"]
+    ?? "Curriculum";
+
+$class_year =
+    $booking["class_year"]
+    ?? "Class";
+
+$teacher_name =
+    $booking["teacher_name"]
+    ?? "NISEL Teacher";
 
 $payment_status =
     strtolower(
         trim(
-            $booking['payment_status']
-            ?? ''
+            $booking["payment_status"]
+            ?? ""
         )
     );
-
-
-$lesson_status =
-    strtolower(
-        trim(
-            $booking['lesson_status']
-            ?? ''
-        )
-    );
-
 
 $live_status =
     strtolower(
         trim(
-            $booking['live_status']
-            ?? 'waiting'
+            $booking["live_status"]
+            ?? "waiting"
+        )
+    );
+
+$lesson_status =
+    strtolower(
+        trim(
+            $booking["lesson_status"]
+            ?? ""
         )
     );
 
 
-$teacher_assigned =
-    !empty(
-        $booking['teacher_id']
-    );
-
-
-$room_exists =
-    !empty(
-        $booking['live_room_code']
-    );
-
+/*
+=========================================================
+PAYMENT CHECK
+=========================================================
+*/
 
 $is_paid =
     in_array(
         $payment_status,
         [
-            'paid',
-            'success'
+            "paid",
+            "success",
+            "successful",
+            "completed"
         ],
         true
     );
 
 
+/*
+=========================================================
+CANCELLED
+=========================================================
+*/
+
 $is_cancelled =
-    $lesson_status ===
-    'cancelled';
+    in_array(
+        $lesson_status,
+        [
+            "cancelled",
+            "canceled"
+        ],
+        true
+    );
 
 
-$is_completed =
-    $lesson_status ===
-    'completed';
+/*
+=========================================================
+ROOM CODE
+=========================================================
+*/
+
+$room_code =
+    trim(
+        $booking["live_room_code"]
+        ?? ""
+    );
 
 
-$can_enter =
-    $is_paid
-    &&
-    $teacher_assigned
-    &&
-    $room_exists
-    &&
-    !$is_cancelled;
+/*
+=========================================================
+DATE / TIME
+=========================================================
+*/
+
+$lesson_date =
+    !empty($booking["lesson_date"])
+        ? date(
+            "l, d F Y",
+            strtotime(
+                $booking["lesson_date"]
+            )
+        )
+        : "Not scheduled";
+
+
+$lesson_time =
+    !empty($booking["lesson_time"])
+        ? date(
+            "h:i A",
+            strtotime(
+                $booking["lesson_time"]
+            )
+        )
+        : "Not set";
+
+
+$booking_reference =
+    $booking["booking_reference"]
+    ?? ("BOOKING-" . $booking_id);
 
 
 /*
 =========================================================
 API REQUESTS
-
-The same page can act as the signaling endpoint.
-
-Javascript sends POST requests to:
-
-classroom.php?id=BOOKING_ID
 =========================================================
 */
 
 if (
-    isset($_POST['classroom_action'])
+    $_SERVER["REQUEST_METHOD"] === "POST"
+    &&
+    isset($_POST["classroom_action"])
 ) {
 
     header(
-        'Content-Type: application/json; charset=utf-8'
+        "Content-Type: application/json; charset=UTF-8"
     );
 
 
     $action =
-        $_POST['classroom_action'];
+        trim(
+            $_POST["classroom_action"]
+        );
 
 
     /*
     =====================================================
-    VERIFY CLASSROOM ACCESS FOR API
+    GET CLASS STATUS
     =====================================================
     */
 
-    if (!$can_enter) {
+    if ($action === "get_status") {
+
+        $stmt = $pdo->prepare("
+            SELECT
+                live_status,
+                live_started_at,
+                live_ended_at
+
+            FROM bookings
+
+            WHERE
+                id = ?
+                AND student_id = ?
+
+            LIMIT 1
+        ");
+
+        $stmt->execute([
+            $booking_id,
+            $student_id
+        ]);
+
+        $data =
+            $stmt->fetch();
+
 
         echo json_encode([
-            'success' => false,
-            'message' =>
-                'Classroom is not currently available.'
+            "success" => true,
+
+            "status" =>
+                $data["live_status"]
+                ?? "waiting",
+
+            "started_at" =>
+                $data["live_started_at"]
+                ?? null,
+
+            "ended_at" =>
+                $data["live_ended_at"]
+                ?? null
         ]);
 
         exit;
@@ -399,124 +452,95 @@ if (
 
     /*
     =====================================================
-    SEND SIGNAL
+    SEND SIGNAL TO TEACHER
     =====================================================
     */
 
-    if (
-        $action ===
-        'send_signal'
-    ) {
+    if ($action === "send_signal") {
 
         $signal_type =
             trim(
-                $_POST['signal_type']
-                ?? ''
+                $_POST["signal_type"]
+                ?? ""
             );
 
-
         $signal_data =
-            $_POST['signal_data']
-            ?? '';
+            $_POST["signal_data"]
+            ?? "";
 
 
-        /*
-        ---------------------------------------------
-        ALLOWED SIGNAL TYPES
-        ---------------------------------------------
-        */
-
-        $allowedSignals = [
-            'offer',
-            'answer',
-            'ice-candidate',
-            'hangup',
-            'ready'
+        $allowed_types = [
+            "answer",
+            "ice-candidate",
+            "ready",
+            "hangup"
         ];
 
 
         if (
             !in_array(
                 $signal_type,
-                $allowedSignals,
+                $allowed_types,
                 true
             )
         ) {
 
             echo json_encode([
-                'success' => false,
-                'message' =>
-                    'Invalid signal type.'
+                "success" => false,
+                "message" =>
+                    "Invalid signal type."
             ]);
 
             exit;
         }
 
 
-        /*
-        ---------------------------------------------
-        LIMIT SIGNAL SIZE
-        ---------------------------------------------
-        */
-
         if (
-            strlen(
-                $signal_data
-            ) > 500000
+            strlen($signal_data)
+            > 1000000
         ) {
 
             echo json_encode([
-                'success' => false,
-                'message' =>
-                    'Signal data is too large.'
+                "success" => false,
+                "message" =>
+                    "Signal data is too large."
             ]);
 
             exit;
         }
 
 
-        /*
-        ---------------------------------------------
-        INSERT
-        ---------------------------------------------
-        */
+        $stmt = $pdo->prepare("
+            INSERT INTO classroom_signals
+            (
+                booking_id,
+                room_code,
+                sender_role,
+                signal_type,
+                signal_data
+            )
 
-        $signalStmt =
-            $pdo->prepare("
+            VALUES
+            (
+                ?,
+                ?,
+                'student',
+                ?,
+                ?
+            )
+        ");
 
-                INSERT INTO classroom_signals
-
-                (
-                    booking_id,
-                    room_code,
-                    sender_role,
-                    signal_type,
-                    signal_data
-                )
-
-                VALUES
-                (
-                    ?,
-                    ?,
-                    'student',
-                    ?,
-                    ?
-                )
-
-            ");
-
-
-        $signalStmt->execute([
+        $stmt->execute([
             $booking_id,
-            $booking['live_room_code'],
+            $room_code,
             $signal_type,
             $signal_data
         ]);
 
 
         echo json_encode([
-            'success' => true,
-            'id' =>
+            "success" => true,
+            "id" =>
                 $pdo->lastInsertId()
         ]);
 
@@ -526,71 +550,50 @@ if (
 
     /*
     =====================================================
-    GET SIGNALS
+    GET TEACHER SIGNALS
     =====================================================
     */
 
-    if (
-        $action ===
-        'get_signals'
-    ) {
+    if ($action === "get_signals") {
 
         $last_id =
-            isset(
-                $_POST['last_id']
-            )
-                ? (int)$_POST['last_id']
+            isset($_POST["last_id"])
+                ? (int)$_POST["last_id"]
                 : 0;
 
 
-        /*
-        ---------------------------------------------
-        ONLY GET TEACHER SIGNALS
-        ---------------------------------------------
-        */
+        $stmt = $pdo->prepare("
+            SELECT
+                id,
+                signal_type,
+                signal_data,
+                created_at
 
-        $signalStmt =
-            $pdo->prepare("
+            FROM classroom_signals
 
-                SELECT
+            WHERE
+                booking_id = ?
+                AND room_code = ?
+                AND sender_role = 'teacher'
+                AND id > ?
 
-                    id,
-                    signal_type,
-                    signal_data,
-                    created_at
+            ORDER BY id ASC
 
-                FROM classroom_signals
+            LIMIT 100
+        ");
 
-                WHERE
-                    booking_id = ?
-
-                    AND room_code = ?
-
-                    AND sender_role = 'teacher'
-
-                    AND id > ?
-
-                ORDER BY id ASC
-
-                LIMIT 100
-
-            ");
-
-
-        $signalStmt->execute([
+        $stmt->execute([
             $booking_id,
-            $booking['live_room_code'],
+            $room_code,
             $last_id
         ]);
 
 
-        $signals =
-            $signalStmt->fetchAll();
-
-
         echo json_encode([
-            'success' => true,
-            'signals' => $signals
+            "success" => true,
+
+            "signals" =>
+                $stmt->fetchAll()
         ]);
 
         exit;
@@ -599,97 +602,78 @@ if (
 
     /*
     =====================================================
-    SEND MESSAGE
+    SEND CHAT MESSAGE
     =====================================================
     */
 
-    if (
-        $action ===
-        'send_message'
-    ) {
+    if ($action === "send_message") {
 
         $message =
             trim(
-                $_POST['message']
-                ?? ''
+                $_POST["message"]
+                ?? ""
             );
 
 
-        if (
-            $message === ''
-        ) {
+        if ($message === "") {
 
             echo json_encode([
-                'success' => false,
-                'message' =>
-                    'Message cannot be empty.'
+                "success" => false,
+                "message" =>
+                    "Message cannot be empty."
             ]);
 
             exit;
         }
 
 
-        /*
-        ---------------------------------------------
-        LIMIT MESSAGE
-        ---------------------------------------------
-        */
-
         if (
-            mb_strlen($message) > 1000
+            mb_strlen($message)
+            > 2000
         ) {
 
             echo json_encode([
-                'success' => false,
-                'message' =>
-                    'Message is too long.'
+                "success" => false,
+                "message" =>
+                    "Message is too long."
             ]);
 
             exit;
         }
 
 
-        /*
-        ---------------------------------------------
-        SAVE MESSAGE
-        ---------------------------------------------
-        */
+        $stmt = $pdo->prepare("
+            INSERT INTO classroom_messages
+            (
+                booking_id,
+                room_code,
+                sender_role,
+                sender_name,
+                message
+            )
 
-        $messageStmt =
-            $pdo->prepare("
+            VALUES
+            (
+                ?,
+                ?,
+                'student',
+                ?,
+                ?
+            )
+        ");
 
-                INSERT INTO classroom_messages
-
-                (
-                    booking_id,
-                    room_code,
-                    sender_role,
-                    sender_name,
-                    message
-                )
-
-                VALUES
-                (
-                    ?,
-                    ?,
-                    'student',
-                    ?,
-                    ?
-                )
-
-            ");
-
-
-        $messageStmt->execute([
+        $stmt->execute([
             $booking_id,
-            $booking['live_room_code'],
+            $room_code,
             $student_name,
             $message
         ]);
 
 
         echo json_encode([
-            'success' => true
+            "success" => true,
+            "id" =>
+                $pdo->lastInsertId()
         ]);
 
         exit;
@@ -698,86 +682,53 @@ if (
 
     /*
     =====================================================
-    GET MESSAGES
+    GET CHAT MESSAGES
     =====================================================
     */
 
-    if (
-        $action ===
-        'get_messages'
-    ) {
+    if ($action === "get_messages") {
 
         $last_message_id =
             isset(
-                $_POST['last_message_id']
+                $_POST["last_message_id"]
             )
                 ? (int)
-                    $_POST['last_message_id']
+                    $_POST["last_message_id"]
                 : 0;
 
 
-        $messageStmt =
-            $pdo->prepare("
+        $stmt = $pdo->prepare("
+            SELECT
+                id,
+                sender_role,
+                sender_name,
+                message,
+                created_at
 
-                SELECT
+            FROM classroom_messages
 
-                    id,
-                    sender_role,
-                    sender_name,
-                    message,
-                    created_at
+            WHERE
+                booking_id = ?
+                AND room_code = ?
+                AND id > ?
 
-                FROM classroom_messages
+            ORDER BY id ASC
 
-                WHERE
-                    booking_id = ?
+            LIMIT 100
+        ");
 
-                    AND room_code = ?
-
-                    AND id > ?
-
-                ORDER BY id ASC
-
-                LIMIT 100
-
-            ");
-
-
-        $messageStmt->execute([
+        $stmt->execute([
             $booking_id,
-            $booking['live_room_code'],
+            $room_code,
             $last_message_id
         ]);
 
 
-        $messages =
-            $messageStmt->fetchAll();
-
-
         echo json_encode([
-            'success' => true,
-            'messages' => $messages
-        ]);
+            "success" => true,
 
-        exit;
-    }
-
-
-    /*
-    =====================================================
-    HEARTBEAT
-    =====================================================
-    */
-
-    if (
-        $action ===
-        'heartbeat'
-    ) {
-
-        echo json_encode([
-            'success' => true,
-            'live_status' =>
-                $live_status
+            "messages" =>
+                $stmt->fetchAll()
         ]);
 
         exit;
@@ -791,77 +742,13 @@ if (
     */
 
     echo json_encode([
-        'success' => false,
-        'message' =>
-            'Unknown classroom action.'
+        "success" => false,
+        "message" =>
+            "Unknown classroom action."
     ]);
 
     exit;
 }
-
-
-/*
-=========================================================
-FORMAT DATE
-=========================================================
-*/
-
-$lesson_date_display =
-    !empty(
-        $booking['lesson_date']
-    )
-        ? date(
-            'l, d F Y',
-            strtotime(
-                $booking['lesson_date']
-            )
-        )
-        : 'Not scheduled';
-
-
-/*
-=========================================================
-FORMAT TIME
-=========================================================
-*/
-
-$lesson_time_display =
-    !empty(
-        $booking['lesson_time']
-    )
-        ? date(
-            'h:i A',
-            strtotime(
-                $booking['lesson_time']
-            )
-        )
-        : 'Not set';
-
-
-/*
-=========================================================
-TEACHER NAME
-=========================================================
-*/
-
-$teacher_display =
-    $booking['assigned_teacher_name']
-    ??
-    $booking['teacher_name']
-    ??
-    'Not assigned';
-
-
-/*
-=========================================================
-ROOM
-=========================================================
-*/
-
-$room_code =
-    $booking['live_room_code']
-    ?? '';
-
 
 ?>
 
@@ -875,17 +762,11 @@ $room_code =
 
 <meta
     name="viewport"
-    content="
-        width=device-width,
-        initial-scale=1.0
-    "
+    content="width=device-width, initial-scale=1.0"
 >
 
 <title>
-
-    NISEL Classroom |
-    <?= h($booking['subjects']) ?>
-
+NISEL Student Live Classroom
 </title>
 
 
@@ -912,13 +793,15 @@ body {
     height: 100%;
 
     font-family:
+        Inter,
         Arial,
         Helvetica,
         sans-serif;
 
-    background: #0b1220;
+    background: #070d18;
 
-    color: white;
+    color: #ffffff;
+
 }
 
 
@@ -926,62 +809,57 @@ body {
    TOP BAR
 ===================================================== */
 
-.classroom-header {
-
-    height: 70px;
-
-    background: #003366;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content:
-        space-between;
-
-    padding:
-        0 22px;
-
-    border-bottom:
-        1px solid
-        rgba(255,255,255,.12);
+.topbar {
 
     position: fixed;
+
+    top: 0;
 
     left: 0;
 
     right: 0;
 
-    top: 0;
+    height: 68px;
 
     z-index: 100;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    padding:
+        0 20px;
+
+    background:
+        rgba(0,51,102,.98);
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.1);
+
 }
 
 
-.brand {
+.logo-area {
 
     display: flex;
 
     align-items: center;
 
     gap: 12px;
+
 }
 
 
-.brand-icon {
+.logo-box {
 
-    width: 42px;
+    width: 40px;
 
-    height: 42px;
+    height: 40px;
 
     border-radius: 10px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #0877c9,
-            #00a6e8
-        );
 
     display: flex;
 
@@ -989,54 +867,59 @@ body {
 
     justify-content: center;
 
-    font-size: 20px;
+    font-weight: 900;
 
-    font-weight: bold;
+    background:
+        linear-gradient(
+            135deg,
+            #0877c9,
+            #00a7e8
+        );
+
 }
 
 
-.brand-text {
-
-    line-height: 1.2;
-}
-
-
-.brand-text strong {
+.logo-text strong {
 
     display: block;
 
-    font-size: 16px;
+    font-size: 14px;
+
 }
 
 
-.brand-text span {
+.logo-text small {
 
     display: block;
 
-    color: #9ddfff;
+    color: #a8ddf7;
 
-    font-size: 11px;
+    font-size: 10px;
+
+    margin-top: 2px;
+
 }
 
 
-.header-info {
+.top-actions {
 
     display: flex;
 
     align-items: center;
 
-    gap: 20px;
+    gap: 12px;
+
 }
 
 
-.room-label {
+.room {
 
-    font-family:
-        monospace;
+    color: #b9c7d8;
 
     font-size: 11px;
 
-    color: #cbd5e1;
+    font-family: monospace;
+
 }
 
 
@@ -1048,20 +931,21 @@ body {
 
     gap: 6px;
 
-    background: #dc3545;
-
-    color: white;
-
-    text-decoration: none;
-
     padding:
         9px 13px;
 
-    border-radius: 7px;
+    border-radius: 8px;
+
+    background: #dc3545;
+
+    color: #ffffff;
+
+    text-decoration: none;
 
     font-size: 12px;
 
-    font-weight: bold;
+    font-weight: 700;
+
 }
 
 
@@ -1069,11 +953,11 @@ body {
    MAIN
 ===================================================== */
 
-.classroom {
+.app {
 
     position: absolute;
 
-    top: 70px;
+    top: 68px;
 
     left: 0;
 
@@ -1084,9 +968,9 @@ body {
     display: grid;
 
     grid-template-columns:
-        1fr 330px;
+        minmax(0,1fr)
+        340px;
 
-    gap: 0;
 }
 
 
@@ -1098,50 +982,44 @@ body {
 
     position: relative;
 
-    background: #050a12;
-
     overflow: hidden;
 
-    display: flex;
+    background:
+        radial-gradient(
+            circle at center,
+            #17243b 0%,
+            #070d18 65%
+        );
 
-    align-items: center;
-
-    justify-content: center;
 }
 
 
-.video-stage {
+.teacher-video {
 
     position: absolute;
 
-    inset: 15px;
+    top: 15px;
 
-    display: grid;
+    left: 15px;
 
-    grid-template-columns:
-        1fr;
+    right: 15px;
 
-    gap: 12px;
-}
-
-
-.video-box {
-
-    position: relative;
-
-    background: #111827;
-
-    border-radius: 12px;
+    bottom: 15px;
 
     overflow: hidden;
 
+    border-radius: 16px;
+
+    background: #020617;
+
     border:
         1px solid
-        rgba(255,255,255,.08);
+        rgba(255,255,255,.1);
+
 }
 
 
-.video-box video {
+#teacherVideo {
 
     width: 100%;
 
@@ -1150,72 +1028,109 @@ body {
     object-fit: cover;
 
     background: #020617;
+
 }
 
 
-.teacher-video {
-
-    min-height: 400px;
-}
-
-
-.student-preview {
+.teacher-name {
 
     position: absolute;
 
-    width: 220px;
+    left: 15px;
 
-    height: 135px;
+    bottom: 15px;
 
-    right: 20px;
+    padding:
+        7px 11px;
 
-    bottom: 20px;
+    border-radius: 7px;
 
-    z-index: 10;
+    background:
+        rgba(0,0,0,.65);
+
+    font-size: 11px;
+
+    z-index: 5;
+
+}
+
+
+/* =====================================================
+   STUDENT SELF VIDEO
+===================================================== */
+
+.student-video {
+
+    position: absolute;
+
+    right: 30px;
+
+    bottom: 95px;
+
+    width: 230px;
+
+    height: 145px;
+
+    z-index: 30;
+
+    overflow: hidden;
+
+    border-radius: 12px;
+
+    background: #111827;
 
     border:
         2px solid
         rgba(255,255,255,.25);
 
     box-shadow:
-        0 10px 30px
+        0 15px 35px
         rgba(0,0,0,.5);
+
 }
 
 
-.student-preview video {
+#studentVideo {
+
+    width: 100%;
+
+    height: 100%;
 
     object-fit: cover;
+
+    background: #020617;
+
+    transform: scaleX(-1);
+
 }
 
 
-.video-label {
+.student-label {
 
     position: absolute;
 
-    left: 12px;
+    left: 9px;
 
-    bottom: 12px;
+    bottom: 9px;
 
-    z-index: 5;
+    padding:
+        5px 8px;
+
+    border-radius: 5px;
 
     background:
         rgba(0,0,0,.65);
 
-    padding:
-        6px 9px;
+    font-size: 10px;
 
-    border-radius: 5px;
-
-    font-size: 11px;
 }
 
 
 /* =====================================================
-   CONNECTION MESSAGE
+   WAITING SCREEN
 ===================================================== */
 
-.connection-screen {
+.waiting {
 
     position: absolute;
 
@@ -1230,26 +1145,24 @@ body {
     justify-content: center;
 
     background:
-        radial-gradient(
-            circle at center,
-            #17233b,
-            #050a12
-        );
+        rgba(2,6,23,.88);
+
 }
 
 
-.connection-card {
+.waiting-card {
 
-    width: min(450px,90%);
-
-    text-align: center;
+    width:
+        min(470px,90%);
 
     padding: 35px;
 
-    border-radius: 16px;
+    border-radius: 20px;
+
+    text-align: center;
 
     background:
-        rgba(15,23,42,.9);
+        rgba(15,23,42,.97);
 
     border:
         1px solid
@@ -1257,99 +1170,104 @@ body {
 
     box-shadow:
         0 20px 60px
-        rgba(0,0,0,.35);
+        rgba(0,0,0,.4);
+
 }
 
 
-.connection-icon {
+.waiting-icon {
 
-    font-size: 50px;
+    width: 70px;
 
-    margin-bottom: 15px;
+    height: 70px;
+
+    margin:
+        0 auto 18px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 20px;
+
+    font-size: 32px;
+
+    background:
+        linear-gradient(
+            135deg,
+            #003b70,
+            #0877c9
+        );
+
 }
 
 
-.connection-card h2 {
+.waiting-card h2 {
 
     margin:
         0 0 10px;
 
-    font-size: 23px;
+    font-size: 22px;
+
 }
 
 
-.connection-card p {
+.waiting-card p {
 
-    color: #cbd5e1;
+    margin: 0;
 
-    font-size: 14px;
+    color: #9eacbd;
 
     line-height: 1.6;
+
+    font-size: 13px;
+
 }
 
 
-/* =====================================================
-   STATUS
-===================================================== */
-
-.status-pill {
+.status-badge {
 
     display: inline-flex;
 
     align-items: center;
 
-    gap: 7px;
+    gap: 6px;
+
+    margin-top: 17px;
 
     padding:
-        7px 11px;
+        7px 12px;
 
-    border-radius: 20px;
+    border-radius: 30px;
+
+    background: #3a3014;
+
+    color: #f7d66a;
 
     font-size: 11px;
 
-    font-weight: bold;
+    font-weight: 800;
 
-    margin-top: 15px;
 }
 
 
-.status-waiting {
+.status-badge.live {
 
-    background: #3f3212;
+    background: #123b2a;
 
-    color: #ffd966;
+    color: #72e2a4;
+
 }
 
 
-.status-connecting {
+.status-badge.ended {
 
-    background: #123452;
+    background: #29313d;
 
-    color: #75cfff;
-}
+    color: #aeb9c8;
 
-
-.status-live {
-
-    background: #123a29;
-
-    color: #69e6a1;
-}
-
-
-.status-ended {
-
-    background: #303642;
-
-    color: #cbd5e1;
-}
-
-
-.status-error {
-
-    background: #431d24;
-
-    color: #ff9ba8;
 }
 
 
@@ -1361,65 +1279,124 @@ body {
 
     position: absolute;
 
-    bottom: 20px;
+    bottom: 22px;
 
     left: 50%;
 
     transform:
         translateX(-50%);
 
-    z-index: 30;
+    z-index: 60;
 
     display: flex;
 
+    align-items: center;
+
     gap: 8px;
 
-    padding: 9px;
+    padding: 8px;
 
-    border-radius: 30px;
+    border-radius: 40px;
 
     background:
-        rgba(15,23,42,.92);
+        rgba(15,23,42,.95);
 
     border:
         1px solid
-        rgba(255,255,255,.1);
+        rgba(255,255,255,.12);
 
     box-shadow:
-        0 10px 30px
+        0 12px 35px
         rgba(0,0,0,.4);
+
 }
 
 
-.control-btn {
+.control {
 
-    width: 43px;
+    width: 44px;
 
-    height: 43px;
+    height: 44px;
 
     border: none;
 
     border-radius: 50%;
 
-    background: #253247;
+    background: #263348;
 
-    color: white;
+    color: #ffffff;
 
     cursor: pointer;
 
     font-size: 17px;
+
 }
 
 
-.control-btn:hover {
+.control:hover {
 
-    background: #334155;
+    background: #34445c;
+
 }
 
 
-.control-btn.active {
+.control.off {
+
+    background: #b42336;
+
+}
+
+
+.join-button {
+
+    height: 44px;
+
+    padding:
+        0 18px;
+
+    border: none;
+
+    border-radius: 24px;
+
+    background: #16a34a;
+
+    color: #fff;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
+}
+
+
+.join-button:hover {
+
+    background: #15803d;
+
+}
+
+
+.leave-button {
+
+    display: none;
+
+    height: 44px;
+
+    padding:
+        0 17px;
+
+    border: none;
+
+    border-radius: 24px;
 
     background: #dc3545;
+
+    color: #fff;
+
+    font-weight: 800;
+
+    cursor: pointer;
+
 }
 
 
@@ -1427,7 +1404,13 @@ body {
    SIDEBAR
 ===================================================== */
 
-.side-panel {
+.sidebar {
+
+    display: flex;
+
+    flex-direction: column;
+
+    min-width: 0;
 
     background: #111827;
 
@@ -1435,44 +1418,37 @@ body {
         1px solid
         rgba(255,255,255,.08);
 
-    display: flex;
-
-    flex-direction: column;
-
-    overflow: hidden;
 }
 
 
-/* =====================================================
-   LESSON INFO
-===================================================== */
-
-.lesson-info {
+.lesson-card {
 
     padding: 20px;
 
     border-bottom:
         1px solid
         rgba(255,255,255,.08);
+
 }
 
 
-.lesson-info h2 {
+.lesson-card h2 {
 
-    margin:
-        0 0 5px;
+    margin: 0;
 
-    font-size: 19px;
+    font-size: 18px;
+
 }
 
 
-.lesson-info .curriculum {
+.curriculum {
 
-    color: #67d5ff;
+    margin-top: 5px;
 
-    font-size: 12px;
+    color: #5ccdf6;
 
-    margin-bottom: 15px;
+    font-size: 11px;
+
 }
 
 
@@ -1480,20 +1456,26 @@ body {
 
     display: flex;
 
-    justify-content:
-        space-between;
+    justify-content: space-between;
 
-    gap: 10px;
+    gap: 15px;
 
-    margin-bottom: 8px;
+    padding:
+        8px 0;
 
-    font-size: 12px;
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.04);
+
+    font-size: 11px;
+
 }
 
 
 .info-row span:first-child {
 
-    color: #94a3b8;
+    color: #718096;
+
 }
 
 
@@ -1502,25 +1484,45 @@ body {
     color: #e2e8f0;
 
     text-align: right;
+
 }
 
 
-/* =====================================================
-   CHAT
-===================================================== */
+.payment-badge {
 
-.chat-title {
+    display: inline-flex;
+
+    margin-top: 12px;
+
+    padding:
+        6px 9px;
+
+    border-radius: 6px;
+
+    background: #123b2a;
+
+    color: #6ee7a0;
+
+    font-size: 9px;
+
+    font-weight: 800;
+
+}
+
+
+.chat-header {
 
     padding:
         14px 18px;
+
+    font-size: 13px;
+
+    font-weight: 800;
 
     border-bottom:
         1px solid
         rgba(255,255,255,.08);
 
-    font-weight: bold;
-
-    font-size: 13px;
 }
 
 
@@ -1528,74 +1530,101 @@ body {
 
     flex: 1;
 
+    min-height: 0;
+
     overflow-y: auto;
 
     padding: 15px;
+
 }
 
 
-.chat-message {
+.empty-chat {
 
-    margin-bottom: 13px;
+    text-align: center;
 
-    max-width: 90%;
+    color: #66758a;
+
+    font-size: 11px;
+
+    padding: 25px 10px;
+
 }
 
 
-.chat-message.mine {
+.message {
 
-    margin-left: auto;
+    margin-bottom: 14px;
+
+}
+
+
+.message.mine {
 
     text-align: right;
+
 }
 
 
-.chat-bubble {
+.message-name {
+
+    color: #7f8da1;
+
+    font-size: 9px;
+
+    margin-bottom: 4px;
+
+}
+
+
+.message-bubble {
 
     display: inline-block;
 
+    max-width: 90%;
+
     padding:
-        8px 11px;
+        8px 10px;
 
     border-radius: 9px;
 
-    background: #253247;
+    background: #263348;
 
-    font-size: 12px;
+    color: #e7edf5;
+
+    font-size: 11px;
 
     line-height: 1.45;
 
     text-align: left;
+
 }
 
 
-.mine .chat-bubble {
+.message.mine
+.message-bubble {
 
-    background: #0055a5;
+    background: #075a9e;
+
 }
 
 
-.chat-name {
-
-    font-size: 10px;
-
-    color: #94a3b8;
-
-    margin-bottom: 3px;
-}
-
-
-.chat-time {
-
-    font-size: 9px;
-
-    color: #64748b;
+.message-time {
 
     margin-top: 3px;
+
+    color: #5f6e82;
+
+    font-size: 8px;
+
 }
 
 
 .chat-form {
+
+    display: flex;
+
+    gap: 7px;
 
     padding: 12px;
 
@@ -1603,9 +1632,6 @@ body {
         1px solid
         rgba(255,255,255,.08);
 
-    display: flex;
-
-    gap: 7px;
 }
 
 
@@ -1619,22 +1645,23 @@ body {
 
     outline: none;
 
-    border-radius: 7px;
+    border-radius: 8px;
 
-    padding:
-        10px;
+    padding: 10px;
 
     background: #1e293b;
 
     color: white;
 
-    font-size: 12px;
+    font-size: 11px;
+
 }
 
 
 .chat-input::placeholder {
 
-    color: #64748b;
+    color: #68788e;
+
 }
 
 
@@ -1642,7 +1669,7 @@ body {
 
     border: none;
 
-    border-radius: 7px;
+    border-radius: 8px;
 
     padding:
         0 13px;
@@ -1653,21 +1680,22 @@ body {
 
     cursor: pointer;
 
-    font-weight: bold;
+    font-weight: 800;
+
 }
 
 
 /* =====================================================
-   NOT AVAILABLE
+   BLOCKED
 ===================================================== */
 
-.not-ready {
+.blocked {
 
-    min-height: 100vh;
+    position: absolute;
 
-    background: #eef3f8;
+    inset: 0;
 
-    color: #334155;
+    z-index: 90;
 
     display: flex;
 
@@ -1675,184 +1703,66 @@ body {
 
     justify-content: center;
 
-    padding: 20px;
+    background:
+        rgba(2,6,23,.96);
+
 }
 
 
-.not-ready-card {
+.blocked-card {
 
-    width: min(650px,100%);
-
-    background: white;
-
-    border-radius: 16px;
+    width:
+        min(460px,90%);
 
     padding: 35px;
 
-    box-shadow:
-        0 15px 50px
-        rgba(0,0,0,.1);
-}
+    text-align: center;
 
+    border-radius: 18px;
 
-.not-ready-icon {
-
-    width: 70px;
-
-    height: 70px;
-
-    border-radius: 50%;
-
-    background: #e8f4ff;
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    font-size: 32px;
-
-    margin-bottom: 20px;
-}
-
-
-.not-ready-card h1 {
-
-    color: #003366;
-
-    margin:
-        0 0 10px;
-}
-
-
-.not-ready-card p {
-
-    color: #64748b;
-
-    line-height: 1.7;
-}
-
-
-.lesson-summary {
-
-    background: #f7faff;
+    background: #111827;
 
     border:
-        1px solid #e2e8f0;
+        1px solid
+        rgba(255,255,255,.1);
 
-    border-radius: 10px;
-
-    padding: 18px;
-
-    margin:
-        20px 0;
 }
 
 
-.summary-row {
+.blocked-card h2 {
 
-    display: flex;
+    margin-top: 0;
 
-    justify-content:
-        space-between;
+}
 
-    padding:
-        8px 0;
 
-    border-bottom:
-        1px solid #e9eef3;
+.blocked-card p {
+
+    color: #9eacbd;
+
+    line-height: 1.6;
 
     font-size: 13px;
-}
 
-
-.summary-row:last-child {
-
-    border-bottom: none;
-}
-
-
-.summary-label {
-
-    color: #64748b;
-}
-
-
-.summary-value {
-
-    color: #003366;
-
-    font-weight: bold;
-
-    text-align: right;
-}
-
-
-.back-button {
-
-    display: inline-block;
-
-    padding:
-        11px 17px;
-
-    border-radius: 7px;
-
-    background: #003366;
-
-    color: white;
-
-    text-decoration: none;
-
-    font-weight: bold;
-
-    font-size: 13px;
 }
 
 
 /* =====================================================
-   MOBILE
+   RESPONSIVE
 ===================================================== */
 
-@media(max-width:900px) {
+@media(max-width:950px) {
 
-    .classroom {
+    .app {
 
-        grid-template-columns: 1fr;
-
-    }
-
-
-    .side-panel {
-
-        display: none;
+        grid-template-columns:1fr;
 
     }
 
 
-    .video-stage {
+    .sidebar {
 
-        inset: 8px;
-
-    }
-
-
-    .student-preview {
-
-        width: 150px;
-
-        height: 100px;
-
-        right: 10px;
-
-        bottom: 80px;
-
-    }
-
-
-    .room-label {
-
-        display: none;
+        display:none;
 
     }
 
@@ -1861,31 +1771,45 @@ body {
 
 @media(max-width:600px) {
 
-    .brand-text {
+    .logo-text {
 
-        display: none;
-
-    }
-
-
-    .classroom-header {
-
-        padding:
-            0 12px;
+        display:none;
 
     }
 
 
-    .teacher-video {
+    .room {
 
-        min-height: 300px;
+        display:none;
 
     }
 
 
-    .connection-card {
+    .student-video {
 
-        padding: 25px;
+        width:150px;
+
+        height:100px;
+
+        right:15px;
+
+        bottom:90px;
+
+    }
+
+
+    .controls {
+
+        max-width:96%;
+
+    }
+
+
+    .control {
+
+        width:40px;
+
+        height:40px;
 
     }
 
@@ -1899,289 +1823,35 @@ body {
 <body>
 
 
-<?php if (!$can_enter): ?>
+<header class="topbar">
 
+    <div class="logo-area">
 
-<!-- =====================================================
-     CLASS NOT READY
-===================================================== -->
-
-<div class="not-ready">
-
-    <div class="not-ready-card">
-
-
-        <div class="not-ready-icon">
-
-            🎓
-
-        </div>
-
-
-        <h1>
-
-            Your Classroom Is Not Ready
-
-        </h1>
-
-
-        <p>
-
-            Your booking has been found, but the
-            NISEL classroom is not currently available.
-
-        </p>
-
-
-        <div class="lesson-summary">
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Subject
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= h(
-                        $booking['subjects']
-                    ) ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Curriculum
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= h(
-                        $booking['curriculum']
-                    ) ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Teacher
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= h(
-                        $teacher_display
-                    ) ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Lesson Date
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= h(
-                        $lesson_date_display
-                    ) ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Lesson Time
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= h(
-                        $lesson_time_display
-                    ) ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Payment
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= h(
-                        strtoupper(
-                            $booking['payment_status']
-                            ?? 'PENDING'
-                        )
-                    ) ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Teacher Assignment
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?= $teacher_assigned
-                        ? 'Assigned'
-                        : 'Not Assigned'
-                    ?>
-
-                </span>
-
-            </div>
-
-
-            <div class="summary-row">
-
-                <span class="summary-label">
-
-                    Classroom
-
-                </span>
-
-                <span class="summary-value">
-
-                    <?php
-
-                    if ($is_cancelled) {
-
-                        echo "Lesson Cancelled";
-
-                    } elseif (!$is_paid) {
-
-                        echo "Waiting for Payment";
-
-                    } elseif (!$teacher_assigned) {
-
-                        echo "Waiting for Teacher";
-
-                    } elseif (!$room_exists) {
-
-                        echo "Waiting for Classroom";
-
-                    } elseif ($is_completed) {
-
-                        echo "Lesson Completed";
-
-                    } else {
-
-                        echo "Not Available";
-
-                    }
-
-                    ?>
-
-                </span>
-
-            </div>
-
-
-        </div>
-
-
-        <a
-            href="schedule.php"
-            class="back-button"
-        >
-
-            ← Back to My Schedule
-
-        </a>
-
-
-    </div>
-
-</div>
-
-
-<?php else: ?>
-
-
-<!-- =====================================================
-     CLASSROOM
-===================================================== -->
-
-<header class="classroom-header">
-
-
-    <div class="brand">
-
-
-        <div class="brand-icon">
-
+        <div class="logo-box">
             N
-
         </div>
 
-
-        <div class="brand-text">
+        <div class="logo-text">
 
             <strong>
                 NISEL ONLINE EDUCATION
             </strong>
 
-            <span>
-                Virtual Classroom
-            </span>
+            <small>
+                Student Live Classroom
+            </small>
 
         </div>
-
 
     </div>
 
 
-    <div class="header-info">
+    <div class="top-actions">
 
-
-        <div class="room-label">
+        <div class="room">
 
             ROOM:
-
-            <?= h(
-                $room_code
-            ) ?>
+            <?= e($room_code) ?>
 
         </div>
 
@@ -2195,138 +1865,110 @@ body {
 
         </a>
 
-
     </div>
-
 
 </header>
 
 
-<div class="classroom">
+<div class="app">
 
 
     <!-- =================================================
-         VIDEO
+         VIDEO AREA
     ================================================== -->
 
-    <main class="video-area">
+    <section class="video-area">
 
 
-        <div class="video-stage">
+        <div class="teacher-video">
 
 
-            <!-- TEACHER VIDEO -->
-
-            <div class="video-box teacher-video">
-
-
-                <video
-                    id="teacherVideo"
-                    autoplay
-                    playsinline
-                ></video>
+            <video
+                id="teacherVideo"
+                autoplay
+                playsinline
+            ></video>
 
 
-                <div
-                    class="video-label"
-                    id="teacherLabel"
-                >
+            <div class="teacher-name">
 
-                    👨‍🏫
-                    <?= h(
-                        $teacher_display
-                    ) ?>
+                👨‍🏫
 
-                </div>
+                <?= e($teacher_name) ?>
+
+            </div>
 
 
-                <!-- CONNECTION SCREEN -->
+            <!-- WAITING SCREEN -->
 
-                <div
-                    class="connection-screen"
-                    id="connectionScreen"
-                >
+            <div
+                class="waiting"
+                id="waitingScreen"
+            >
+
+                <div class="waiting-card">
+
 
                     <div
-                        class="connection-card"
+                        class="waiting-icon"
+                        id="waitingIcon"
+                    >
+                        🎓
+                    </div>
+
+
+                    <h2
+                        id="waitingTitle"
+                    >
+                        Waiting for Teacher
+                    </h2>
+
+
+                    <p
+                        id="waitingMessage"
                     >
 
-                        <div
-                            class="connection-icon"
-                            id="connectionIcon"
-                        >
+                        Your teacher has not started
+                        this live class yet.
 
-                            ⏳
-
-                        </div>
+                    </p>
 
 
-                        <h2
-                            id="connectionTitle"
-                        >
+                    <div
+                        class="status-badge"
+                        id="statusBadge"
+                    >
 
-                            Waiting for your teacher
-
-                        </h2>
-
-
-                        <p
-                            id="connectionMessage"
-                        >
-
-                            Please wait while your
-                            teacher joins the classroom.
-
-                        </p>
-
-
-                        <div
-                            id="connectionStatus"
-                            class="
-                                status-pill
-                                status-waiting
-                            "
-                        >
-
-                            ● Waiting
-
-                        </div>
+                        ● WAITING
 
                     </div>
 
                 </div>
 
-
             </div>
 
-
-            <!-- STUDENT PREVIEW -->
-
-            <div
-                class="
-                    video-box
-                    student-preview
-                "
-            >
-
-                <video
-                    id="studentVideo"
-                    autoplay
-                    muted
-                    playsinline
-                ></video>
+        </div>
 
 
-                <div
-                    class="video-label"
-                >
+        <!-- STUDENT SELF VIEW -->
 
-                    You
+        <div class="student-video">
 
-                </div>
+            <video
+                id="studentVideo"
+                autoplay
+                muted
+                playsinline
+            ></video>
+
+
+            <div class="student-label">
+
+                👨‍🎓
+
+                <?= e($student_name) ?>
 
             </div>
-
 
         </div>
 
@@ -2338,169 +1980,247 @@ body {
 
             <button
                 type="button"
+                class="control"
                 id="micButton"
-                class="control-btn"
                 title="Microphone"
             >
-
                 🎤
-
             </button>
 
 
             <button
                 type="button"
+                class="control"
                 id="cameraButton"
-                class="control-btn"
                 title="Camera"
             >
-
                 📷
-
             </button>
 
 
             <button
                 type="button"
+                class="control"
                 id="fullscreenButton"
-                class="control-btn"
                 title="Fullscreen"
             >
-
                 ⛶
-
             </button>
 
 
             <button
                 type="button"
-                id="leaveButton"
-                class="control-btn"
-                title="Leave Classroom"
+                class="join-button"
+                id="joinButton"
             >
-
-                📞
-
+                🎥 Join Class
             </button>
 
+
+            <button
+                type="button"
+                class="leave-button"
+                id="leaveButton"
+            >
+                Leave Class
+            </button>
 
         </div>
 
 
-    </main>
+        <?php if (!$is_paid): ?>
+
+            <div class="blocked">
+
+                <div class="blocked-card">
+
+                    <div
+                        style="
+                            font-size:45px;
+                            margin-bottom:15px;
+                        "
+                    >
+                        💳
+                    </div>
+
+
+                    <h2>
+                        Payment Required
+                    </h2>
+
+
+                    <p>
+
+                        Your payment has not yet been
+                        confirmed for this lesson.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        <?php elseif ($is_cancelled): ?>
+
+            <div class="blocked">
+
+                <div class="blocked-card">
+
+                    <div
+                        style="
+                            font-size:45px;
+                            margin-bottom:15px;
+                        "
+                    >
+                        ⚠️
+                    </div>
+
+
+                    <h2>
+                        Lesson Cancelled
+                    </h2>
+
+
+                    <p>
+
+                        This lesson has been cancelled
+                        and cannot be joined.
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        <?php endif; ?>
+
+
+    </section>
 
 
     <!-- =================================================
-         RIGHT PANEL
+         SIDEBAR
     ================================================== -->
 
-    <aside class="side-panel">
+    <aside class="sidebar">
 
 
-        <!-- LESSON INFORMATION -->
-
-        <div class="lesson-info">
+        <div class="lesson-card">
 
 
             <h2>
 
-                <?= h(
-                    $booking['subjects']
-                ) ?>
+                <?= e($subject) ?>
 
             </h2>
 
 
-            <div
-                class="curriculum"
-            >
+            <div class="curriculum">
 
-                <?= h(
-                    $booking['curriculum']
-                ) ?>
+                <?= e($curriculum) ?>
 
                 ·
 
-                <?= h(
-                    $booking['class_year']
-                ) ?>
+                <?= e($class_year) ?>
 
             </div>
 
 
-            <div class="info-row">
+            <div
+                style="
+                    margin-top:15px;
+                "
+            >
 
-                <span>
-                    Teacher
-                </span>
 
-                <span>
-                    <?= h(
-                        $teacher_display
-                    ) ?>
-                </span>
+                <div class="info-row">
+
+                    <span>
+                        Teacher
+                    </span>
+
+                    <span>
+                        <?= e($teacher_name) ?>
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span>
+                        Date
+                    </span>
+
+                    <span>
+                        <?= e($lesson_date) ?>
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span>
+                        Time
+                    </span>
+
+                    <span>
+                        <?= e($lesson_time) ?>
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span>
+                        Booking
+                    </span>
+
+                    <span>
+                        <?= e($booking_reference) ?>
+                    </span>
+
+                </div>
+
+
+                <div class="info-row">
+
+                    <span>
+                        Room
+                    </span>
+
+                    <span>
+                        <?= e($room_code) ?>
+                    </span>
+
+                </div>
+
 
             </div>
 
 
-            <div class="info-row">
+            <?php if ($is_paid): ?>
 
-                <span>
-                    Date
-                </span>
+                <div class="payment-badge">
 
-                <span>
-                    <?= h(
-                        $lesson_date_display
-                    ) ?>
-                </span>
+                    ✓ PAYMENT CONFIRMED
 
-            </div>
+                </div>
 
-
-            <div class="info-row">
-
-                <span>
-                    Time
-                </span>
-
-                <span>
-                    <?= h(
-                        $lesson_time_display
-                    ) ?>
-                </span>
-
-            </div>
-
-
-            <div class="info-row">
-
-                <span>
-                    Booking
-                </span>
-
-                <span>
-                    <?= h(
-                        $booking['booking_reference']
-                    ) ?>
-                </span>
-
-            </div>
+            <?php endif; ?>
 
 
         </div>
 
 
-        <!-- CHAT TITLE -->
-
-        <div class="chat-title">
+        <div class="chat-header">
 
             💬 Classroom Chat
 
         </div>
 
-
-        <!-- CHAT -->
 
         <div
             class="chat-messages"
@@ -2508,23 +2228,16 @@ body {
         >
 
             <div
-                style="
-                    text-align:center;
-                    color:#64748b;
-                    font-size:11px;
-                    padding:20px;
-                "
-                id="chatEmpty"
+                class="empty-chat"
+                id="emptyChat"
             >
 
-                Classroom chat is ready.
+                Chat with your teacher here.
 
             </div>
 
         </div>
 
-
-        <!-- CHAT FORM -->
 
         <form
             class="chat-form"
@@ -2535,8 +2248,9 @@ body {
                 type="text"
                 id="chatInput"
                 class="chat-input"
-                placeholder="Type a message..."
+                placeholder="Message your teacher..."
                 autocomplete="off"
+                maxlength="2000"
             >
 
 
@@ -2544,16 +2258,13 @@ body {
                 type="submit"
                 class="chat-send"
             >
-
                 Send
-
             </button>
 
         </form>
 
 
     </aside>
-
 
 </div>
 
@@ -2562,38 +2273,23 @@ body {
 
 /*
 =========================================================
-NISEL ONLINE EDUCATION
-STUDENT CLASSROOM JAVASCRIPT
+NISEL STUDENT CLASSROOM
+WEBRTC
 =========================================================
 */
 
-
-/*
-=========================================================
-CONFIGURATION
-=========================================================
-*/
 
 const BOOKING_ID =
     <?= (int)$booking_id ?>;
 
 
 const ROOM_CODE =
-    <?= json_encode(
-        $room_code
-    ) ?>;
-
-
-const STUDENT_NAME =
-    <?= json_encode(
-        $student_name
-    ) ?>;
+    <?= json_encode($room_code) ?>;
 
 
 const CLASSROOM_URL =
     "classroom.php?id="
-    +
-    BOOKING_ID;
+    + BOOKING_ID;
 
 
 /*
@@ -2614,33 +2310,45 @@ const studentVideo =
     );
 
 
-const connectionScreen =
+const waitingScreen =
     document.getElementById(
-        "connectionScreen"
+        "waitingScreen"
     );
 
 
-const connectionIcon =
+const waitingIcon =
     document.getElementById(
-        "connectionIcon"
+        "waitingIcon"
     );
 
 
-const connectionTitle =
+const waitingTitle =
     document.getElementById(
-        "connectionTitle"
+        "waitingTitle"
     );
 
 
-const connectionMessage =
+const waitingMessage =
     document.getElementById(
-        "connectionMessage"
+        "waitingMessage"
     );
 
 
-const connectionStatus =
+const statusBadge =
     document.getElementById(
-        "connectionStatus"
+        "statusBadge"
+    );
+
+
+const joinButton =
+    document.getElementById(
+        "joinButton"
+    );
+
+
+const leaveButton =
+    document.getElementById(
+        "leaveButton"
     );
 
 
@@ -2662,12 +2370,6 @@ const fullscreenButton =
     );
 
 
-const leaveButton =
-    document.getElementById(
-        "leaveButton"
-    );
-
-
 const chatForm =
     document.getElementById(
         "chatForm"
@@ -2686,9 +2388,9 @@ const chatMessages =
     );
 
 
-const chatEmpty =
+const emptyChat =
     document.getElementById(
-        "chatEmpty"
+        "emptyChat"
     );
 
 
@@ -2698,29 +2400,28 @@ WEBRTC
 =========================================================
 */
 
-let peerConnection = null;
-
 let localStream = null;
 
+let peerConnection = null;
+
 let remoteStream = null;
+
+let joinedClass = false;
 
 let lastSignalId = 0;
 
 let lastMessageId = 0;
 
-let polling = false;
+let pollingSignals = false;
+
+let pollingMessages = false;
+
+let pendingIceCandidates = [];
 
 
 /*
 =========================================================
-WEBRTC CONFIGURATION
-=========================================================
-
-STUN helps peers discover possible network paths.
-
-For production, we should later add a TURN server
-because some networks cannot establish a direct
-peer-to-peer connection.
+STUN
 =========================================================
 */
 
@@ -2731,6 +2432,11 @@ const rtcConfiguration = {
         {
             urls:
                 "stun:stun.l.google.com:19302"
+        },
+
+        {
+            urls:
+                "stun:stun1.l.google.com:19302"
         }
 
     ]
@@ -2740,166 +2446,62 @@ const rtcConfiguration = {
 
 /*
 =========================================================
-CLASSROOM STATUS
+STATUS
 =========================================================
 */
 
-function setConnectionStatus(
+function setStatus(
     type,
     icon,
     title,
     message
-) {
+)
+{
 
-    connectionIcon.textContent =
+    waitingIcon.textContent =
         icon;
 
-    connectionTitle.textContent =
+
+    waitingTitle.textContent =
         title;
 
-    connectionMessage.textContent =
+
+    waitingMessage.textContent =
         message;
 
 
-    connectionStatus.className =
-        "status-pill "
-        +
-        "status-"
-        +
-        type;
+    statusBadge.className =
+        "status-badge";
 
 
     if (type === "live") {
 
-        connectionStatus.textContent =
-            "● Connected";
+        statusBadge.classList.add(
+            "live"
+        );
 
-    } else if (
-        type === "connecting"
-    ) {
-
-        connectionStatus.textContent =
-            "● Connecting...";
-
-    } else if (
-        type === "error"
-    ) {
-
-        connectionStatus.textContent =
-            "● Connection problem";
-
-    } else if (
-        type === "ended"
-    ) {
-
-        connectionStatus.textContent =
-            "● Ended";
-
-    } else {
-
-        connectionStatus.textContent =
-            "● Waiting";
+        statusBadge.textContent =
+            "● LIVE";
 
     }
 
-}
 
+    else if (type === "ended") {
 
-/*
-=========================================================
-HIDE CONNECTION SCREEN
-=========================================================
-*/
-
-function hideConnectionScreen()
-{
-
-    connectionScreen.style.display =
-        "none";
-
-}
-
-
-/*
-=========================================================
-SHOW CONNECTION SCREEN
-=========================================================
-*/
-
-function showConnectionScreen()
-{
-
-    connectionScreen.style.display =
-        "flex";
-
-}
-
-
-/*
-=========================================================
-SEND SIGNAL TO PHP
-=========================================================
-*/
-
-async function sendSignal(
-    signalType,
-    signalData
-) {
-
-    try {
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "classroom_action",
-            "send_signal"
+        statusBadge.classList.add(
+            "ended"
         );
 
+        statusBadge.textContent =
+            "● ENDED";
 
-        formData.append(
-            "signal_type",
-            signalType
-        );
-
-
-        formData.append(
-            "signal_data",
-            JSON.stringify(
-                signalData
-            )
-        );
+    }
 
 
-        const response =
-            await fetch(
-                CLASSROOM_URL,
-                {
-                    method: "POST",
-                    body: formData,
-                    credentials: "same-origin"
-                }
-            );
+    else {
 
-
-        const result =
-            await response.json();
-
-
-        return result;
-
-
-    } catch (error) {
-
-        console.error(
-            "Signal error:",
-            error
-        );
-
-        return {
-            success: false
-        };
+        statusBadge.textContent =
+            "● WAITING";
 
     }
 
@@ -2928,12 +2530,6 @@ function createPeerConnection()
         );
 
 
-    /*
-    -----------------------------------------------
-    REMOTE STREAM
-    -----------------------------------------------
-    */
-
     remoteStream =
         new MediaStream();
 
@@ -2943,44 +2539,70 @@ function createPeerConnection()
 
 
     /*
-    -----------------------------------------------
+    -----------------------------------------
     REMOTE TRACK
-    -----------------------------------------------
+    -----------------------------------------
     */
 
     peerConnection.ontrack =
         function(event) {
 
-            event.streams[0]
-                .getTracks()
-                .forEach(
-                    track => {
+            if (
+                event.streams
+                &&
+                event.streams[0]
+            ) {
 
-                        remoteStream.addTrack(
-                            track
-                        );
+                event.streams[0]
+                    .getTracks()
+                    .forEach(
+                        function(track) {
 
-                    }
+                            const exists =
+                                remoteStream
+                                    .getTracks()
+                                    .some(
+                                        function(
+                                            current
+                                        ) {
+
+                                            return (
+                                                current.id
+                                                ===
+                                                track.id
+                                            );
+
+                                        }
+                                    );
+
+
+                            if (!exists) {
+
+                                remoteStream.addTrack(
+                                    track
+                                );
+
+                            }
+
+                        }
+                    );
+
+            }
+
+
+            teacherVideo
+                .play()
+                .catch(
+                    function() {}
                 );
-
-
-            hideConnectionScreen();
-
-
-            setConnectionStatus(
-                "live",
-                "🎥",
-                "You are connected",
-                "Your teacher is now connected to the classroom."
-            );
 
         };
 
 
     /*
-    -----------------------------------------------
-    ICE CANDIDATES
-    -----------------------------------------------
+    -----------------------------------------
+    ICE
+    -----------------------------------------
     */
 
     peerConnection.onicecandidate =
@@ -3001,17 +2623,15 @@ function createPeerConnection()
 
 
     /*
-    -----------------------------------------------
+    -----------------------------------------
     CONNECTION STATE
-    -----------------------------------------------
+    -----------------------------------------
     */
 
     peerConnection.onconnectionstatechange =
         function() {
 
-            if (
-                !peerConnection
-            ) {
+            if (!peerConnection) {
 
                 return;
 
@@ -3019,100 +2639,81 @@ function createPeerConnection()
 
 
             const state =
-                peerConnection.connectionState;
+                peerConnection
+                    .connectionState;
 
 
             console.log(
-                "WebRTC state:",
+                "Student WebRTC:",
                 state
             );
 
 
-            if (
-                state ===
-                "connected"
-            ) {
+            if (state === "connected") {
 
-                hideConnectionScreen();
+                waitingScreen.style.display =
+                    "none";
 
 
-                setConnectionStatus(
+                setStatus(
                     "live",
                     "🎥",
-                    "Connected",
-                    "Your live lesson is in progress."
+                    "Live Classroom",
+                    "You are connected to your teacher."
                 );
 
             }
 
 
             if (
-                state ===
-                "connecting"
+                state === "connecting"
             ) {
 
-                showConnectionScreen();
+                waitingScreen.style.display =
+                    "flex";
 
 
-                setConnectionStatus(
-                    "connecting",
+                setStatus(
+                    "waiting",
                     "🔄",
                     "Connecting...",
-                    "Connecting you to your teacher."
+                    "Connecting to your teacher."
                 );
 
             }
 
 
             if (
-                state ===
-                "disconnected"
+                state === "disconnected"
             ) {
 
-                showConnectionScreen();
+                waitingScreen.style.display =
+                    "flex";
 
 
-                setConnectionStatus(
-                    "connecting",
+                setStatus(
+                    "waiting",
                     "🔄",
-                    "Connection interrupted",
-                    "Trying to reconnect..."
+                    "Connection Interrupted",
+                    "Waiting for your teacher to reconnect."
                 );
 
             }
 
 
             if (
-                state ===
-                "failed"
+                state === "failed"
             ) {
 
-                showConnectionScreen();
+                waitingScreen.style.display =
+                    "flex";
 
 
-                setConnectionStatus(
-                    "error",
+                setStatus(
+                    "waiting",
                     "⚠️",
-                    "Connection failed",
-                    "The classroom connection could not be established."
-                );
-
-            }
-
-
-            if (
-                state ===
-                "closed"
-            ) {
-
-                showConnectionScreen();
-
-
-                setConnectionStatus(
-                    "ended",
-                    "📴",
-                    "Classroom closed",
-                    "The classroom connection has ended."
+                    "Connection Failed",
+                    "The live connection could not be established."
                 );
 
             }
@@ -3126,18 +2727,31 @@ function createPeerConnection()
 
 /*
 =========================================================
-GET LOCAL CAMERA/MICROPHONE
+START LOCAL MEDIA
 =========================================================
 */
 
 async function startLocalMedia()
 {
 
-    if (
-        localStream
-    ) {
+    if (localStream) {
 
         return localStream;
+
+    }
+
+
+    if (
+        !navigator.mediaDevices
+        ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
+
+        alert(
+            "Your browser does not support camera access."
+        );
+
+        return null;
 
     }
 
@@ -3145,10 +2759,19 @@ async function startLocalMedia()
     try {
 
         localStream =
-            await navigator.mediaDevices
+            await navigator
+                .mediaDevices
                 .getUserMedia({
 
-                    video: true,
+                    video: {
+                        width: {
+                            ideal: 1280
+                        },
+
+                        height: {
+                            ideal: 720
+                        }
+                    },
 
                     audio: true
 
@@ -3159,11 +2782,12 @@ async function startLocalMedia()
             localStream;
 
 
-        /*
-        -------------------------------------------
-        ADD TRACKS
-        -------------------------------------------
-        */
+        studentVideo
+            .play()
+            .catch(
+                function() {}
+            );
+
 
         const pc =
             createPeerConnection();
@@ -3172,7 +2796,7 @@ async function startLocalMedia()
         localStream
             .getTracks()
             .forEach(
-                track => {
+                function(track) {
 
                     pc.addTrack(
                         track,
@@ -3194,11 +2818,8 @@ async function startLocalMedia()
         );
 
 
-        setConnectionStatus(
-            "error",
-            "🎤",
-            "Camera or microphone unavailable",
-            "Please allow camera and microphone access in your browser."
+        alert(
+            "Please allow camera and microphone access to join the live classroom."
         );
 
 
@@ -3211,149 +2832,141 @@ async function startLocalMedia()
 
 /*
 =========================================================
-HANDLE TEACHER OFFER
+JOIN CLASS
 =========================================================
 */
 
-async function handleOffer(
-    signal
-) {
+joinButton.addEventListener(
+    "click",
+    async function() {
 
-    try {
-
-        const offer =
-            JSON.parse(
-                signal.signal_data
-            );
-
-
-        const pc =
-            createPeerConnection();
-
-
-        await startLocalMedia();
-
-
-        /*
-        -------------------------------------------
-        SET TEACHER OFFER
-        -------------------------------------------
-        */
-
-        await pc.setRemoteDescription(
-            new RTCSessionDescription(
-                offer
-            )
-        );
-
-
-        /*
-        -------------------------------------------
-        CREATE ANSWER
-        -------------------------------------------
-        */
-
-        const answer =
-            await pc.createAnswer();
-
-
-        await pc.setLocalDescription(
-            answer
-        );
-
-
-        /*
-        -------------------------------------------
-        SEND ANSWER
-        -------------------------------------------
-        */
-
-        await sendSignal(
-            "answer",
-            answer
-        );
-
-
-        setConnectionStatus(
-            "connecting",
-            "🔄",
-            "Connecting...",
-            "Your browser is establishing the classroom connection."
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Offer error:",
-            error
-        );
-
-
-        setConnectionStatus(
-            "error",
-            "⚠️",
-            "Connection error",
-            "Unable to process the teacher's classroom connection."
-        );
-
-    }
-
-}
-
-
-/*
-=========================================================
-HANDLE ICE CANDIDATE
-=========================================================
-*/
-
-async function handleIceCandidate(
-    signal
-) {
-
-    try {
-
-        const candidate =
-            JSON.parse(
-                signal.signal_data
-            );
-
-
-        const pc =
-            createPeerConnection();
-
-
-        /*
-        -------------------------------------------
-        If remote description has not been set yet,
-        wait briefly.
-
-        -------------------------------------------
-        */
-
-        if (
-            !pc.remoteDescription
-        ) {
+        if (joinedClass) {
 
             return;
 
         }
 
 
-        await pc.addIceCandidate(
-            new RTCIceCandidate(
-                candidate
-            )
+        const stream =
+            await startLocalMedia();
+
+
+        if (!stream) {
+
+            return;
+
+        }
+
+
+        joinedClass =
+            true;
+
+
+        joinButton.style.display =
+            "none";
+
+
+        leaveButton.style.display =
+            "inline-flex";
+
+
+        setStatus(
+            "waiting",
+            "🔄",
+            "Connecting...",
+            "Connecting to your teacher."
         );
+
+
+        /*
+        -----------------------------------------
+        SEND READY
+        -----------------------------------------
+        */
+
+        await sendSignal(
+            "ready",
+            {
+                ready: true
+            }
+        );
+
+
+        /*
+        -----------------------------------------
+        START SIGNAL POLLING
+        -----------------------------------------
+        */
+
+        pollSignals();
+
+    }
+);
+
+
+/*
+=========================================================
+SEND SIGNAL
+=========================================================
+*/
+
+async function sendSignal(
+    signalType,
+    signalData
+)
+{
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "classroom_action",
+        "send_signal"
+    );
+
+
+    formData.append(
+        "signal_type",
+        signalType
+    );
+
+
+    formData.append(
+        "signal_data",
+        JSON.stringify(
+            signalData
+        )
+    );
+
+
+    try {
+
+        const response =
+            await fetch(
+                CLASSROOM_URL,
+                {
+                    method: "POST",
+                    body: formData,
+                    credentials: "same-origin"
+                }
+            );
+
+
+        return await response.json();
 
 
     } catch (error) {
 
         console.error(
-            "ICE error:",
+            "Signal error:",
             error
         );
+
+
+        return {
+            success: false
+        };
 
     }
 
@@ -3362,40 +2975,45 @@ async function handleIceCandidate(
 
 /*
 =========================================================
-PROCESS SIGNALS
+POLL SIGNALS
 =========================================================
 */
 
 async function pollSignals()
 {
 
-    if (polling) {
+    if (
+        !joinedClass
+        ||
+        pollingSignals
+    ) {
 
         return;
 
     }
 
 
-    polling = true;
+    pollingSignals =
+        true;
+
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "classroom_action",
+        "get_signals"
+    );
+
+
+    formData.append(
+        "last_id",
+        lastSignalId
+    );
 
 
     try {
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "classroom_action",
-            "get_signals"
-        );
-
-
-        formData.append(
-            "last_id",
-            lastSignalId
-        );
-
 
         const response =
             await fetch(
@@ -3413,7 +3031,8 @@ async function pollSignals()
 
 
         if (
-            result.success &&
+            result.success
+            &&
             Array.isArray(
                 result.signals
             )
@@ -3428,62 +3047,111 @@ async function pollSignals()
                     Math.max(
                         lastSignalId,
                         parseInt(
-                            signal.id
+                            signal.id,
+                            10
                         )
                     );
 
 
-                if (
-                    signal.signal_type
-                    ===
-                    "offer"
-                ) {
-
-                    await handleOffer(
-                        signal
-                    );
-
-                }
-
-
-                else if (
-                    signal.signal_type
-                    ===
-                    "ice-candidate"
-                ) {
-
-                    await handleIceCandidate(
-                        signal
-                    );
-
-                }
-
-
-                else if (
-                    signal.signal_type
-                    ===
-                    "hangup"
-                ) {
-
-                    handleTeacherHangup();
-
-                }
+                await processSignal(
+                    signal
+                );
 
             }
 
         }
 
-
     } catch (error) {
 
         console.error(
-            "Polling error:",
+            "Signal polling error:",
             error
         );
 
-    } finally {
+    }
 
-        polling = false;
+
+    pollingSignals =
+        false;
+
+}
+
+
+/*
+=========================================================
+PROCESS TEACHER SIGNAL
+=========================================================
+*/
+
+async function processSignal(
+    signal
+)
+{
+
+    /*
+    -----------------------------------------
+    TEACHER OFFER
+    -----------------------------------------
+    */
+
+    if (
+        signal.signal_type
+        ===
+        "offer"
+    ) {
+
+        await handleOffer(
+            signal
+        );
+
+        return;
+
+    }
+
+
+    /*
+    -----------------------------------------
+    TEACHER ICE
+    -----------------------------------------
+    */
+
+    if (
+        signal.signal_type
+        ===
+        "ice-candidate"
+    ) {
+
+        await handleIceCandidate(
+            signal
+        );
+
+        return;
+
+    }
+
+
+    /*
+    -----------------------------------------
+    TEACHER HANGUP
+    -----------------------------------------
+    */
+
+    if (
+        signal.signal_type
+        ===
+        "hangup"
+    ) {
+
+        setStatus(
+            "waiting",
+            "📴",
+            "Teacher Left",
+            "Your teacher has left the classroom."
+        );
+
+
+        waitingScreen.style.display =
+            "flex";
 
     }
 
@@ -3492,49 +3160,425 @@ async function pollSignals()
 
 /*
 =========================================================
-TEACHER HANGUP
+HANDLE OFFER
 =========================================================
 */
 
-function handleTeacherHangup()
+async function handleOffer(
+    signal
+)
 {
 
-    if (
-        peerConnection
-    ) {
-
-        peerConnection.close();
-
-        peerConnection = null;
-
-    }
+    const pc =
+        createPeerConnection();
 
 
-    if (
-        remoteStream
-    ) {
+    try {
 
-        remoteStream
-            .getTracks()
-            .forEach(
-                track =>
-                    track.stop()
+        const offer =
+            JSON.parse(
+                signal.signal_data
             );
 
+
+        await pc.setRemoteDescription(
+            new RTCSessionDescription(
+                offer
+            )
+        );
+
+
+        await processPendingIce();
+
+
+        const answer =
+            await pc.createAnswer();
+
+
+        await pc.setLocalDescription(
+            answer
+        );
+
+
+        await sendSignal(
+            "answer",
+            answer
+        );
+
+
+        setStatus(
+            "waiting",
+            "📡",
+            "Joining Classroom",
+            "Finishing connection to your teacher."
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Offer error:",
+            error
+        );
+
+    }
+
+}
+
+
+/*
+=========================================================
+HANDLE ICE CANDIDATE
+=========================================================
+*/
+
+async function handleIceCandidate(
+    signal
+)
+{
+
+    if (!peerConnection) {
+
+        return;
+
     }
 
 
-    showConnectionScreen();
+    try {
+
+        const candidate =
+            JSON.parse(
+                signal.signal_data
+            );
 
 
-    setConnectionStatus(
-        "ended",
-        "📴",
-        "Classroom ended",
-        "Your teacher has ended the classroom."
-    );
+        const iceCandidate =
+            new RTCIceCandidate(
+                candidate
+            );
+
+
+        if (
+            peerConnection
+                .remoteDescription
+        ) {
+
+            await peerConnection
+                .addIceCandidate(
+                    iceCandidate
+                );
+
+        } else {
+
+            pendingIceCandidates.push(
+                iceCandidate
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "ICE error:",
+            error
+        );
+
+    }
 
 }
+
+
+/*
+=========================================================
+PROCESS PENDING ICE
+=========================================================
+*/
+
+async function processPendingIce()
+{
+
+    if (!peerConnection) {
+
+        return;
+
+    }
+
+
+    if (
+        !peerConnection.remoteDescription
+    ) {
+
+        return;
+
+    }
+
+
+    while (
+        pendingIceCandidates.length
+        > 0
+    ) {
+
+        const candidate =
+            pendingIceCandidates.shift();
+
+
+        try {
+
+            await peerConnection
+                .addIceCandidate(
+                    candidate
+                );
+
+        } catch (error) {
+
+            console.error(
+                "Pending ICE error:",
+                error
+            );
+
+        }
+
+    }
+
+}
+
+
+/*
+=========================================================
+CHECK CLASS STATUS
+=========================================================
+*/
+
+async function checkClassStatus()
+{
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "classroom_action",
+        "get_status"
+    );
+
+
+    try {
+
+        const response =
+            await fetch(
+                CLASSROOM_URL,
+                {
+                    method: "POST",
+                    body: formData,
+                    credentials: "same-origin"
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (!result.success) {
+
+            return;
+
+        }
+
+
+        const status =
+            String(
+                result.status
+                || "waiting"
+            ).toLowerCase();
+
+
+        /*
+        -----------------------------------------
+        LIVE
+        -----------------------------------------
+        */
+
+        if (status === "live") {
+
+            if (!joinedClass) {
+
+                waitingScreen.style.display =
+                    "flex";
+
+
+                setStatus(
+                    "live",
+                    "🎥",
+                    "Class is Live",
+                    "Your teacher has started the class. Click Join Class to enter."
+                );
+
+            }
+
+            return;
+
+        }
+
+
+        /*
+        -----------------------------------------
+        ENDED
+        -----------------------------------------
+        */
+
+        if (status === "ended") {
+
+            waitingScreen.style.display =
+                "flex";
+
+
+            joinButton.style.display =
+                "none";
+
+
+            leaveButton.style.display =
+                "none";
+
+
+            setStatus(
+                "ended",
+                "📴",
+                "Class Ended",
+                "Your teacher has ended this lesson."
+            );
+
+
+            return;
+
+        }
+
+
+        /*
+        -----------------------------------------
+        WAITING
+        -----------------------------------------
+        */
+
+        if (!joinedClass) {
+
+            waitingScreen.style.display =
+                "flex";
+
+
+            setStatus(
+                "waiting",
+                "🎓",
+                "Waiting for Teacher",
+                "Your teacher has not started this live class yet."
+            );
+
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Status error:",
+            error
+        );
+
+    }
+
+}
+
+
+/*
+=========================================================
+LEAVE CLASS
+=========================================================
+*/
+
+leaveButton.addEventListener(
+    "click",
+    async function() {
+
+        const confirmed =
+            confirm(
+                "Leave the live classroom?"
+            );
+
+
+        if (!confirmed) {
+
+            return;
+
+        }
+
+
+        await sendSignal(
+            "hangup",
+            {
+                reason: "student_left"
+            }
+        );
+
+
+        joinedClass =
+            false;
+
+
+        if (peerConnection) {
+
+            peerConnection.close();
+
+            peerConnection =
+                null;
+
+        }
+
+
+        if (localStream) {
+
+            localStream
+                .getTracks()
+                .forEach(
+                    function(track) {
+
+                        track.stop();
+
+                    }
+                );
+
+            localStream =
+                null;
+
+        }
+
+
+        teacherVideo.srcObject =
+            null;
+
+
+        studentVideo.srcObject =
+            null;
+
+
+        joinButton.style.display =
+            "inline-flex";
+
+
+        leaveButton.style.display =
+            "none";
+
+
+        waitingScreen.style.display =
+            "flex";
+
+
+        setStatus(
+            "waiting",
+            "🎓",
+            "You Left the Class",
+            "Click Join Class to reconnect."
+        );
+
+    }
+);
 
 
 /*
@@ -3547,24 +3591,19 @@ micButton.addEventListener(
     "click",
     function() {
 
-        if (
-            !localStream
-        ) {
-
-            startLocalMedia();
+        if (!localStream) {
 
             return;
 
         }
 
 
-        const audioTracks =
-            localStream.getAudioTracks();
+        const tracks =
+            localStream
+                .getAudioTracks();
 
 
-        if (
-            audioTracks.length === 0
-        ) {
+        if (!tracks.length) {
 
             return;
 
@@ -3572,11 +3611,11 @@ micButton.addEventListener(
 
 
         const enabled =
-            audioTracks[0].enabled;
+            tracks[0].enabled;
 
 
-        audioTracks.forEach(
-            track => {
+        tracks.forEach(
+            function(track) {
 
                 track.enabled =
                     !enabled;
@@ -3591,7 +3630,7 @@ micButton.addEventListener(
                 "🔇";
 
             micButton.classList.add(
-                "active"
+                "off"
             );
 
         } else {
@@ -3600,7 +3639,7 @@ micButton.addEventListener(
                 "🎤";
 
             micButton.classList.remove(
-                "active"
+                "off"
             );
 
         }
@@ -3619,24 +3658,19 @@ cameraButton.addEventListener(
     "click",
     function() {
 
-        if (
-            !localStream
-        ) {
-
-            startLocalMedia();
+        if (!localStream) {
 
             return;
 
         }
 
 
-        const videoTracks =
-            localStream.getVideoTracks();
+        const tracks =
+            localStream
+                .getVideoTracks();
 
 
-        if (
-            videoTracks.length === 0
-        ) {
+        if (!tracks.length) {
 
             return;
 
@@ -3644,11 +3678,11 @@ cameraButton.addEventListener(
 
 
         const enabled =
-            videoTracks[0].enabled;
+            tracks[0].enabled;
 
 
-        videoTracks.forEach(
-            track => {
+        tracks.forEach(
+            function(track) {
 
                 track.enabled =
                     !enabled;
@@ -3663,7 +3697,7 @@ cameraButton.addEventListener(
                 "🚫";
 
             cameraButton.classList.add(
-                "active"
+                "off"
             );
 
         } else {
@@ -3672,7 +3706,7 @@ cameraButton.addEventListener(
                 "📷";
 
             cameraButton.classList.remove(
-                "active"
+                "off"
             );
 
         }
@@ -3689,110 +3723,41 @@ FULLSCREEN
 
 fullscreenButton.addEventListener(
     "click",
-    function() {
+    async function() {
 
-        const classroom =
-            document.documentElement;
-
-
-        if (
-            !document.fullscreenElement
-        ) {
+        try {
 
             if (
-                classroom.requestFullscreen
+                !document.fullscreenElement
             ) {
 
-                classroom.requestFullscreen();
+                await document
+                    .documentElement
+                    .requestFullscreen();
+
+            } else {
+
+                await document
+                    .exitFullscreen();
 
             }
 
-        } else {
+        } catch (error) {
 
-            if (
-                document.exitFullscreen
-            ) {
-
-                document.exitFullscreen();
-
-            }
-
-        }
-
-    }
-);
-
-
-/*
-=========================================================
-LEAVE CLASSROOM
-=========================================================
-*/
-
-leaveButton.addEventListener(
-    "click",
-    function() {
-
-        if (
-            !confirm(
-                "Are you sure you want to leave the classroom?"
-            )
-        ) {
-
-            return;
-
-        }
-
-
-        leaveClassroom();
-
-    }
-);
-
-
-/*
-=========================================================
-LEAVE
-=========================================================
-*/
-
-function leaveClassroom()
-{
-
-    if (
-        peerConnection
-    ) {
-
-        peerConnection.close();
-
-        peerConnection = null;
-
-    }
-
-
-    if (
-        localStream
-    ) {
-
-        localStream
-            .getTracks()
-            .forEach(
-                track =>
-                    track.stop()
+            console.error(
+                "Fullscreen:",
+                error
             );
 
+        }
+
     }
-
-
-    window.location.href =
-        "schedule.php";
-
-}
+);
 
 
 /*
 =========================================================
-CHAT SEND
+CHAT
 =========================================================
 */
 
@@ -3807,9 +3772,7 @@ chatForm.addEventListener(
             chatInput.value.trim();
 
 
-        if (
-            message === ''
-        ) {
+        if (!message) {
 
             return;
 
@@ -3854,9 +3817,17 @@ chatForm.addEventListener(
             ) {
 
                 chatInput.value =
-                    '';
+                    "";
 
                 loadMessages();
+
+            } else {
+
+                alert(
+                    result.message
+                    ||
+                    "Unable to send message."
+                );
 
             }
 
@@ -3875,30 +3846,41 @@ chatForm.addEventListener(
 
 /*
 =========================================================
-LOAD CHAT
+LOAD MESSAGES
 =========================================================
 */
 
 async function loadMessages()
 {
 
+    if (pollingMessages) {
+
+        return;
+
+    }
+
+
+    pollingMessages =
+        true;
+
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "classroom_action",
+        "get_messages"
+    );
+
+
+    formData.append(
+        "last_message_id",
+        lastMessageId
+    );
+
+
     try {
-
-        const formData =
-            new FormData();
-
-
-        formData.append(
-            "classroom_action",
-            "get_messages"
-        );
-
-
-        formData.append(
-            "last_message_id",
-            lastMessageId
-        );
-
 
         const response =
             await fetch(
@@ -3916,28 +3898,22 @@ async function loadMessages()
 
 
         if (
-            !result.success
-        ) {
-
-            return;
-
-        }
-
-
-        if (
+            result.success
+            &&
             Array.isArray(
                 result.messages
             )
         ) {
 
             result.messages.forEach(
-                message => {
+                function(message) {
 
                     lastMessageId =
                         Math.max(
                             lastMessageId,
                             parseInt(
-                                message.id
+                                message.id,
+                                10
                             )
                         );
 
@@ -3960,12 +3936,16 @@ async function loadMessages()
 
     }
 
+
+    pollingMessages =
+        false;
+
 }
 
 
 /*
 =========================================================
-APPEND CHAT MESSAGE
+APPEND MESSAGE
 =========================================================
 */
 
@@ -3974,11 +3954,9 @@ function appendMessage(
 )
 {
 
-    if (
-        chatEmpty
-    ) {
+    if (emptyChat) {
 
-        chatEmpty.style.display =
+        emptyChat.style.display =
             "none";
 
     }
@@ -3991,15 +3969,20 @@ function appendMessage(
 
 
     wrapper.className =
-        "chat-message "
-        +
-        (
-            message.sender_role
-            ===
-            "student"
-                ? "mine"
-                : ""
+        "message";
+
+
+    if (
+        message.sender_role
+        ===
+        "student"
+    ) {
+
+        wrapper.classList.add(
+            "mine"
         );
+
+    }
 
 
     const name =
@@ -4009,7 +3992,7 @@ function appendMessage(
 
 
     name.className =
-        "chat-name";
+        "message-name";
 
 
     name.textContent =
@@ -4023,7 +4006,7 @@ function appendMessage(
 
 
     bubble.className =
-        "chat-bubble";
+        "message-bubble";
 
 
     bubble.textContent =
@@ -4037,7 +4020,7 @@ function appendMessage(
 
 
     time.className =
-        "chat-time";
+        "message-time";
 
 
     time.textContent =
@@ -4072,125 +4055,70 @@ function appendMessage(
 
 /*
 =========================================================
-INITIALIZE
+POLL CLASS STATUS
 =========================================================
 */
 
-async function initializeClassroom()
-{
+setInterval(
+    function() {
 
-    setConnectionStatus(
-        "waiting",
-        "⏳",
-        "Waiting for your teacher",
-        "Please allow camera and microphone access when requested."
-    );
+        checkClassStatus();
 
-
-    /*
-    -----------------------------------------------
-    START LOCAL MEDIA
-    -----------------------------------------------
-    */
-
-    await startLocalMedia();
-
-
-    /*
-    -----------------------------------------------
-    SIGNAL POLLING
-    -----------------------------------------------
-    */
-
-    await pollSignals();
-
-
-    /*
-    -----------------------------------------------
-    CHAT
-    -----------------------------------------------
-    */
-
-    await loadMessages();
-
-
-    /*
-    -----------------------------------------------
-    CONTINUOUS POLLING
-    -----------------------------------------------
-    */
-
-    setInterval(
-        pollSignals,
-        1500
-    );
-
-
-    setInterval(
-        loadMessages,
-        2000
-    );
-
-
-    /*
-    -----------------------------------------------
-    HEARTBEAT
-    -----------------------------------------------
-    */
-
-    setInterval(
-        sendHeartbeat,
-        10000
-    );
-
-}
+    },
+    3000
+);
 
 
 /*
 =========================================================
-HEARTBEAT
+POLL SIGNALS
 =========================================================
 */
 
-async function sendHeartbeat()
-{
+setInterval(
+    function() {
 
-    try {
+        if (joinedClass) {
 
-        const formData =
-            new FormData();
+            pollSignals();
 
+        }
 
-        formData.append(
-            "classroom_action",
-            "heartbeat"
-        );
-
-
-        await fetch(
-            CLASSROOM_URL,
-            {
-                method: "POST",
-                body: formData,
-                credentials: "same-origin"
-            }
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Heartbeat error:",
-            error
-        );
-
-    }
-
-}
+    },
+    1000
+);
 
 
 /*
 =========================================================
-PAGE CLOSE
+POLL CHAT
+=========================================================
+*/
+
+setInterval(
+    function() {
+
+        loadMessages();
+
+    },
+    2000
+);
+
+
+/*
+=========================================================
+INITIAL LOAD
+=========================================================
+*/
+
+checkClassStatus();
+
+loadMessages();
+
+
+/*
+=========================================================
+PAGE EXIT
 =========================================================
 */
 
@@ -4198,15 +4126,16 @@ window.addEventListener(
     "beforeunload",
     function() {
 
-        if (
-            localStream
-        ) {
+        if (localStream) {
 
             localStream
                 .getTracks()
                 .forEach(
-                    track =>
-                        track.stop()
+                    function(track) {
+
+                        track.stop();
+
+                    }
                 );
 
         }
@@ -4214,20 +4143,7 @@ window.addEventListener(
     }
 );
 
-
-/*
-=========================================================
-START
-=========================================================
-*/
-
-initializeClassroom();
-
 </script>
-
-
-<?php endif; ?>
-
 
 </body>
 
