@@ -60,7 +60,8 @@ if ($booking_id <= 0) {
     if ($_SERVER["REQUEST_METHOD"] === "POST") {
         json_response(["success" => false, "message" => "No valid booking was selected."]);
     }
-    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style>
+    die(<<<'NISEL_INVALID_CLASSROOM'
+<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style>
 <style id="nisel-v12-style">
 .nisel-v12-badge{
     position:fixed;
@@ -168,7 +169,7 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
 <style id="nisel-mirror-camera">
 /*
  * Mirror camera feeds horizontally so hand/body movement appears
- * in the same visual direction as the participant's self-view.
+ * in the same visual direction as the the participant self-view.
  * Screen sharing is automatically kept normal (not mirrored).
  */
 .mirror-camera{
@@ -183,7 +184,7 @@ box-shadow:0 0 0 3px rgba(11,130,198,.2)
 }
 </style>
 
-</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14 + MIRRORED CAMERA + RECORDING</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+</head><body><div class="nisel-v14-badge">NISEL CLASSROOM v14 + MIRRORED CAMERA + RECORDING + FIXED</div><div class="nisel-v13-badge">NISEL CLASSROOM v13</div><div class="nisel-v12-badge">NISEL CLASSROOM v12</div><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
 position:fixed;right:18px;bottom:78px;z-index:99999;
@@ -208,7 +209,10 @@ display:none;">
     style="display:none"
 ></audio>
 
-</body></html>');
+</body></html>
+NISEL_INVALID_CLASSROOM
+);
+
 }
 
 try {
