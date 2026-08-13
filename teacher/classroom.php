@@ -811,10 +811,17 @@ function createPeerConnection() {
         }
     };
 
+    /*
+     * NISEL v8 uses non-trickle ICE.
+     * We wait until ICE gathering is complete and send one complete
+     * SDP offer. This avoids losing early ICE candidates while the
+     * classroom is transitioning from waiting -> live.
+     */
     peerConnection.onicecandidate = event => {
-        if (event.candidate) {
-            sendSignal("ice-candidate", event.candidate.toJSON ? event.candidate.toJSON() : event.candidate);
-        }
+        console.log(
+            "NISEL teacher ICE candidate:",
+            event.candidate ? "gathered" : "gathering-complete"
+        );
     };
 
     peerConnection.onconnectionstatechange = () => {
@@ -851,6 +858,13 @@ function createPeerConnection() {
         );
     };
 
+    peerConnection.onsignalingstatechange = () => {
+        console.log(
+            "NISEL teacher signaling state:",
+            peerConnection.signalingState
+        );
+    };
+
     return peerConnection;
 }
 
@@ -861,6 +875,40 @@ async function sendSignal(type, data) {
         console.error("Signal send error", e);
         return { success:false, message:e.message };
     }
+}
+
+function waitForIceGatheringComplete(pc, timeout = 10000) {
+    return new Promise(resolve => {
+        if (!pc || pc.iceGatheringState === "complete") {
+            resolve();
+            return;
+        }
+
+        let finished = false;
+
+        const done = () => {
+            if (finished) return;
+            finished = true;
+            pc.removeEventListener(
+                "icegatheringstatechange",
+                check
+            );
+            resolve();
+        };
+
+        const check = () => {
+            if (pc.iceGatheringState === "complete") {
+                done();
+            }
+        };
+
+        pc.addEventListener(
+            "icegatheringstatechange",
+            check
+        );
+
+        setTimeout(done, timeout);
+    });
 }
 
 async function createOffer() {
@@ -888,6 +936,13 @@ async function createOffer() {
 
         await peerConnection.setLocalDescription(
             offer
+        );
+
+        /*
+         * Wait for ICE candidates to be inserted into the SDP.
+         */
+        await waitForIceGatheringComplete(
+            peerConnection
         );
 
         const description =
@@ -947,6 +1002,10 @@ async function processSignal(signal) {
                 "NISEL teacher: student READY received."
             );
 
+            toastMessage(
+                "Student detected. Negotiating video..."
+            );
+
             await createOffer();
 
             /*
@@ -964,8 +1023,20 @@ async function processSignal(signal) {
         if (signal.signal_type === "answer") {
             if (!peerConnection) return;
             const answer = JSON.parse(signal.signal_data);
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            await peerConnection.setRemoteDescription(
+                new RTCSessionDescription(answer)
+            );
+
             await processPendingCandidates();
+
+            console.log(
+                "NISEL teacher: student ANSWER accepted."
+            );
+
+            toastMessage(
+                "Student video connection established."
+            );
+
             return;
         }
 
@@ -1029,8 +1100,12 @@ startButton.addEventListener("click", async () => {
     try {
         // Media is optional. Failure of either device MUST NOT stop the class.
         await openOptionalMedia();
-        createPeerConnection();
 
+        /*
+         * Start the database classroom FIRST.
+         * Then create the WebRTC peer connection so ICE candidates
+         * can never be generated against an old/non-live room.
+         */
         const result = await post({ classroom_action:"start_class" });
         if (!result.success) {
             stopLocalMedia();
@@ -1039,6 +1114,12 @@ startButton.addEventListener("click", async () => {
             toastMessage(result.message || "Unable to start the classroom.", true);
             return;
         }
+
+        /*
+         * Only create WebRTC after the server has successfully
+         * created the new live room.
+         */
+        createPeerConnection();
 
         started = true;
         shuttingDown = false;
@@ -1275,7 +1356,7 @@ async function checkStatus() {
 detectDevices();
 loadMessages();
 checkStatus();
-setInterval(() => { if (started) pollSignals(); }, 700);
+setInterval(() => { if (started) pollSignals(); }, 500);
 setInterval(loadMessages, 2200);
 setInterval(checkStatus, 3500);
 
