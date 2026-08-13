@@ -70,6 +70,14 @@ if ($booking_id <= 0) {
 }
 </style>
 
+
+<style id="nisel-remote-audio-style">
+#remoteAudioButton.active{
+    background:rgba(11,130,198,.9) !important;
+    box-shadow:0 0 0 3px rgba(11,130,198,.18);
+}
+</style>
+
 </head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
 
 <div id="niseLDiagnostic" style="
@@ -712,7 +720,15 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
         <button class="control" id="micButton" type="button" title="Microphone" aria-label="Microphone">🎤<span>Mic</span></button>
         <button class="control" id="cameraButton" type="button" title="Camera" aria-label="Camera">📷<span>Camera</span></button>
         <button class="control share" id="shareButton" type="button" title="Share screen" aria-label="Share screen">🖥️<span>Share</span></button>
-        <button class="control" id="fullscreenButton" type="button" title="Fullscreen" aria-label="Fullscreen">⛶<span>Full</span></button>
+        <button
+    class="control"
+    id="remoteAudioButton"
+    type="button"
+    title="Enable student audio"
+    aria-label="Enable student audio"
+>🔊<span>Audio</span></button>
+
+<button class="control" id="fullscreenButton" type="button" title="Fullscreen" aria-label="Fullscreen">⛶<span>Full</span></button>
     </div>
 </section>
 
@@ -1028,7 +1044,68 @@ function createPeerConnection() {
     window.niselAudioSender =
         audioTransceiver.sender;
 
-    peerConnection.ontrack = event => {
+    
+    /*
+     * Chrome can block autoplay when a remote stream contains audio.
+     * Start the remote video muted so the student's FACE is always
+     * rendered, then let the teacher explicitly enable student audio.
+     */
+    remoteVideo.muted = true;
+
+    const remoteAudioButton =
+        document.getElementById(
+            "remoteAudioButton"
+        );
+
+    if (remoteAudioButton) {
+
+        remoteAudioButton.addEventListener(
+            "click",
+            async function() {
+
+                try {
+
+                    remoteVideo.muted =
+                        !remoteVideo.muted;
+
+                    await remoteVideo.play();
+
+                    remoteAudioButton.classList.toggle(
+                        "active",
+                        !remoteVideo.muted
+                    );
+
+                    remoteAudioButton.innerHTML =
+                        remoteVideo.muted
+                            ? "🔇<span>Audio</span>"
+                            : "🔊<span>Audio</span>";
+
+                    remoteAudioButton.title =
+                        remoteVideo.muted
+                            ? "Enable student audio"
+                            : "Mute student audio";
+
+                } catch (error) {
+
+                    console.warn(
+                        "Remote audio:",
+                        error
+                    );
+
+                    remoteVideo.muted = true;
+
+                    remoteAudioButton.classList.remove(
+                        "active"
+                    );
+
+                    remoteAudioButton.innerHTML =
+                        "🔇<span>Audio</span>";
+                }
+            }
+        );
+    }
+
+peerConnection.ontrack = event => {
 
         /*
          * Some browsers deliver the remote track with
@@ -1097,27 +1174,56 @@ function createPeerConnection() {
          * Explicitly start playback after the
          * remote stream is attached.
          */
+        /*
+         * Always start muted. This bypasses Chrome's autoplay
+         * restriction when the student sends an audio track.
+         * The teacher can then click Audio to hear the student.
+         */
+        remoteVideo.muted = true;
+
         remoteVideo
             .play()
             .then(function() {
+
                 console.log(
-                    "NISEL teacher: student remote video playing."
+                    "NISEL teacher: student video playing."
                 );
+
+                remoteVideo.style.visibility =
+                    "visible";
+
             })
             .catch(function(error) {
+
                 console.warn(
                     "NISEL teacher remote video autoplay:",
                     error
                 );
+
+                /*
+                 * The video element is still displayed. The
+                 * teacher can click the classroom area/control
+                 * to satisfy browser autoplay policy.
+                 */
+                remoteVideo.style.display =
+                    "block";
             });
 
         /*
          * Track lifecycle diagnostics.
          */
         event.track.onunmute = function() {
+
+            remoteVideo.muted = true;
+
             remoteVideo
                 .play()
-                .catch(function() {});
+                .catch(function(error) {
+                    console.warn(
+                        "NISEL teacher remote video play:",
+                        error
+                    );
+                });
         };
 
         event.track.onended = function() {
