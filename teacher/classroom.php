@@ -372,7 +372,7 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 #remoteVideo{width:100%;height:100%;object-fit:contain;background:#020711;display:none}.remote-name{position:absolute;left:18px;bottom:18px;background:#000a;padding:9px 12px;border-radius:10px;font-size:11px;font-weight:800;z-index:4}
 #localVideo{position:absolute;right:20px;bottom:88px;width:230px;height:145px;object-fit:cover;border:2px solid #ffffff38;border-radius:16px;background:#101827;box-shadow:0 15px 40px #0009;transform:scaleX(-1);display:none;z-index:5}.screen-active #localVideo{transform:none}
 .start-overlay{position:absolute;inset:0;z-index:10;display:grid;place-items:center;background:#020711f2}.start-card{text-align:center;width:min(92%,520px);padding:35px}.start-icon{width:78px;height:78px;border-radius:24px;background:linear-gradient(135deg,#075a9e,#0b8ddd);display:grid;place-items:center;margin:0 auto 18px;font-size:35px;box-shadow:0 18px 45px #0877c933}.start-card h1{font-size:27px;margin:0 0 8px}.start-card p{color:#9aabba;font-size:13px;line-height:1.6;margin:0 auto 20px;max-width:430px}.button-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}.btn{border:0;color:#fff;border-radius:12px;padding:13px 19px;font-size:12px;font-weight:900;cursor:pointer}.btn-start{background:linear-gradient(135deg,#16a34a,#0e8b3e)}.btn-end{background:linear-gradient(135deg,#dc3545,#b91c1c);display:none}.btn:disabled{opacity:.55;cursor:not-allowed}
-.controls{position:absolute;z-index:12;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:8px;padding:8px;border-radius:999px;background:#0a1422eb;border:1px solid #ffffff14;backdrop-filter:blur(14px)}.control{width:45px;height:45px;border:0;border-radius:50%;background:#243249;color:#fff;cursor:pointer;font-size:17px}.control:hover{background:#30415d;transform:translateY(-1px)}.control.active{background:#0b84d8}.control.off{background:#b42336}.control.share{width:auto;border-radius:23px;padding:0 15px;font-size:11px;font-weight:900}.control.share.active{background:#16a34a}
+.controls{position:absolute;z-index:50;bottom:24px;left:50%;transform:translateX(-50%);display:flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto;gap:8px;padding:9px;border-radius:999px;background:rgba(10,20,34,.94);border:1px solid rgba(255,255,255,.14);box-shadow:0 18px 45px rgba(0,0,0,.55);backdrop-filter:blur(14px)}.control{width:45px;height:45px;border:0;border-radius:50%;background:#243249;color:#fff;cursor:pointer;font-size:17px}.control:hover{background:#30415d;transform:translateY(-1px)}.control.active{background:#0b84d8}.control.off{background:#b42336}.control.share{width:auto;border-radius:23px;padding:0 15px;font-size:11px;font-weight:900}.control.share.active{background:#16a34a}
 .sidebar{background:#0a1422;border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}.lesson{padding:19px;border-bottom:1px solid var(--line)}.lesson-head{display:flex;justify-content:space-between;gap:10px}.lesson h2{margin:0;font-size:17px}.sub{font-size:10px;color:var(--muted);margin-top:6px}.badge{padding:6px 9px;border-radius:99px;background:#243249;color:#cbd5e1;font-size:8px;font-weight:900}.badge.live{background:#16a34a24;color:#4ade80}.rows{margin-top:15px}.row{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #ffffff09;font-size:10px}.row span:first-child{color:#718198}.row span:last-child{text-align:right;font-weight:800}.device-box{margin-top:13px;padding:11px;border-radius:12px;background:#ffffff06;border:1px solid #ffffff0a}.device-title{font-size:10px;font-weight:900;margin-bottom:7px}.device-status{display:flex;justify-content:space-between;font-size:9px;color:#9aaabd;padding:4px 0}.ok{color:#4ade80}.warn{color:#fbbf24}.chat-title{padding:14px 18px;border-bottom:1px solid var(--line);font-size:11px;font-weight:900}.messages{flex:1;min-height:0;overflow:auto;padding:14px}.empty{color:#6e8096;text-align:center;padding:30px 10px;font-size:10px}.message{margin-bottom:12px}.message.mine{text-align:right}.message-name{font-size:9px;color:#708198;margin-bottom:4px}.bubble{display:inline-block;max-width:90%;padding:9px 11px;background:#1c2b41;border-radius:11px 11px 11px 3px;font-size:10px;line-height:1.45;overflow-wrap:anywhere}.mine .bubble{background:#075a9e;border-radius:11px 11px 3px 11px}.chat{display:flex;gap:7px;padding:10px;border-top:1px solid var(--line)}.chat input{flex:1;min-width:0;border:1px solid #ffffff0b;background:#152238;color:#fff;border-radius:10px;padding:11px;outline:0}.chat input:focus{border-color:#0b84d8}.chat button{border:0;background:#0877c9;color:#fff;border-radius:10px;padding:0 14px;font-weight:900;cursor:pointer}.toast{position:fixed;top:84px;left:50%;transform:translate(-50%,-15px);opacity:0;pointer-events:none;z-index:99;background:#111c2c;border:1px solid #ffffff12;border-radius:12px;padding:12px 16px;box-shadow:0 15px 40px #0007;font-size:11px;transition:.25s}.toast.show{opacity:1;transform:translate(-50%,0)}.toast.error{background:#641e29}
 @media(max-width:900px){body{overflow:auto}.layout{height:auto;min-height:calc(100vh - 68px);grid-template-columns:1fr}.stage{height:68vh;min-height:500px}.sidebar{min-height:430px;border-left:0;border-top:1px solid var(--line)}}
 @media(max-width:560px){.topbar{padding:0 12px}.status-pill{display:none}.brand-title{font-size:11px}.back{font-size:10px}.controls{bottom:10px}.control{width:40px;height:40px}.control.share{padding:0 12px}.start-card h1{font-size:23px}#localVideo{width:155px;height:100px;right:12px;bottom:75px}}
@@ -390,7 +390,7 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
         <video id="remoteVideo" autoplay playsinline></video>
         <div class="remote-placeholder" id="remotePlaceholder"><div><div class="icon">👨‍🎓</div><h2>Waiting for student</h2><p>The student will appear here when they join the live classroom.</p></div></div>
     </div>
-    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="localVideo" autoplay muted playsinline></video><div id="localLabel" style="position:absolute;right:30px;bottom:96px;z-index:51;display:none;background:#000b;color:#fff;padding:6px 9px;border-radius:8px;font-size:10px;font-weight:800">You</div>
     <div class="remote-name">👨‍🎓 <?= e($student_name) ?></div>
 
     <div class="start-overlay" id="startOverlay">
@@ -560,6 +560,9 @@ async function openOptionalMedia() {
     if (localStream.getVideoTracks().length) {
         localVideo.srcObject = localStream;
         localVideo.style.display = "block";
+        const localLabel = document.getElementById("localLabel");
+        if (localLabel) localLabel.style.display = "block";
+        localVideo.play().catch(() => {});
     }
 }
 
@@ -618,9 +621,24 @@ function createPeerConnection() {
 
     peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
-        if (state === "connected") toastMessage("Student connected to the live classroom.");
-        if (state === "disconnected") toastMessage("Student connection was interrupted.", true);
-        if (state === "failed") toastMessage("Video connection failed. Ask the student to reconnect.", true);
+
+        if (state === "connected") {
+            remotePlaceholder.style.display = "none";
+            remoteVideo.style.display = "block";
+            toastMessage("Student connected to the live classroom.");
+        }
+
+        if (state === "connecting") {
+            toastMessage("Connecting to the student...");
+        }
+
+        if (state === "disconnected") {
+            toastMessage("Student connection was interrupted.", true);
+        }
+
+        if (state === "failed") {
+            toastMessage("Video connection failed. The student should leave and join again.", true);
+        }
     };
 
     return peerConnection;
@@ -735,7 +753,6 @@ startButton.addEventListener("click", async () => {
         setLiveUI(true);
         startOverlay.style.display = "none";
         endButton.style.display = "inline-block";
-        shareButton.classList.add("active");
         shareButton.classList.remove("active");
         screenStatus.textContent = "Ready";
         screenStatus.className = "ok";
@@ -771,6 +788,8 @@ function stopLocalMedia() {
     screenTrack = null;
     localVideo.srcObject = null;
     localVideo.style.display = "none";
+    const localLabel = document.getElementById("localLabel");
+    if (localLabel) localLabel.style.display = "none";
     stage.classList.remove("screen-active");
 }
 
