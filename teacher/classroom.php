@@ -60,7 +60,21 @@ if ($booking_id <= 0) {
     if ($_SERVER["REQUEST_METHOD"] === "POST") {
         json_response(["success" => false, "message" => "No valid booking was selected."]);
     }
-    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style></head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div></body></html>');
+    die('<!doctype html><html><head><meta charset="utf-8"><title>Invalid Classroom</title><style>body{margin:0;font-family:Arial;background:#eef4fa;min-height:100vh;display:grid;place-items:center}.box{background:#fff;padding:40px;border-radius:22px;text-align:center;box-shadow:0 20px 60px #0001}.box h2{color:#063b6d}.box a{display:inline-block;margin-top:15px;padding:12px 20px;background:#063b6d;color:#fff;border-radius:10px;text-decoration:none}</style></head><body><div class="box"><h2>Invalid Classroom</h2><p>No valid booking was selected.</p><a href="schedule.php">Return to Schedule</a></div>
+<div id="niseLDiagnostic" style="
+position:fixed;right:18px;bottom:82px;z-index:9999;
+width:320px;max-width:calc(100vw - 36px);
+background:rgba(5,18,31,.96);color:#fff;
+border:1px solid rgba(255,255,255,.16);
+border-radius:14px;padding:14px;
+font:12px/1.45 Arial,sans-serif;
+box-shadow:0 20px 50px rgba(0,0,0,.4);
+display:none;">
+  <div style="font-weight:800;font-size:13px;margin-bottom:8px">NISEL WebRTC Diagnostic</div>
+  <div id="niseLDiagBody">Waiting...</div>
+</div>
+
+</body></html>');
 }
 
 try {
@@ -617,8 +631,58 @@ html,body{margin:0;width:100%;height:100%;font-family:Inter,Segoe UI,Arial,sans-
 </main>
 <div class="toast" id="toast"></div>
 
+
 <script>
 "use strict";
+
+const niselDiag = document.getElementById("niseLDiagnostic");
+
+function niselDiagShow() {
+    if (niselDiag) niselDiag.style.display = "block";
+}
+
+function niselDiagSet(rows) {
+    niselDiagShow();
+
+    const body =
+        document.getElementById("niseLDiagBody");
+
+    if (!body) return;
+
+    body.innerHTML = rows.map(function(row) {
+        return (
+            '<div style="display:flex;justify-content:space-between;' +
+            'gap:12px;border-bottom:1px solid #ffffff12;padding:4px 0">' +
+            '<span>' + row[0] + '</span>' +
+            '<strong>' + row[1] + '</strong>' +
+            '</div>'
+        );
+    }).join("");
+}
+
+function niselDiagUpdate(extra) {
+    const pc = window.peerConnection || null;
+
+    niselDiagSet([
+        ["Class", window.started ? "LIVE" : "WAITING"],
+        ["Student READY", window.niselStudentReady ? "YES" : "NO"],
+        ["Offer sent", window.niselOfferSent ? "YES" : "NO"],
+        ["Answer received", window.niselAnswerReceived ? "YES" : "NO"],
+        ["Camera", window.cameraTrack ? "YES" : "NO"],
+        ["Microphone", window.microphoneTrack ? "YES" : "NO"],
+        ["Signaling", pc ? pc.signalingState : "none"],
+        ["ICE gathering", pc ? pc.iceGatheringState : "none"],
+        ["ICE connection", pc ? pc.iceConnectionState : "none"],
+        ["Connection", pc ? pc.connectionState : "none"],
+        ["Remote video", (
+            window.remoteVideo &&
+            window.remoteVideo.srcObject
+        ) ? "YES" : "NO"],
+        ["Last event", extra || "—"]
+    ]);
+}
+</script>
+
 
 const BOOKING_ID = <?= (int)$booking_id ?>;
 const CLASSROOM_URL = "classroom.php?id=" + BOOKING_ID;
@@ -661,6 +725,15 @@ let lastSignalId = 0;
 let lastMessageId = 0;
 let pendingCandidates = [];
 let offerInProgress = false;
+
+window.peerConnection = null;
+window.started = false;
+window.cameraTrack = null;
+window.microphoneTrack = null;
+window.remoteVideo = document.getElementById("remoteVideo");
+window.niselStudentReady = false;
+window.niselOfferSent = false;
+window.niselAnswerReceived = false;
 
 const rtcConfig = {
     iceServers: [
@@ -725,7 +798,7 @@ async function openOptionalMedia() {
 
     try {
         const camStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-        cameraTrack = camStream.getVideoTracks()[0] || null;
+        cameraTrack = camStream.getVideoTracks()[0] || null; window.cameraTrack = cameraTrack;
         if (cameraTrack) localStream.addTrack(cameraTrack);
         setDeviceStatus(cameraStatus, !!cameraTrack);
     } catch (e) {
@@ -736,7 +809,7 @@ async function openOptionalMedia() {
 
     try {
         const micStream = await navigator.mediaDevices.getUserMedia({ video:false, audio:true });
-        microphoneTrack = micStream.getAudioTracks()[0] || null;
+        microphoneTrack = micStream.getAudioTracks()[0] || null; window.microphoneTrack = microphoneTrack;
         if (microphoneTrack) localStream.addTrack(microphoneTrack);
         setDeviceStatus(micStatus, !!microphoneTrack);
     } catch (e) {
@@ -757,7 +830,7 @@ async function openOptionalMedia() {
 function createPeerConnection() {
     if (peerConnection) return peerConnection;
 
-    peerConnection = new RTCPeerConnection(rtcConfig);
+    peerConnection = new RTCPeerConnection(rtcConfig); window.peerConnection = peerConnection;
 
     // Keep exactly one video and one audio sender.
     // This is important when a device is unavailable and the teacher
@@ -827,7 +900,7 @@ function createPeerConnection() {
     peerConnection.onconnectionstatechange = () => {
         const state = peerConnection.connectionState;
 
-        console.log("NISEL teacher WebRTC connection:", state);
+        console.log("NISEL teacher WebRTC connection:", state); niselDiagUpdate("connection=" + state);
 
         if (state === "connected") {
             remotePlaceholder.style.display = "none";
@@ -965,7 +1038,7 @@ async function createOffer() {
 
         console.log(
             "NISEL teacher: offer sent."
-        );
+        ); window.niselOfferSent = true; niselDiagUpdate("OFFER sent");
 
     } catch (e) {
 
@@ -996,7 +1069,7 @@ async function processPendingCandidates() {
 
 async function processSignal(signal) {
     try {
-        if (signal.signal_type === "ready") {
+        if (signal.signal_type === "ready") { window.niselStudentReady = true; niselDiagUpdate("READY received");
 
             console.log(
                 "NISEL teacher: student READY received."
@@ -1031,7 +1104,7 @@ async function processSignal(signal) {
 
             console.log(
                 "NISEL teacher: student ANSWER accepted."
-            );
+            ); window.niselAnswerReceived = true; niselDiagUpdate("ANSWER received");
 
             toastMessage(
                 "Student video connection established."
@@ -1121,7 +1194,7 @@ startButton.addEventListener("click", async () => {
          */
         createPeerConnection();
 
-        started = true;
+        started = true; window.started = true;
         shuttingDown = false;
 
         /*
@@ -1139,7 +1212,7 @@ startButton.addEventListener("click", async () => {
                 result.room_code;
         }
 
-        setLiveUI(true);
+        setLiveUI(true); niselDiagShow(); niselDiagUpdate("class started");
         startOverlay.style.display = "none";
         endButton.style.display = "inline-block";
         shareButton.classList.remove("active");
