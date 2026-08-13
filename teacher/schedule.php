@@ -1191,7 +1191,13 @@ tr:hover {
                         <th>
                             Status
                         </th>
+                        
+                        <th>
+                           Classroom
+                        </th>
 
+
+                        
                     </tr>
 
 
