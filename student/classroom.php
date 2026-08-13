@@ -3375,13 +3375,45 @@ function createPeerConnection() {
     peerConnection.ontrack =
         function(event) {
 
-            if (
-                event.streams &&
-                event.streams[0]
-            ) {
+            let remoteStream =
+                (
+                    event.streams &&
+                    event.streams[0]
+                );
+
+            /*
+             * Some browsers can deliver a track without
+             * attaching event.streams[0]. Build a stream
+             * explicitly in that case.
+             */
+            if (!remoteStream) {
+
+                remoteStream =
+                    remoteVideo.srcObject;
+
+                if (
+                    !remoteStream ||
+                    !(
+                        remoteStream instanceof
+                        MediaStream
+                    )
+                ) {
+                    remoteStream =
+                        new MediaStream();
+                }
+
+                remoteStream.addTrack(
+                    event.track
+                );
 
                 remoteVideo.srcObject =
-                    event.streams[0];
+                    remoteStream;
+            }
+
+            if (remoteStream) {
+
+                remoteVideo.srcObject =
+                    remoteStream;
 
                 remoteVideo.style.display =
                     "block";
@@ -3697,11 +3729,23 @@ async function processTeacherSignal(
             const localDescription =
                 peerConnection.localDescription;
 
-            await sendStudentSignal(
-                "answer",
-                localDescription.toJSON
-                    ? localDescription.toJSON()
-                    : localDescription
+            const answerResult =
+                await sendStudentSignal(
+                    "answer",
+                    localDescription.toJSON
+                        ? localDescription.toJSON()
+                        : localDescription
+                );
+
+            if (!answerResult.success) {
+                throw new Error(
+                    answerResult.message ||
+                    "The student answer could not be sent."
+                );
+            }
+
+            console.log(
+                "NISEL student: answer sent."
             );
 
             return;
@@ -3768,6 +3812,12 @@ async function processTeacherSignal(
             "Teacher signal error:",
             error
         );
+
+        /*
+         * Let the polling loop know that processing failed.
+         * The signal ID will NOT be advanced, so it can be retried.
+         */
+        throw error;
     }
 }
 
@@ -3838,18 +3888,25 @@ async function pollTeacherSignals() {
             result.signals
         ) {
 
-            lastSignalId =
-                Math.max(
-                    lastSignalId,
-                    parseInt(
-                        signal.id,
-                        10
-                    ) || 0
-                );
+            const signalId =
+                parseInt(
+                    signal.id,
+                    10
+                ) || 0;
 
             await processTeacherSignal(
                 signal
             );
+
+            /*
+             * Only mark the signal as consumed after
+             * WebRTC has processed it successfully.
+             */
+            lastSignalId =
+                Math.max(
+                    lastSignalId,
+                    signalId
+                );
         }
 
     } catch (error) {
@@ -4016,7 +4073,7 @@ async function joinClassroom() {
                     "20";
 
                 message.textContent =
-                    "✓ You joined the classroom. Waiting for your teacher...";
+                    "✓ Connected to classroom signaling. Waiting for teacher video...";
 
                 stage.appendChild(
                     message
