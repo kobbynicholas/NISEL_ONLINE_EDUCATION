@@ -811,7 +811,7 @@ ONLINE EDUCATION
 👤 My Profile
 </a>
 
-<a href="classroom.php?id=<?= (int)$booking['id'] ?>">
+<a href="classroom.php?id=<?= (int)$bookings['id'] ?>">
 🎥 Classroom
 </a>
 
