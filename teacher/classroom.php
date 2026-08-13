@@ -792,6 +792,16 @@ function createPeerConnection() {
             .catch(console.error);
     }
 
+    /*
+     * Store the senders so camera/screen changes always use
+     * the exact negotiated video/audio sender.
+     */
+    window.niselVideoSender =
+        videoTransceiver.sender;
+
+    window.niselAudioSender =
+        audioTransceiver.sender;
+
     peerConnection.ontrack = event => {
         if (event.streams && event.streams[0]) {
             remoteVideo.srcObject = event.streams[0];
@@ -981,6 +991,7 @@ async function processSignal(signal) {
         }
     } catch (e) {
         console.error("Signal processing error", e);
+        throw e;
     }
 }
 
@@ -990,8 +1001,21 @@ async function pollSignals() {
         const result = await post({ classroom_action:"get_signals", last_id:lastSignalId });
         if (result.success && Array.isArray(result.signals)) {
             for (const signal of result.signals) {
-                lastSignalId = Math.max(lastSignalId, parseInt(signal.id, 10) || 0);
+                const signalId =
+                    parseInt(signal.id, 10) || 0;
+
                 await processSignal(signal);
+
+                /*
+                 * Advance only after processing succeeds.
+                 * If WebRTC temporarily rejects a signal, it will
+                 * be retried on the next poll instead of being lost.
+                 */
+                lastSignalId =
+                    Math.max(
+                        lastSignalId,
+                        signalId
+                    );
             }
         }
     } catch (e) { console.warn("Signal polling error", e); }
