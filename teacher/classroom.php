@@ -126,18 +126,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) 
                 $room = $room_code;
             }
 
-            /*
-             * Start a clean signaling session for this booking.
-             * Chat messages are NOT deleted.
-             */
-            $clearSignals = $pdo->prepare(
-                "DELETE FROM classroom_signals WHERE booking_id = ? AND room_code = ?"
-            );
-            $clearSignals->execute([
-                $booking_id,
-                $room
-            ]);
-
             $stmt = $pdo->prepare("UPDATE bookings SET live_status = 'live', live_started_at = NOW(), live_ended_at = NULL, live_room_code = ? WHERE id = ? AND teacher_id = ?");
             $stmt->execute([$room, $booking_id, $teacher_id]);
 
@@ -355,10 +343,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["classroom_action"])) 
         json_response(["success" => false, "message" => "Unknown classroom action."]);
     } catch (PDOException $e) {
         error_log("NISEL classroom PDO error: " . $e->getMessage());
-        json_response(["success" => false, "message" => "A classroom database error occurred."]);
+        json_response([
+            "success" => false,
+            "message" => "Classroom database error: " . $e->getMessage()
+        ]);
     } catch (Throwable $e) {
         error_log("NISEL classroom error: " . $e->getMessage());
-        json_response(["success" => false, "message" => "Unable to complete the classroom request."]);
+        json_response([
+            "success" => false,
+            "message" => "Classroom error: " . $e->getMessage()
+        ]);
     }
 }
 ?>
