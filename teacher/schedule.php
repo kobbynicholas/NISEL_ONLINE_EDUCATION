@@ -975,64 +975,50 @@ tr:hover {
      SIDEBAR
 ================================================== -->
 
-<div class="sidebar">
+<div class="layout">
 
+<aside class="sidebar">
 
     <div class="logo">
-
-        NISEL<br>
-
-        ONLINE EDUCATION
-
+        <strong>NISEL</strong>
+        <small>ONLINE EDUCATION</small>
     </div>
 
-
-    <div class="menu">
-
-
-        <a href="dashboard.php">
-
-            🏠 Dashboard
-
-        </a>
-
-
-        <a href="students.php">
-
-            👨‍🎓 My Students
-
-        </a>
-
+    <nav class="nav">
 
         <a
-            href="schedule.php"
+            href="dashboard.php"
             class="active"
         >
-
-            📅 My Schedule
-
+            🏠 Dashboard
         </a>
 
+        <a href="schedule.php">
+            📅 My Schedule
+        </a>
+
+        <a href="assignments.php">
+            📝 Assignments
+        </a>
+
+        <a href="classroom.php">
+            🎥 Classroom
+        </a>
 
         <a href="profile.php">
-
             👤 My Profile
-
         </a>
 
-
-        <a href="logout.php">
-
+        <a
+            href="logout.php"
+            class="logout"
+        >
             🚪 Logout
-
         </a>
 
+    </nav>
 
-    </div>
-
-
-</div>
-
+</aside>
 
 <!-- ==================================================
      MAIN
