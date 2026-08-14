@@ -711,58 +711,89 @@ body {
 }
 
 
-/* =====================================================
+/* =========================================================
    SIDEBAR
-===================================================== */
+========================================================= */
 
 .sidebar {
 
-    position:
-        fixed;
+    position: fixed;
 
-    left:
-        0;
+    left: 0;
+    top: 0;
 
-    top:
-        0;
+    width: 235px;
 
-    width:
-        240px;
-
-    height:
-        100vh;
+    height: 100vh;
 
     background:
-        #003b70;
+        linear-gradient(
+            180deg,
+            #003b70,
+            #063d70
+        );
 
-    color:
-        white;
+    color: white;
 
     padding:
-        25px 15px;
+        25px 14px;
 
-    z-index:
-        1000;
+    z-index: 1000;
 
 }
 
 
 .logo {
 
-    text-align:
-        center;
+    text-align: center;
 
-    font-size:
-        19px;
+    padding:
+        0 10px 24px;
 
-    font-weight:
-        bold;
+    margin-bottom: 18px;
 
-    line-height:
-        1.5;
+    border-bottom:
+        1px solid
+        rgba(255,255,255,.15);
 
-    margin-bottom:
-        35px;
+}
+
+
+.logo-title {
+
+    font-size: 20px;
+
+    font-weight: 800;
+
+    letter-spacing:
+        .5px;
+
+}
+
+
+.logo-subtitle {
+
+    font-size: 10px;
+
+    letter-spacing:
+        2px;
+
+    opacity: .65;
+
+    margin-top: 4px;
+
+}
+
+
+.menu {
+
+    display:
+        flex;
+
+    flex-direction:
+        column;
+
+    gap: 7px;
 
 }
 
@@ -770,7 +801,18 @@ body {
 .menu a {
 
     display:
-        block;
+        flex;
+
+    align-items:
+        center;
+
+    gap: 11px;
+
+    padding:
+        13px 14px;
+
+    border-radius:
+        9px;
 
     color:
         white;
@@ -778,17 +820,11 @@ body {
     text-decoration:
         none;
 
-    padding:
-        14px;
-
-    margin-bottom:
-        8px;
-
-    border-radius:
-        8px;
+    font-size:
+        13px;
 
     transition:
-        0.2s;
+        .2s ease;
 
 }
 
@@ -796,7 +832,10 @@ body {
 .menu a:hover {
 
     background:
-        #075ca5;
+        rgba(255,255,255,.12);
+
+    transform:
+        translateX(2px);
 
 }
 
@@ -804,32 +843,31 @@ body {
 .menu a.active {
 
     background:
-        #0867b8;
+        rgba(255,255,255,.16);
+
+    box-shadow:
+        inset 3px 0 0 #39bdf8;
 
 }
 
 
-.menu a.logout {
-
-    margin-top:
-        30px;
-
-}
-
-
-/* =====================================================
+/* =========================================================
    MAIN
-===================================================== */
+========================================================= */
 
 .main {
 
     margin-left:
-        240px;
+        235px;
 
     padding:
-        30px;
+        28px;
+
+    min-height:
+        100vh;
 
 }
+
 
 
 /* =====================================================
