@@ -705,211 +705,195 @@ function classroomButton($bookingId)
 </title>
 
 
+
 <style>
 
 /* =====================================================
-   RESET
+   NISEL STUDENT SCHEDULE
+   COMPLETE MODERN DESIGN
 ===================================================== */
+
+:root {
+    --navy: #063b69;
+    --navy-dark: #022b4d;
+    --blue: #0877c9;
+    --blue-light: #eaf5ff;
+    --page: #f4f7fb;
+    --card: #ffffff;
+    --text: #172b3f;
+    --muted: #718096;
+    --line: #e4ebf2;
+    --green: #149447;
+    --green-bg: #eaf8ef;
+    --orange: #a66a00;
+    --orange-bg: #fff6df;
+    --red: #c53030;
+    --red-bg: #fff0f0;
+    --shadow: 0 12px 35px rgba(17, 45, 72, .07);
+}
 
 * {
-
-    box-sizing:
-        border-box;
-
+    box-sizing: border-box;
 }
 
-
-/* =====================================================
-   BODY
-===================================================== */
+html {
+    scroll-behavior: smooth;
+}
 
 body {
-
-    margin:
-        0;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-    background:
-        #eef3f8;
-
-    color:
-        #333;
-
+    margin: 0;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+                 Roboto, Arial, sans-serif;
+    background: var(--page);
+    color: var(--text);
 }
-
 
 /* =====================================================
    SIDEBAR
 ===================================================== */
 
 .sidebar {
-
-    position:
-        fixed;
-
-    left:
-        0;
-
-    top:
-        0;
-
-    width:
-        240px;
-
-    height:
-        100vh;
-
-    background:
-        #003b70;
-
-    color:
-        white;
-
-    padding:
-        25px 15px;
-
-    z-index:
-        1000;
-
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 245px;
+    height: 100vh;
+    padding: 22px 14px;
+    background: linear-gradient(180deg, #063f70 0%, #022e52 100%);
+    color: #fff;
+    z-index: 1000;
+    overflow-y: auto;
+    box-shadow: 5px 0 25px rgba(0, 35, 65, .12);
 }
-
 
 .logo {
-
-    text-align:
-        center;
-
-    font-size:
-        19px;
-
-    font-weight:
-        bold;
-
-    line-height:
-        1.5;
-
-    margin-bottom:
-        35px;
-
+    padding: 8px 8px 24px;
+    margin-bottom: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,.13);
+    color: #fff;
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.35;
+    letter-spacing: .3px;
 }
 
-
-.menu a {
-
-    display:
-        block;
-
-    color:
-        white;
-
-    text-decoration:
-        none;
-
-    padding:
-        14px;
-
-    margin-bottom:
-        8px;
-
-    border-radius:
-        8px;
-
-    transition:
-        0.2s;
-
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-
-.menu a:hover {
-
-    background:
-        #075ca5;
-
+.nav a {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 12px 13px;
+    border-radius: 10px;
+    color: rgba(255,255,255,.82);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    transition: .2s ease;
 }
 
-
-.menu a.active {
-
-    background:
-        #0867b8;
-
+.nav a:hover {
+    background: rgba(255,255,255,.11);
+    color: #fff;
+    transform: translateX(2px);
 }
 
-
-.menu a.logout {
-
-    margin-top:
-        30px;
-
+.nav a.active {
+    background: linear-gradient(90deg, #0877c9, #0b6db2);
+    color: #fff;
+    box-shadow: 0 6px 15px rgba(0,0,0,.12);
 }
 
+.nav a.logout {
+    margin-top: 20px;
+    background: rgba(220, 53, 69, .88);
+    color: #fff;
+}
+
+.nav a.logout:hover {
+    background: #c92f40;
+}
 
 /* =====================================================
-   MAIN - MODERN SCHEDULE DESIGN
-   Sidebar above this point is intentionally untouched.
+   MAIN
 ===================================================== */
 
 .main {
-    margin-left: 240px;
-    padding: 28px 32px 45px;
+    margin-left: 245px;
     min-height: 100vh;
-    background:
-        radial-gradient(circle at 95% 0%, rgba(8,103,184,.07), transparent 28%),
-        #f4f7fb;
+    padding: 30px 34px 50px;
 }
 
-/* =========================
-   PAGE HEADER
-========================= */
+/* =====================================================
+   PAGE HERO
+===================================================== */
 
-.topbar {
-    position: relative;
-    overflow: hidden;
-    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+.schedule-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 25px;
     padding: 28px 30px;
-    border: 1px solid #e5ebf2;
-    border-radius: 20px;
     margin-bottom: 22px;
-    box-shadow: 0 10px 35px rgba(20, 55, 90, .07);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background:
+        linear-gradient(135deg, #ffffff 0%, #f8fbff 65%, #edf7ff 100%);
+    box-shadow: var(--shadow);
 }
 
-.topbar::after {
-    content: "";
-    position: absolute;
-    width: 170px;
-    height: 170px;
-    right: -65px;
-    top: -75px;
-    border-radius: 50%;
-    background: rgba(8,103,184,.08);
+.hero-left {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    min-width: 0;
 }
 
-.topbar h1 {
-    position: relative;
-    z-index: 1;
-    margin: 0 0 7px;
-    color: #073b68;
-    font-size: 28px;
+.hero-icon {
+    flex: 0 0 58px;
+    width: 58px;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #e8f4ff, #d8edff);
+    font-size: 29px;
+}
+
+.hero-title {
+    margin: 0 0 5px;
+    color: var(--navy);
+    font-size: 27px;
     font-weight: 800;
     letter-spacing: -.5px;
 }
 
-.topbar p {
-    position: relative;
-    z-index: 1;
+.hero-subtitle {
     margin: 0;
-    color: #718096;
-    font-size: 14px;
-    line-height: 1.6;
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.55;
 }
 
-/* =========================
-   STAT CARDS
-========================= */
+.hero-date {
+    flex: 0 0 auto;
+    padding: 11px 15px;
+    border: 1px solid #dbe8f3;
+    border-radius: 12px;
+    background: #fff;
+    color: #527089;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* =====================================================
+   STATISTICS
+===================================================== */
 
 .stats {
     display: grid;
@@ -921,248 +905,255 @@ body {
 .stat-card {
     position: relative;
     overflow: hidden;
-    min-height: 135px;
-    background: #fff;
-    padding: 22px;
-    border: 1px solid #e5ebf2;
-    border-radius: 18px;
-    box-shadow: 0 8px 28px rgba(20,55,90,.06);
-    transition: transform .2s ease, box-shadow .2s ease;
-}
-
-.stat-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 35px rgba(20,55,90,.10);
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 17px;
+    background: var(--card);
+    box-shadow: var(--shadow);
 }
 
 .stat-card::after {
     content: "";
     position: absolute;
+    right: -30px;
+    top: -30px;
     width: 100px;
     height: 100px;
-    right: -35px;
-    top: -35px;
     border-radius: 50%;
-    background: rgba(8,103,184,.07);
+    background: rgba(8,119,201,.07);
 }
 
 .stat-icon {
     position: relative;
     z-index: 1;
-    width: 44px;
-    height: 44px;
+    width: 42px;
+    height: 42px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 12px;
+    margin-bottom: 13px;
     border-radius: 12px;
-    background: #edf6ff;
-    font-size: 21px;
+    background: var(--blue-light);
+    font-size: 20px;
 }
 
 .stat-number {
     position: relative;
     z-index: 1;
-    color: #073b68;
-    font-size: 30px;
-    line-height: 1;
+    color: var(--navy);
+    font-size: 29px;
     font-weight: 800;
+    line-height: 1;
 }
 
 .stat-title {
     position: relative;
     z-index: 1;
     margin-top: 7px;
-    color: #7a8795;
-    font-size: 13px;
+    color: var(--muted);
+    font-size: 12px;
     font-weight: 600;
 }
 
-/* =========================
-   SECTIONS
-========================= */
+/* =====================================================
+   CONTENT SECTION
+===================================================== */
 
 .section {
-    background: #fff;
-    border: 1px solid #e5ebf2;
-    border-radius: 20px;
-    padding: 24px;
     margin-bottom: 22px;
-    box-shadow: 0 8px 28px rgba(20,55,90,.055);
+    padding: 23px;
+    border: 1px solid var(--line);
+    border-radius: 19px;
+    background: #fff;
+    box-shadow: var(--shadow);
 }
 
 .section-header {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     gap: 15px;
     margin-bottom: 18px;
 }
 
+.section-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+}
+
+.section-icon {
+    width: 37px;
+    height: 37px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--blue-light);
+    font-size: 17px;
+}
+
 .section-header h2 {
     margin: 0;
-    color: #073b68;
-    font-size: 19px;
+    color: var(--navy);
+    font-size: 18px;
     font-weight: 800;
 }
 
-/* =========================
-   TODAY'S LESSON
-========================= */
+/* =====================================================
+   TODAY / UPCOMING LESSON CARDS
+===================================================== */
 
 .today-card {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, #ffffff 0%, #f9fbfe 100%);
-    border: 1px solid #e1e8f0;
-    border-radius: 17px;
-    padding: 21px;
-    margin-bottom: 14px;
-    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    padding: 20px;
+    margin-bottom: 13px;
+    border: 1px solid #e3eaf1;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #fff, #fbfdff);
+    transition: .2s ease;
 }
 
 .today-card::before {
     content: "";
     position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
+    inset: 0 auto 0 0;
     width: 4px;
-    background: linear-gradient(180deg, #0867b8, #39a6e8);
+    background: linear-gradient(180deg, #0877c9, #39a9e8);
 }
 
 .today-card:hover {
     transform: translateY(-2px);
-    border-color: #cbd9e8;
-    box-shadow: 0 12px 30px rgba(20,55,90,.09);
+    border-color: #cbdceb;
+    box-shadow: 0 10px 25px rgba(17,45,72,.08);
 }
 
 .lesson-top {
     display: flex;
-    justify-content: space-between;
     align-items: flex-start;
-    gap: 18px;
+    justify-content: space-between;
+    gap: 20px;
 }
 
 .subject-title {
-    color: #073b68;
-    font-size: 19px;
+    color: var(--navy);
+    font-size: 18px;
     font-weight: 800;
-    line-height: 1.35;
-    margin-bottom: 5px;
+    line-height: 1.3;
 }
 
 .lesson-reference {
-    color: #8995a3;
+    margin-top: 5px;
+    color: #8b98a6;
     font-size: 11px;
-    font-weight: 600;
 }
 
 .lesson-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
+    gap: 11px;
     margin-top: 18px;
 }
 
 .lesson-info {
     min-width: 0;
-    background: #f6f8fb;
+    padding: 12px;
     border: 1px solid #e9eef4;
-    border-radius: 12px;
-    padding: 13px;
+    border-radius: 11px;
+    background: #f7f9fc;
 }
 
 .lesson-label {
     display: block;
-    margin-bottom: 6px;
-    color: #8b97a5;
-    font-size: 10px;
+    margin-bottom: 5px;
+    color: #8a97a5;
+    font-size: 9px;
     font-weight: 800;
     letter-spacing: .7px;
     text-transform: uppercase;
 }
 
 .lesson-value {
-    color: #25364a;
-    font-size: 13px;
+    color: #2b3c50;
+    font-size: 12px;
     font-weight: 700;
-    line-height: 1.45;
+    line-height: 1.4;
     word-break: break-word;
 }
 
 .teacher-box {
     display: flex;
     align-items: center;
-    gap: 9px;
-    min-width: 0;
+    gap: 8px;
 }
 
 .teacher-avatar {
-    flex: 0 0 36px;
-    width: 36px;
-    height: 36px;
+    flex: 0 0 35px;
+    width: 35px;
+    height: 35px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
     background: #eaf4ff;
-    font-size: 17px;
+    font-size: 16px;
 }
 
 .teacher-name {
-    color: #073b68;
+    color: var(--navy);
     font-size: 12px;
     font-weight: 700;
-    line-height: 1.35;
-    word-break: break-word;
 }
 
-/* =========================
-   STATUS BADGES
-========================= */
+/* =====================================================
+   STATUS
+===================================================== */
 
 .badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 26px;
+    min-height: 25px;
     padding: 5px 10px;
     border-radius: 999px;
     font-size: 10px;
     font-weight: 800;
-    letter-spacing: .2px;
     white-space: nowrap;
 }
 
 .badge.scheduled {
-    background: #eaf4ff;
+    background: var(--blue-light);
     color: #0867b8;
 }
 
-.badge.completed {
-    background: #eaf8ef;
-    color: #16803d;
+.badge.completed,
+.badge.paid {
+    background: var(--green-bg);
+    color: var(--green);
 }
 
 .badge.cancelled {
-    background: #fff0f0;
-    color: #c62828;
-}
-
-.badge.paid {
-    background: #eaf8ef;
-    color: #16803d;
+    background: var(--red-bg);
+    color: var(--red);
 }
 
 .badge.pending {
-    background: #fff6df;
-    color: #9a6b00;
+    background: var(--orange-bg);
+    color: var(--orange);
 }
 
-/* =========================
-   ACTION BUTTONS
-========================= */
+/* =====================================================
+   ACTIONS
+===================================================== */
+
+.lesson-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 17px;
+}
 
 .zoom-button,
 .classroom-button,
@@ -1171,72 +1162,120 @@ body {
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-height: 40px;
-    padding: 10px 15px;
+    min-height: 39px;
+    padding: 9px 14px;
     border: 0;
-    border-radius: 10px;
+    border-radius: 9px;
     text-decoration: none;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 800;
     cursor: pointer;
-    transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+    transition: .2s ease;
 }
 
 .zoom-button {
     background: #eaf4ff;
     color: #0867b8;
-    margin-top: 15px;
 }
 
 .zoom-button:hover {
     background: #dceeff;
-    color: #075a9f;
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(8,103,184,.12);
 }
 
 .classroom-button {
-    background: linear-gradient(135deg, #073b68, #0867b8);
+    background: linear-gradient(135deg, #063b69, #0877c9);
     color: #fff;
-    margin-top: 15px;
-    margin-left: 8px;
-    box-shadow: 0 6px 16px rgba(8,103,184,.18);
+    box-shadow: 0 5px 13px rgba(8,119,201,.18);
 }
 
 .classroom-button:hover {
     color: #fff;
     transform: translateY(-2px);
-    box-shadow: 0 9px 20px rgba(8,103,184,.25);
+    box-shadow: 0 8px 18px rgba(8,119,201,.25);
 }
 
 .no-zoom {
-    display: inline-block;
-    margin-top: 15px;
-    color: #a0aab5;
-    font-size: 12px;
+    color: #9aa5b1;
+    font-size: 11px;
     font-weight: 600;
 }
 
 .book-button {
-    background: #073b68;
+    background: #063b69;
     color: #fff;
 }
 
 .book-button:hover {
-    background: #0867b8;
+    background: #0877c9;
     color: #fff;
     transform: translateY(-1px);
-    box-shadow: 0 7px 18px rgba(8,103,184,.18);
 }
 
-/* =========================
+/* =====================================================
+   TABLE
+===================================================== */
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    border: 1px solid #e4ebf2;
+    border-radius: 13px;
+}
+
+table {
+    width: 100%;
+    min-width: 880px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+th {
+    padding: 13px 14px;
+    background: #f5f8fb;
+    border-bottom: 1px solid #e2e9f0;
+    color: #627184;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .7px;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+td {
+    padding: 14px;
+    border-bottom: 1px solid #edf1f5;
+    color: #566576;
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+tbody tr:hover td {
+    background: #fafcff;
+}
+
+tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.subject-cell {
+    color: var(--navy);
+    font-weight: 800;
+}
+
+.not-scheduled {
+    color: #9ba6b1;
+    font-style: italic;
+}
+
+/* =====================================================
    EMPTY STATE
-========================= */
+===================================================== */
 
 .empty-state {
     padding: 50px 20px;
     text-align: center;
-    color: #7b8794;
 }
 
 .empty-icon {
@@ -1247,8 +1286,8 @@ body {
     justify-content: center;
     margin: 0 auto 14px;
     border-radius: 18px;
-    background: #eef6ff;
-    font-size: 30px;
+    background: var(--blue-light);
+    font-size: 29px;
 }
 
 .empty-state h3 {
@@ -1264,103 +1303,9 @@ body {
     line-height: 1.6;
 }
 
-/* =========================
-   ALL LESSONS TABLE
-========================= */
-
-.table-wrapper {
-    width: 100%;
-    overflow-x: auto;
-    border: 1px solid #e6ecf2;
-    border-radius: 14px;
-}
-
-table {
-    width: 100%;
-    min-width: 900px;
-    border-collapse: separate;
-    border-spacing: 0;
-}
-
-th {
-    padding: 13px 14px;
-    background: #f5f8fb;
-    border-bottom: 1px solid #e2e9f0;
-    color: #617184;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: .6px;
-    text-align: left;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-th:first-child {
-    border-top-left-radius: 13px;
-}
-
-th:last-child {
-    border-top-right-radius: 13px;
-}
-
-td {
-    padding: 14px;
-    border-bottom: 1px solid #edf1f5;
-    color: #536273;
-    font-size: 12px;
-    vertical-align: middle;
-}
-
-tbody tr {
-    transition: background .15s ease;
-}
-
-tbody tr:hover td {
-    background: #f9fbfd;
-}
-
-tbody tr:last-child td {
-    border-bottom: 0;
-}
-
-.subject-cell {
-    color: #073b68;
-    font-size: 13px;
-    font-weight: 800;
-}
-
-.not-scheduled {
-    color: #a0aab5;
-    font-size: 11px;
-    font-style: italic;
-}
-
-
-.lesson-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0 8px;
-    margin-top: 2px;
-}
-
-.lesson-actions .zoom-button,
-.lesson-actions .classroom-button {
-    margin-top: 15px;
-    margin-left: 0;
-}
-
-/* =========================
-   UPCOMING LESSONS
-========================= */
-
-.section .today-card + .today-card {
-    margin-top: 0;
-}
-
-/* =========================
+/* =====================================================
    RESPONSIVE
-========================= */
+===================================================== */
 
 @media (max-width: 1100px) {
     .lesson-grid {
@@ -1369,31 +1314,48 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 900px) {
-    .main {
-        padding: 22px;
-    }
-
     .stats {
         grid-template-columns: 1fr;
+    }
+
+    .schedule-hero {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .hero-date {
+        width: 100%;
     }
 }
 
 @media (max-width: 800px) {
-    /*
-     * The existing sidebar is intentionally NOT restyled here.
-     * Only the main schedule content becomes responsive.
-     */
+    .sidebar {
+        position: relative;
+        width: 100%;
+        height: auto;
+        min-height: auto;
+    }
+
     .main {
         margin-left: 0;
         padding: 18px 14px 35px;
     }
 
-    .topbar {
-        padding: 22px;
+    .nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+
+    .nav a.logout {
+        margin-top: 0;
+    }
+
+    .schedule-hero {
+        padding: 21px;
         border-radius: 16px;
     }
 
-    .topbar h1 {
+    .hero-title {
         font-size: 23px;
     }
 
@@ -1405,58 +1367,46 @@ tbody tr:last-child td {
     .lesson-top {
         flex-direction: column;
     }
-
-    .lesson-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .section-header {
-        align-items: flex-start;
-    }
 }
 
 @media (max-width: 560px) {
+    .nav {
+        grid-template-columns: 1fr;
+    }
+
+    .hero-left {
+        align-items: flex-start;
+    }
+
+    .hero-icon {
+        flex-basis: 48px;
+        width: 48px;
+        height: 48px;
+        font-size: 23px;
+    }
+
+    .hero-title {
+        font-size: 21px;
+    }
+
     .lesson-grid {
         grid-template-columns: 1fr;
     }
 
-    .section-header {
+    .lesson-actions {
         flex-direction: column;
-    }
-
-    .book-button {
-        width: 100%;
+        align-items: stretch;
     }
 
     .zoom-button,
-    .classroom-button {
+    .classroom-button,
+    .book-button {
         width: 100%;
-        margin-left: 0;
-    }
-
-    .classroom-button {
-        margin-top: 9px;
-    }
-
-    .stats {
-        gap: 12px;
-    }
-
-    .stat-card {
-        min-height: 115px;
-        padding: 18px;
-    }
-
-    .today-card {
-        padding: 17px;
-    }
-
-    .subject-title {
-        font-size: 17px;
     }
 }
 
 </style>
+
 
 </head>
 
@@ -1480,14 +1430,14 @@ tbody tr:last-child td {
 
     <nav class="nav">
 
-        <a
-            href="dashboard.php"
-            class="active"
-        >
+        <a href="dashboard.php">
             🏠 Dashboard
         </a>
 
-        <a href="schedule.php">
+        <a
+            href="schedule.php"
+            class="active"
+        >
             📅 My Schedule
         </a>
 
@@ -1512,8 +1462,7 @@ tbody tr:last-child td {
 
     </nav>
 
-
-
+</div>
 
 
 <!-- =====================================================
@@ -1527,21 +1476,30 @@ tbody tr:last-child td {
          HEADER
     ================================================== -->
 
-    <div class="topbar">
+    <div class="schedule-hero">
 
-        <h1>
+        <div class="hero-left">
 
-            📅 Lesson Schedule
+            <div class="hero-icon">📅</div>
 
-        </h1>
+            <div>
 
+                <h1 class="hero-title">
+                    Lesson Schedule
+                </h1>
 
-        <p>
+                <p class="hero-subtitle">
+                    View your assigned lessons, teachers and
+                    join your virtual classroom.
+                </p>
 
-            View your assigned lessons and join your online
-            classes directly through Zoom.
+            </div>
 
-        </p>
+        </div>
+
+        <div class="hero-date">
+            📚 My Learning Schedule
+        </div>
 
     </div>
 
@@ -1631,11 +1589,10 @@ tbody tr:last-child td {
 
         <div class="section-header">
 
-            <h2>
-
-                📌 Today's Lessons
-
-            </h2>
+            <div class="section-title-wrap">
+                <div class="section-icon">📌</div>
+                <h2>Today's Lessons</h2>
+            </div>
 
         </div>
 
@@ -1872,11 +1829,10 @@ tbody tr:last-child td {
 
         <div class="section-header">
 
-            <h2>
-
-                🗓️ Upcoming Lessons
-
-            </h2>
+            <div class="section-title-wrap">
+                <div class="section-icon">🗓️</div>
+                <h2>Upcoming Lessons</h2>
+            </div>
 
         </div>
 
@@ -2104,11 +2060,10 @@ tbody tr:last-child td {
 
         <div class="section-header">
 
-            <h2>
-
-                📚 All Assigned Lessons
-
-            </h2>
+            <div class="section-title-wrap">
+                <div class="section-icon">📚</div>
+                <h2>All Assigned Lessons</h2>
+            </div>
 
 
             <a
