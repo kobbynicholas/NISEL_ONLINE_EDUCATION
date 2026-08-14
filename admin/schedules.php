@@ -71,6 +71,131 @@ if (
 
 
 /* =========================================================
+   ADMIN: ASSIGN TEACHER + CREATE VIRTUAL CLASSROOM
+========================================================= */
+$assignment_message = '';
+$assignment_type = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_classroom'])) {
+
+    $booking_id = (int)($_POST['booking_id'] ?? 0);
+    $selected_teacher_id = trim((string)($_POST['teacher_id'] ?? ''));
+
+    if ($booking_id <= 0) {
+        $assignment_message = 'Invalid booking selected.';
+        $assignment_type = 'error';
+    } elseif ($selected_teacher_id === '') {
+        $assignment_message = 'Please select a teacher.';
+        $assignment_type = 'error';
+    } else {
+        try {
+            /* Get the selected teacher. */
+            $teacher_lookup = $pdo->prepare(''
+                . 'SELECT teacher_id, teacher_name '
+                . 'FROM teachers '
+                . 'WHERE teacher_id = ? LIMIT 1'
+            );
+            $teacher_lookup->execute([$selected_teacher_id]);
+            $selected_teacher = $teacher_lookup->fetch(PDO::FETCH_ASSOC);
+
+            if (!$selected_teacher) {
+                throw new RuntimeException('The selected teacher could not be found.');
+            }
+
+            /* Make sure the booking exists. */
+            $booking_lookup = $pdo->prepare(''
+                . 'SELECT id, booking_reference, student_name '
+                . 'FROM bookings WHERE id = ? LIMIT 1'
+            );
+            $booking_lookup->execute([$booking_id]);
+            $selected_booking = $booking_lookup->fetch(PDO::FETCH_ASSOC);
+
+            if (!$selected_booking) {
+                throw new RuntimeException('The selected booking could not be found.');
+            }
+
+            /* Generate a fresh NISEL virtual classroom room code. */
+            $room_code = 'NISEL-' . $booking_id . '-' . strtoupper(
+                substr(
+                    hash(
+                        'sha256',
+                        $booking_id . microtime(true) . bin2hex(random_bytes(8))
+                    ),
+                    0,
+                    8
+                )
+            );
+
+            /*
+             * Keep the classroom state in bookings because the working
+             * teacher/student classroom reads live_room_code from there.
+             */
+            $update = $pdo->prepare(''
+                . 'UPDATE bookings SET '
+                . 'teacher_id = ?, '
+                . 'teacher_name = ?, '
+                . 'live_room_code = ?, '
+                . 'live_status = ?, '
+                . 'live_started_at = NULL, '
+                . 'live_ended_at = NULL '
+                . 'WHERE id = ?'
+            );
+
+            $update->execute([
+                $selected_teacher['teacher_id'],
+                $selected_teacher['teacher_name'],
+                $room_code,
+                'waiting',
+                $booking_id
+            ]);
+
+            /*
+             * Also update schedules.json so this schedule page remains
+             * consistent with the booking table used by the classroom.
+             */
+            $json_changed = false;
+
+            foreach ($schedules as &$scheduled_lesson) {
+                $lesson_booking_id = (int)($scheduled_lesson['booking_id'] ?? 0);
+                $lesson_reference = (string)($scheduled_lesson['booking_reference'] ?? '');
+
+                if (
+                    $lesson_booking_id === $booking_id ||
+                    ($lesson_booking_id === 0 && $lesson_reference !== '' &&
+                     $lesson_reference === (string)$selected_booking['booking_reference'])
+                ) {
+                    $scheduled_lesson['booking_id'] = $booking_id;
+                    $scheduled_lesson['teacher_id'] = $selected_teacher['teacher_id'];
+                    $scheduled_lesson['teacher_name'] = $selected_teacher['teacher_name'];
+                    $scheduled_lesson['live_room_code'] = $room_code;
+                    $scheduled_lesson['live_status'] = 'waiting';
+                    $json_changed = true;
+                }
+            }
+            unset($scheduled_lesson);
+
+            if ($json_changed) {
+                file_put_contents(
+                    $schedule_file,
+                    json_encode($schedules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+                    LOCK_EX
+                );
+            }
+
+            $assignment_message = 'Teacher assigned and NISEL Virtual Classroom created successfully for ' .
+                ($selected_booking['student_name'] ?? 'this booking') .
+                '. Room: ' . $room_code;
+            $assignment_type = 'success';
+
+        } catch (Throwable $e) {
+            $assignment_message = 'Unable to assign teacher/classroom: ' . $e->getMessage();
+            $assignment_type = 'error';
+        }
+    }
+}
+
+
+/* =========================================================
    GET TEACHERS
 ========================================================= */
 
@@ -118,7 +243,8 @@ try {
             class_year,
             payment_status,
             teacher_id,
-            teacher_name
+            teacher_name,
+            live_room_code
 
         FROM bookings
 
@@ -1000,6 +1126,108 @@ tr:hover {
 
 
 /* =====================================================
+   ASSIGNMENT / CLASSROOM
+===================================================== */
+
+.assignment-message {
+    padding: 14px 17px;
+    margin-bottom: 22px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.assignment-message.success {
+    background: #e8f7ed;
+    color: #176b37;
+    border: 1px solid #b9e7c8;
+}
+
+.assignment-message.error {
+    background: #fff0f0;
+    color: #a52828;
+    border: 1px solid #f1c1c1;
+}
+
+.classroom-cell {
+    min-width: 235px;
+}
+
+.room-code {
+    display: inline-block;
+    max-width: 220px;
+    margin-bottom: 7px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    background: #eef6ff;
+    color: #075a9f;
+    font-family: Consolas, monospace;
+    font-size: 10px;
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.room-empty {
+    display: block;
+    margin-bottom: 8px;
+    color: #999;
+    font-size: 11px;
+}
+
+.assign-form {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 230px;
+}
+
+.assign-form select {
+    min-width: 145px;
+    flex: 1;
+    padding: 8px 9px;
+    border: 1px solid #ccd7e2;
+    border-radius: 7px;
+    background: #fff;
+    color: #333;
+    font-size: 11px;
+}
+
+.assign-button {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #003366, #0877c9);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.assign-button:hover {
+    background: #0055a5;
+}
+
+.classroom-ready {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    color: #16803d;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.classroom-ready::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #20a65a;
+}
+
+/* =====================================================
    BADGES
 ===================================================== */
 
@@ -1311,6 +1539,14 @@ tr:hover {
 
     </div>
 
+
+    <?php if ($assignment_message !== ''): ?>
+
+        <div class="assignment-message <?= htmlspecialchars($assignment_type, ENT_QUOTES, 'UTF-8') ?>">
+            <?= htmlspecialchars($assignment_message, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+
+    <?php endif; ?>
 
 
     <!-- =================================================
@@ -1738,6 +1974,14 @@ tr:hover {
                             Booking
                         </th>
 
+                        <th>
+                            Virtual Classroom
+                        </th>
+
+                        <th>
+                            Assign Teacher
+                        </th>
+
 
                     </tr>
 
@@ -2078,6 +2322,125 @@ tr:hover {
                                 );
 
                                 ?>
+
+                            </td>
+
+
+                            <?php
+
+                            /* Resolve the real booking ID for this schedule row. */
+                            $row_booking_id = (int)(
+                                $lesson['booking_id']
+                                ?? 0
+                            );
+
+                            if ($row_booking_id <= 0 && !empty($lesson['booking_reference'])) {
+                                foreach ($bookings as $booking_row) {
+                                    if (
+                                        (string)($booking_row['booking_reference'] ?? '') ===
+                                        (string)$lesson['booking_reference']
+                                    ) {
+                                        $row_booking_id = (int)$booking_row['id'];
+                                        break;
+                                    }
+                                }
+                            }
+
+                            $row_room_code = trim((string)(
+                                $lesson['live_room_code']
+                                ?? ''
+                            ));
+
+                            if ($row_room_code === '' && $row_booking_id > 0) {
+                                foreach ($bookings as $booking_row) {
+                                    if ((int)$booking_row['id'] === $row_booking_id) {
+                                        $row_room_code = trim((string)(
+                                            $booking_row['live_room_code'] ?? ''
+                                        ));
+                                        break;
+                                    }
+                                }
+                            }
+
+                            ?>
+
+                            <td class="classroom-cell">
+
+                                <?php if ($row_room_code !== ''): ?>
+
+                                    <span class="room-code">
+                                        <?= htmlspecialchars($row_room_code, ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+
+                                    <span class="classroom-ready">
+                                        Classroom Ready
+                                    </span>
+
+                                <?php else: ?>
+
+                                    <span class="room-empty">
+                                        No classroom assigned yet
+                                    </span>
+
+                                <?php endif; ?>
+
+                            </td>
+
+
+                            <td>
+
+                                <?php if ($row_booking_id > 0): ?>
+
+                                    <form method="POST" class="assign-form">
+
+                                        <input
+                                            type="hidden"
+                                            name="booking_id"
+                                            value="<?= $row_booking_id ?>"
+                                        >
+
+                                        <select name="teacher_id" required>
+                                            <option value="">Select teacher</option>
+
+                                            <?php foreach ($teachers as $teacher): ?>
+
+                                                <option
+                                                    value="<?= htmlspecialchars($teacher['teacher_id'], ENT_QUOTES, 'UTF-8') ?>"
+                                                    <?php
+                                                    if (
+                                                        (string)($lesson['teacher_id'] ?? '') ===
+                                                        (string)$teacher['teacher_id']
+                                                    ) {
+                                                        echo 'selected';
+                                                    }
+                                                    ?>
+                                                >
+                                                    <?= htmlspecialchars($teacher['teacher_name'], ENT_QUOTES, 'UTF-8') ?>
+                                                </option>
+
+                                            <?php endforeach; ?>
+
+                                        </select>
+
+                                        <button
+                                            type="submit"
+                                            name="assign_classroom"
+                                            value="1"
+                                            class="assign-button"
+                                            onclick="return confirm('Assign this teacher and create a NISEL Virtual Classroom for this lesson?');"
+                                        >
+                                            <?= $row_room_code !== '' ? 'Update' : 'Assign & Create' ?>
+                                        </button>
+
+                                    </form>
+
+                                <?php else: ?>
+
+                                    <span class="room-empty">
+                                        Booking ID unavailable
+                                    </span>
+
+                                <?php endif; ?>
 
                             </td>
 
