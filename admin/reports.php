@@ -971,20 +971,22 @@ body {
 
     top: 0;
 
-    width: 245px;
+    width: 250px;
 
     height: 100vh;
 
     background:
         linear-gradient(
             180deg,
-            #003b70,
-            #002b55
+            #003b70 0%,
+            #002b55 100%
         );
 
     color: white;
 
-    padding: 24px 14px;
+    padding: 24px 15px;
+
+    z-index: 1000;
 
     overflow-y: auto;
 
@@ -993,12 +995,10 @@ body {
 
 .logo {
 
-    text-align: center;
-
     padding:
-        10px 5px 25px;
+        10px 8px 28px;
 
-    margin-bottom: 20px;
+    text-align: center;
 
     border-bottom:
         1px solid
@@ -1009,18 +1009,21 @@ body {
             .12
         );
 
+    margin-bottom: 22px;
+
 }
 
 
 .logo-icon {
 
-    width: 50px;
+    width: 55px;
 
-    height: 50px;
+    height: 55px;
 
-    margin: 0 auto 10px;
+    margin:
+        0 auto 12px;
 
-    border-radius: 14px;
+    border-radius: 15px;
 
     background:
         rgba(
@@ -1036,35 +1039,31 @@ body {
 
     justify-content: center;
 
-    font-size: 25px;
+    font-size: 27px;
 
 }
 
 
 .logo h2 {
 
-    font-size: 18px;
+    font-size: 19px;
+
+    line-height: 1.25;
+
+    letter-spacing: .3px;
 
 }
 
 
-.logo small {
-
-    display: block;
+.logo p {
 
     margin-top: 6px;
 
-    color:
-        rgba(
-            255,
-            255,
-            255,
-            .55
-        );
-
     font-size: 9px;
 
-    letter-spacing: 1.8px;
+    letter-spacing: 2px;
+
+    opacity: .65;
 
 }
 
@@ -1076,17 +1075,17 @@ body {
             255,
             255,
             255,
-            .4
+            .42
         );
 
     font-size: 9px;
 
-    letter-spacing: 1.5px;
-
     text-transform: uppercase;
 
+    letter-spacing: 1.5px;
+
     padding:
-        0 12px 8px;
+        0 13px 10px;
 
 }
 
@@ -1097,7 +1096,7 @@ body {
 
     align-items: center;
 
-    gap: 11px;
+    gap: 12px;
 
     color:
         rgba(
@@ -1110,15 +1109,16 @@ body {
     text-decoration: none;
 
     padding:
-        12px;
+        12px 13px;
 
-    margin-bottom: 4px;
+    margin-bottom: 5px;
 
     border-radius: 9px;
 
-    font-size: 12px;
+    font-size: 13px;
 
-    transition: .2s;
+    transition:
+        .2s ease;
 
 }
 
@@ -1130,10 +1130,13 @@ body {
             255,
             255,
             255,
-            .1
+            .10
         );
 
     color: white;
+
+    transform:
+        translateX(2px);
 
 }
 
@@ -1150,17 +1153,17 @@ body {
 
     color: white;
 
-    font-weight: bold;
+    font-weight: 700;
 
     box-shadow:
-        inset 3px 0 #38bdf8;
+        inset 3px 0 #4db8ff;
 
 }
 
 
-.icon {
+.menu-icon {
 
-    width: 22px;
+    width: 23px;
 
     text-align: center;
 
@@ -1168,6 +1171,30 @@ body {
 
 }
 
+
+.logout {
+
+    margin-top: 25px !important;
+
+    background:
+        rgba(
+            220,
+            53,
+            69,
+            .95
+        ) !important;
+
+    color: white !important;
+
+}
+
+
+.logout:hover {
+
+    background:
+        #c82333 !important;
+
+}
 
 /* =====================================================
    MAIN
