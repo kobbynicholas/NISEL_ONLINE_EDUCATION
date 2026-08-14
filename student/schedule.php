@@ -1,4 +1,5 @@
 <?php
+/* NISEL SCHEDULE PDO FIX - uses $pdo consistently */
 
 session_start();
 
