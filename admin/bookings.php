@@ -893,6 +893,247 @@ SUMMARY CARDS
 }
 
 
+/* =====================================================
+   SIDEBAR
+===================================================== */
+
+.sidebar {
+
+    position: fixed;
+
+    left: 0;
+
+    top: 0;
+
+    width: 250px;
+
+    height: 100vh;
+
+    background:
+        linear-gradient(
+            180deg,
+            #003b70 0%,
+            #002b55 100%
+        );
+
+    color: white;
+
+    padding: 24px 15px;
+
+    z-index: 1000;
+
+    overflow-y: auto;
+
+}
+
+
+.logo {
+
+    padding:
+        10px 8px 28px;
+
+    text-align: center;
+
+    border-bottom:
+        1px solid
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
+
+    margin-bottom: 22px;
+
+}
+
+
+.logo-icon {
+
+    width: 55px;
+
+    height: 55px;
+
+    margin:
+        0 auto 12px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 27px;
+
+}
+
+
+.logo h2 {
+
+    font-size: 19px;
+
+    line-height: 1.25;
+
+    letter-spacing: .3px;
+
+}
+
+
+.logo p {
+
+    margin-top: 6px;
+
+    font-size: 9px;
+
+    letter-spacing: 2px;
+
+    opacity: .65;
+
+}
+
+
+.menu-title {
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            .42
+        );
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1.5px;
+
+    padding:
+        0 13px 10px;
+
+}
+
+
+.sidebar a {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            .82
+        );
+
+    text-decoration: none;
+
+    padding:
+        12px 13px;
+
+    margin-bottom: 5px;
+
+    border-radius: 9px;
+
+    font-size: 13px;
+
+    transition:
+        .2s ease;
+
+}
+
+
+.sidebar a:hover {
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .10
+        );
+
+    color: white;
+
+    transform:
+        translateX(2px);
+
+}
+
+
+.sidebar a.active {
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .16
+        );
+
+    color: white;
+
+    font-weight: 700;
+
+    box-shadow:
+        inset 3px 0 #4db8ff;
+
+}
+
+
+.menu-icon {
+
+    width: 23px;
+
+    text-align: center;
+
+    font-size: 16px;
+
+}
+
+
+.logout {
+
+    margin-top: 25px !important;
+
+    background:
+        rgba(
+            220,
+            53,
+            69,
+            .95
+        ) !important;
+
+    color: white !important;
+
+}
+
+
+.logout:hover {
+
+    background:
+        #c82333 !important;
+
+}
+
+
+
+    
+
 /*
 =========================================================
 MESSAGE
