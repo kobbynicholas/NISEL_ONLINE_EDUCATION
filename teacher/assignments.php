@@ -544,9 +544,9 @@ body {
 }
 
 
-/* =========================================================
+/* =====================================================
    SIDEBAR
-========================================================= */
+===================================================== */
 
 .sidebar {
 
@@ -564,38 +564,59 @@ body {
         linear-gradient(
             180deg,
             #003b70 0%,
-            #002b52 100%
+            #002b55 100%
         );
 
     color: white;
 
-    padding: 25px 15px;
+    padding: 24px 15px;
 
     z-index: 1000;
+
+    overflow-y: auto;
+
 }
 
 
-.brand {
+.logo {
+
+    padding:
+        10px 8px 28px;
 
     text-align: center;
 
-    padding: 8px 0 25px;
-
     border-bottom:
         1px solid
-        rgba(255,255,255,.12);
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
 
-    margin-bottom: 25px;
+    margin-bottom: 22px;
+
 }
 
 
-.brand-icon {
+.logo-icon {
 
-    width: 58px;
+    width: 55px;
 
-    height: 58px;
+    height: 55px;
 
-    margin: 0 auto 10px;
+    margin:
+        0 auto 12px;
+
+    border-radius: 15px;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
 
     display: flex;
 
@@ -603,51 +624,58 @@ body {
 
     justify-content: center;
 
-    border-radius: 16px;
-
-    background:
-        rgba(255,255,255,.12);
-
     font-size: 27px;
+
 }
 
 
-.brand h2 {
-
-    margin: 0;
+.logo h2 {
 
     font-size: 19px;
 
-    letter-spacing: .5px;
+    line-height: 1.25;
+
+    letter-spacing: .3px;
+
 }
 
 
-.brand small {
+.logo p {
 
-    display: block;
+    margin-top: 6px;
 
-    margin-top: 5px;
-
-    font-size: 10px;
+    font-size: 9px;
 
     letter-spacing: 2px;
 
+    opacity: .65;
+
+}
+
+
+.menu-title {
+
     color:
-        rgba(255,255,255,.65);
+        rgba(
+            255,
+            255,
+            255,
+            .42
+        );
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1.5px;
+
+    padding:
+        0 13px 10px;
+
 }
 
 
-.menu {
-
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 6px;
-}
-
-
-.menu a {
+.sidebar a {
 
     display: flex;
 
@@ -655,46 +683,103 @@ body {
 
     gap: 12px;
 
-    padding: 13px 14px;
-
-    border-radius: 10px;
-
-    color: white;
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            .82
+        );
 
     text-decoration: none;
 
-    font-size: 14px;
+    padding:
+        12px 13px;
 
-    transition: .2s;
+    margin-bottom: 5px;
+
+    border-radius: 9px;
+
+    font-size: 13px;
+
+    transition:
+        .2s ease;
+
 }
 
 
-.menu a:hover {
+.sidebar a:hover {
 
     background:
-        rgba(255,255,255,.10);
+        rgba(
+            255,
+            255,
+            255,
+            .10
+        );
+
+    color: white;
+
+    transform:
+        translateX(2px);
 
 }
 
 
-.menu a.active {
+.sidebar a.active {
 
     background:
-        rgba(255,255,255,.16);
+        rgba(
+            255,
+            255,
+            255,
+            .16
+        );
+
+    color: white;
+
+    font-weight: 700;
 
     box-shadow:
-        inset 3px 0 #29a8ff;
+        inset 3px 0 #4db8ff;
+
 }
 
 
 .menu-icon {
 
-    width: 25px;
+    width: 23px;
 
     text-align: center;
 
+    font-size: 16px;
+
 }
 
+
+.logout {
+
+    margin-top: 25px !important;
+
+    background:
+        rgba(
+            220,
+            53,
+            69,
+            .95
+        ) !important;
+
+    color: white !important;
+
+}
+
+
+.logout:hover {
+
+    background:
+        #c82333 !important;
+
+}
 
 /* =========================================================
    MAIN
