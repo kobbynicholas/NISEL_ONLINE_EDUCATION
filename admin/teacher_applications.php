@@ -511,187 +511,243 @@ body {
 }
 
 
-/* =========================================================
+/* =====================================================
    SIDEBAR
-========================================================= */
+===================================================== */
 
 .sidebar {
 
-    position:
-        fixed;
+    position: fixed;
 
-    left:
-        0;
+    left: 0;
 
-    top:
-        0;
+    top: 0;
 
-    width:
-        245px;
+    width: 250px;
 
-    height:
-        100vh;
+    height: 100vh;
 
     background:
         linear-gradient(
             180deg,
-            #063b73,
-            #075a91
+            #003b70 0%,
+            #002b55 100%
         );
 
-    color:
-        white;
+    color: white;
 
-    padding:
-        24px 14px;
+    padding: 24px 15px;
 
-    z-index:
-        1000;
+    z-index: 1000;
+
+    overflow-y: auto;
 
 }
 
 
 .logo {
 
-    text-align:
-        center;
-
     padding:
-        4px 10px 24px;
+        10px 8px 28px;
 
-    margin-bottom:
-        18px;
+    text-align: center;
 
     border-bottom:
         1px solid
-        rgba(255,255,255,.14);
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
+
+    margin-bottom: 22px;
 
 }
 
 
-.logo-main {
+.logo-icon {
 
-    font-size:
-        22px;
+    width: 55px;
 
-    font-weight:
-        800;
+    height: 55px;
 
-    letter-spacing:
-        1px;
+    margin:
+        0 auto 12px;
 
-}
+    border-radius: 15px;
 
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
 
-.logo-small {
+    display: flex;
 
-    font-size:
-        9px;
+    align-items: center;
 
-    letter-spacing:
-        2px;
+    justify-content: center;
 
-    opacity:
-        .7;
-
-    margin-top:
-        4px;
-
-}
-
-
-.menu {
-
-    display:
-        flex;
-
-    flex-direction:
-        column;
-
-    gap:
-        5px;
+    font-size: 27px;
 
 }
 
 
-.menu a {
+.logo h2 {
 
-    display:
-        flex;
+    font-size: 19px;
 
-    align-items:
-        center;
+    line-height: 1.25;
 
-    gap:
-        11px;
+    letter-spacing: .3px;
+
+}
+
+
+.logo p {
+
+    margin-top: 6px;
+
+    font-size: 9px;
+
+    letter-spacing: 2px;
+
+    opacity: .65;
+
+}
+
+
+.menu-title {
 
     color:
-        white;
+        rgba(
+            255,
+            255,
+            255,
+            .42
+        );
 
-    text-decoration:
-        none;
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1.5px;
 
     padding:
-        12px 14px;
+        0 13px 10px;
 
-    border-radius:
-        9px;
+}
 
-    font-size:
-        13px;
+
+.sidebar a {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            .82
+        );
+
+    text-decoration: none;
+
+    padding:
+        12px 13px;
+
+    margin-bottom: 5px;
+
+    border-radius: 9px;
+
+    font-size: 13px;
 
     transition:
-        .2s;
+        .2s ease;
 
 }
 
 
-.menu a:hover {
+.sidebar a:hover {
 
     background:
-        rgba(255,255,255,.1);
+        rgba(
+            255,
+            255,
+            255,
+            .10
+        );
+
+    color: white;
+
+    transform:
+        translateX(2px);
 
 }
 
 
-.menu a.active {
+.sidebar a.active {
 
     background:
-        rgba(255,255,255,.17);
+        rgba(
+            255,
+            255,
+            255,
+            .16
+        );
+
+    color: white;
+
+    font-weight: 700;
 
     box-shadow:
-        inset 3px 0 0 #4bc9ff;
+        inset 3px 0 #4db8ff;
 
 }
 
 
 .menu-icon {
 
-    width:
-        22px;
+    width: 23px;
 
-    text-align:
-        center;
+    text-align: center;
 
-    font-size:
-        16px;
+    font-size: 16px;
 
 }
 
 
 .logout {
 
-    margin-top:
-        18px;
+    margin-top: 25px !important;
 
-    border-top:
-        1px solid
-        rgba(255,255,255,.12);
+    background:
+        rgba(
+            220,
+            53,
+            69,
+            .95
+        ) !important;
 
-    padding-top:
-        18px !important;
+    color: white !important;
 
 }
+
+
+.logout:hover {
+
+    background:
+        #c82333 !important;
+
+}
+
 
 
 /* =========================================================
