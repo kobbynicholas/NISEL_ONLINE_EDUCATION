@@ -1664,108 +1664,55 @@ body {
 <body>
 
 
-<!-- =========================================================
+<!-- ==================================================
      SIDEBAR
-========================================================= -->
+================================================== -->
+
+<div class="layout">
 
 <aside class="sidebar">
 
-
-    <div class="brand">
-
-        <div class="brand-icon">
-            🎓
-        </div>
-
-
-        <h2>
-            NISEL
-        </h2>
-
-
-        <small>
-            ONLINE EDUCATION
-        </small>
-
+    <div class="logo">
+        <strong>NISEL</strong>
+        <small>ONLINE EDUCATION</small>
     </div>
 
-
-    <nav class="menu">
-
-
-        <a href="dashboard.php">
-
-            <span class="menu-icon">
-                🏠
-            </span>
-
-            Dashboard
-
-        </a>
-
-
-        <a href="students.php">
-
-            <span class="menu-icon">
-                👨‍🎓
-            </span>
-
-            My Students
-
-        </a>
-
+    <nav class="nav">
 
         <a
-            href="assignments.php"
+            href="dashboard.php"
             class="active"
         >
-
-            <span class="menu-icon">
-                📚
-            </span>
-
-            Assignments
-
+            🏠 Dashboard
         </a>
-
 
         <a href="schedule.php">
-
-            <span class="menu-icon">
-                📅
-            </span>
-
-            My Schedule
-
+            📅 My Schedule
         </a>
 
+        <a href="assignments.php">
+            📝 Assignments
+        </a>
+
+        <a href="classroom.php">
+            🎥 Classroom
+        </a>
 
         <a href="profile.php">
-
-            <span class="menu-icon">
-                👤
-            </span>
-
-            My Profile
-
+            👤 My Profile
         </a>
 
-
-        <a href="logout.php">
-
-            <span class="menu-icon">
-                🚪
-            </span>
-
-            Logout
-
+        <a
+            href="logout.php"
+            class="logout"
+        >
+            🚪 Logout
         </a>
-
 
     </nav>
 
-
 </aside>
+
 
 
 <!-- =========================================================
