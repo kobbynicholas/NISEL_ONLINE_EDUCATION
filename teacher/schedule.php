@@ -1093,6 +1093,36 @@ tr:hover {
 
 
 /* ==================================================
+   CLASSROOM BUTTON
+================================================== */
+
+.classroom-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 8px 12px;
+    background: #003b70;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: .2s ease;
+}
+
+.classroom-btn:hover {
+    background: #0055a5;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0, 59, 112, .18);
+}
+
+.classroom-btn:active {
+    transform: translateY(0);
+}
+
+/* ==================================================
    MOBILE
 ================================================== */
 
@@ -1476,6 +1506,20 @@ tr:hover {
 
                                 ?>
 
+                            </td>
+
+
+                            <!-- CLASSROOM -->
+                            <td>
+                                <a
+                                    href="classroom.php?id=<?= (int)$today['id'] ?>"
+                                    class="classroom-btn"
+                                    title="Open Live Classroom"
+                                    aria-label="Open Live Classroom"
+                                >
+                                    🎥
+                                    <span>Classroom</span>
+                                </a>
                             </td>
 
 
