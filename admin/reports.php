@@ -4,7 +4,6 @@ session_start();
 
 require "../config/db.php";
 
-
 /*
 |--------------------------------------------------------------------------
 | ADMIN AUTHENTICATION
