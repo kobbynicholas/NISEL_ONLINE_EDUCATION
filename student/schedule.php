@@ -654,6 +654,37 @@ function zoomButton($zoomLink)
 
 }
 
+/*
+|--------------------------------------------------------------------------
+| LIVE CLASSROOM BUTTON
+|--------------------------------------------------------------------------
+*/
+
+function classroomButton($bookingId)
+{
+
+    $bookingId = (int) $bookingId;
+
+    if ($bookingId <= 0) {
+
+        return '';
+
+    }
+
+    return '
+        <a
+            href="classroom.php?id=' .
+            $bookingId .
+            '"
+            class="classroom-button"
+            title="Open NISEL Live Classroom"
+        >
+            🎥 <span>Live Classroom</span>
+        </a>
+    ';
+
+}
+
 ?>
 
 <!DOCTYPE html>
@@ -675,197 +706,276 @@ function zoomButton($zoomLink)
 
 
 <style>
+
 /* =====================================================
-   NISEL ONLINE EDUCATION
-   STUDENT SCHEDULE - MODERN CSS
+   RESET
 ===================================================== */
 
 * {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
+
+    box-sizing:
+        border-box;
+
 }
 
-html {
-    scroll-behavior: smooth;
-}
+
+/* =====================================================
+   BODY
+===================================================== */
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: #eef3f8;
-    color: #333;
-    min-height: 100vh;
+
+    margin:
+        0;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background:
+        #eef3f8;
+
+    color:
+        #333;
+
 }
 
-/* =========================
+
+/* =====================================================
    SIDEBAR
-========================= */
+===================================================== */
 
 .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 240px;
-    height: 100vh;
-    background: linear-gradient(180deg, #003b70 0%, #002b55 100%);
-    color: #fff;
-    padding: 25px 15px;
-    z-index: 1000;
-    overflow-y: auto;
-    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.10);
+
+    position:
+        fixed;
+
+    left:
+        0;
+
+    top:
+        0;
+
+    width:
+        240px;
+
+    height:
+        100vh;
+
+    background:
+        #003b70;
+
+    color:
+        white;
+
+    padding:
+        25px 15px;
+
+    z-index:
+        1000;
+
 }
+
 
 .logo {
-    text-align: center;
-    font-size: 19px;
-    font-weight: 700;
-    line-height: 1.5;
-    margin-bottom: 35px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+
+    text-align:
+        center;
+
+    font-size:
+        19px;
+
+    font-weight:
+        bold;
+
+    line-height:
+        1.5;
+
+    margin-bottom:
+        35px;
+
 }
 
-/* The HTML uses .nav */
-.nav {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+
+.menu a {
+
+    display:
+        block;
+
+    color:
+        white;
+
+    text-decoration:
+        none;
+
+    padding:
+        14px;
+
+    margin-bottom:
+        8px;
+
+    border-radius:
+        8px;
+
+    transition:
+        0.2s;
+
 }
 
-.nav a {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    color: rgba(255, 255, 255, 0.88);
-    text-decoration: none;
-    padding: 13px 14px;
-    border-radius: 9px;
-    font-size: 13px;
-    font-weight: 500;
-    transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+
+.menu a:hover {
+
+    background:
+        #075ca5;
+
 }
 
-.nav a:hover {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    transform: translateX(3px);
+
+.menu a.active {
+
+    background:
+        #0867b8;
+
 }
 
-.nav a.active {
-    background: #0867b8;
-    color: #fff;
-    font-weight: 700;
-    box-shadow: inset 3px 0 #62c4ff;
+
+.menu a.logout {
+
+    margin-top:
+        30px;
+
 }
 
-.nav a.logout {
-    margin-top: 25px;
-    background: rgba(220, 53, 69, 0.92);
-    color: #fff;
-}
 
-.nav a.logout:hover {
-    background: #c82333;
-    transform: translateX(2px);
-}
-
-/* =========================
-   MAIN
-========================= */
+/* =====================================================
+   MAIN - MODERN SCHEDULE DESIGN
+   Sidebar above this point is intentionally untouched.
+===================================================== */
 
 .main {
     margin-left: 240px;
-    padding: 30px;
+    padding: 28px 32px 45px;
     min-height: 100vh;
+    background:
+        radial-gradient(circle at 95% 0%, rgba(8,103,184,.07), transparent 28%),
+        #f4f7fb;
 }
 
 /* =========================
-   HEADER
+   PAGE HEADER
 ========================= */
 
 .topbar {
-    background: #fff;
-    padding: 24px 28px;
-    border-radius: 14px;
-    margin-bottom: 25px;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.03);
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+    padding: 28px 30px;
+    border: 1px solid #e5ebf2;
+    border-radius: 20px;
+    margin-bottom: 22px;
+    box-shadow: 0 10px 35px rgba(20, 55, 90, .07);
+}
+
+.topbar::after {
+    content: "";
+    position: absolute;
+    width: 170px;
+    height: 170px;
+    right: -65px;
+    top: -75px;
+    border-radius: 50%;
+    background: rgba(8,103,184,.08);
 }
 
 .topbar h1 {
-    margin: 0 0 8px;
-    color: #003b70;
+    position: relative;
+    z-index: 1;
+    margin: 0 0 7px;
+    color: #073b68;
     font-size: 28px;
-    line-height: 1.2;
+    font-weight: 800;
+    letter-spacing: -.5px;
 }
 
 .topbar p {
+    position: relative;
+    z-index: 1;
     margin: 0;
-    color: #777;
+    color: #718096;
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 
 /* =========================
-   STATISTICS
+   STAT CARDS
 ========================= */
 
 .stats {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 20px;
-    margin-bottom: 25px;
+    gap: 18px;
+    margin-bottom: 22px;
 }
 
 .stat-card {
     position: relative;
+    overflow: hidden;
+    min-height: 135px;
     background: #fff;
     padding: 22px;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid #e8edf3;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid #e5ebf2;
+    border-radius: 18px;
+    box-shadow: 0 8px 28px rgba(20,55,90,.06);
+    transition: transform .2s ease, box-shadow .2s ease;
 }
 
 .stat-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.09);
+    box-shadow: 0 14px 35px rgba(20,55,90,.10);
 }
 
 .stat-card::after {
     content: "";
     position: absolute;
-    width: 75px;
-    height: 75px;
+    width: 100px;
+    height: 100px;
+    right: -35px;
+    top: -35px;
     border-radius: 50%;
-    background: rgba(0, 83, 151, 0.07);
-    right: -20px;
-    top: -20px;
+    background: rgba(8,103,184,.07);
 }
 
 .stat-icon {
     position: relative;
     z-index: 1;
-    font-size: 25px;
-    margin-bottom: 8px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    background: #edf6ff;
+    font-size: 21px;
 }
 
 .stat-number {
     position: relative;
     z-index: 1;
+    color: #073b68;
     font-size: 30px;
-    font-weight: 700;
-    color: #003b70;
+    line-height: 1;
+    font-weight: 800;
 }
 
 .stat-title {
     position: relative;
     z-index: 1;
-    margin-top: 5px;
-    color: #777;
-    font-size: 14px;
+    margin-top: 7px;
+    color: #7a8795;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 /* =========================
@@ -874,11 +984,11 @@ body {
 
 .section {
     background: #fff;
-    border-radius: 14px;
-    padding: 25px;
-    margin-bottom: 25px;
-    border: 1px solid #e8edf3;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e5ebf2;
+    border-radius: 20px;
+    padding: 24px;
+    margin-bottom: 22px;
+    box-shadow: 0 8px 28px rgba(20,55,90,.055);
 }
 
 .section-header {
@@ -886,219 +996,237 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 15px;
-    margin-bottom: 20px;
+    margin-bottom: 18px;
 }
 
 .section-header h2 {
     margin: 0;
-    color: #003b70;
-    font-size: 20px;
+    color: #073b68;
+    font-size: 19px;
+    font-weight: 800;
 }
 
 /* =========================
-   TODAY CARD
+   TODAY'S LESSON
 ========================= */
 
 .today-card {
-    background: #fff;
-    border: 1px solid #e3e8ef;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 15px;
-    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #ffffff 0%, #f9fbfe 100%);
+    border: 1px solid #e1e8f0;
+    border-radius: 17px;
+    padding: 21px;
+    margin-bottom: 14px;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.today-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #0867b8, #39a6e8);
 }
 
 .today-card:hover {
     transform: translateY(-2px);
-    border-color: #cbdceb;
-    box-shadow: 0 7px 22px rgba(0, 0, 0, 0.08);
+    border-color: #cbd9e8;
+    box-shadow: 0 12px 30px rgba(20,55,90,.09);
 }
 
 .lesson-top {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 15px;
+    gap: 18px;
 }
 
 .subject-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: #003b70;
-    margin-bottom: 6px;
-    line-height: 1.3;
+    color: #073b68;
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.35;
+    margin-bottom: 5px;
 }
 
 .lesson-reference {
-    font-size: 12px;
-    color: #888;
-    word-break: break-word;
+    color: #8995a3;
+    font-size: 11px;
+    font-weight: 600;
 }
 
 .lesson-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 15px;
+    gap: 12px;
     margin-top: 18px;
 }
 
 .lesson-info {
-    background: #f7f9fc;
-    padding: 13px;
-    border-radius: 9px;
-    border: 1px solid #edf1f5;
     min-width: 0;
+    background: #f6f8fb;
+    border: 1px solid #e9eef4;
+    border-radius: 12px;
+    padding: 13px;
 }
 
 .lesson-label {
     display: block;
-    font-size: 11px;
-    color: #888;
+    margin-bottom: 6px;
+    color: #8b97a5;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .7px;
     text-transform: uppercase;
-    letter-spacing: 0.4px;
-    margin-bottom: 5px;
 }
 
 .lesson-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #333;
+    color: #25364a;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.45;
     word-break: break-word;
 }
-
-/* =========================
-   TEACHER
-========================= */
 
 .teacher-box {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     min-width: 0;
 }
 
 .teacher-avatar {
-    flex: 0 0 40px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #e7f2ff;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 18px;
+    border-radius: 10px;
+    background: #eaf4ff;
+    font-size: 17px;
 }
 
 .teacher-name {
-    font-weight: 600;
-    color: #003b70;
+    color: #073b68;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
     word-break: break-word;
 }
 
 /* =========================
-   BADGES
+   STATUS BADGES
 ========================= */
 
 .badge {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 700;
+    min-height: 26px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .2px;
     white-space: nowrap;
 }
 
 .badge.scheduled {
-    background: #e8f2ff;
+    background: #eaf4ff;
     color: #0867b8;
 }
 
 .badge.completed {
-    background: #e7f7ed;
+    background: #eaf8ef;
     color: #16803d;
 }
 
 .badge.cancelled {
-    background: #fdecec;
+    background: #fff0f0;
     color: #c62828;
 }
 
 .badge.paid {
-    background: #e7f7ed;
+    background: #eaf8ef;
     color: #16803d;
 }
 
 .badge.pending {
-    background: #fff5dc;
+    background: #fff6df;
     color: #9a6b00;
 }
 
 /* =========================
-   CLASSROOM BUTTON
+   ACTION BUTTONS
 ========================= */
 
-.classroom-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    margin-top: 18px;
-    padding: 11px 18px;
-    background: linear-gradient(135deg, #003b70, #0867b8);
-    color: #fff;
-    text-decoration: none;
-    border-radius: 9px;
-    font-size: 13px;
-    font-weight: 700;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(0, 59, 112, 0.18);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-}
-
-.classroom-button:hover {
-    background: linear-gradient(135deg, #00529a, #0878d0);
-    transform: translateY(-2px);
-    box-shadow: 0 7px 16px rgba(0, 59, 112, 0.25);
-}
-
-.classroom-button:active {
-    transform: translateY(0);
-}
-
-/* =========================
-   ZOOM BUTTON
-========================= */
-
-.zoom-button {
+.zoom-button,
+.classroom-button,
+.book-button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    margin-top: 18px;
-    padding: 11px 17px;
-    background: #0b65b7;
-    color: #fff;
+    min-height: 40px;
+    padding: 10px 15px;
+    border: 0;
+    border-radius: 10px;
     text-decoration: none;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13px;
-    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+}
+
+.zoom-button {
+    background: #eaf4ff;
+    color: #0867b8;
+    margin-top: 15px;
 }
 
 .zoom-button:hover {
-    background: #084f8f;
+    background: #dceeff;
+    color: #075a9f;
     transform: translateY(-1px);
-    box-shadow: 0 5px 12px rgba(8, 79, 143, 0.18);
+    box-shadow: 0 6px 16px rgba(8,103,184,.12);
+}
+
+.classroom-button {
+    background: linear-gradient(135deg, #073b68, #0867b8);
+    color: #fff;
+    margin-top: 15px;
+    margin-left: 8px;
+    box-shadow: 0 6px 16px rgba(8,103,184,.18);
+}
+
+.classroom-button:hover {
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 9px 20px rgba(8,103,184,.25);
 }
 
 .no-zoom {
     display: inline-block;
-    margin-top: 18px;
-    color: #999;
-    font-size: 13px;
+    margin-top: 15px;
+    color: #a0aab5;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.book-button {
+    background: #073b68;
+    color: #fff;
+}
+
+.book-button:hover {
+    background: #0867b8;
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 7px 18px rgba(8,103,184,.18);
 }
 
 /* =========================
@@ -1106,164 +1234,163 @@ body {
 ========================= */
 
 .empty-state {
-    text-align: center;
     padding: 50px 20px;
-    color: #777;
+    text-align: center;
+    color: #7b8794;
 }
 
 .empty-icon {
-    font-size: 45px;
-    margin-bottom: 12px;
+    width: 62px;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 14px;
+    border-radius: 18px;
+    background: #eef6ff;
+    font-size: 30px;
 }
 
 .empty-state h3 {
-    color: #555;
-    margin: 5px 0 8px;
-    font-size: 18px;
+    margin: 0 0 7px;
+    color: #34495e;
+    font-size: 17px;
 }
 
 .empty-state p {
     margin: 0;
-    font-size: 14px;
+    color: #8a96a3;
+    font-size: 13px;
     line-height: 1.6;
 }
 
 /* =========================
-   TABLE
+   ALL LESSONS TABLE
 ========================= */
 
 .table-wrapper {
     width: 100%;
     overflow-x: auto;
-    border-radius: 10px;
+    border: 1px solid #e6ecf2;
+    border-radius: 14px;
 }
 
 table {
     width: 100%;
-    border-collapse: collapse;
-    min-width: 850px;
+    min-width: 900px;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 th {
-    background: #f4f7fb;
-    color: #003b70;
-    font-size: 12px;
-    text-transform: uppercase;
+    padding: 13px 14px;
+    background: #f5f8fb;
+    border-bottom: 1px solid #e2e9f0;
+    color: #617184;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .6px;
     text-align: left;
-    padding: 14px;
+    text-transform: uppercase;
     white-space: nowrap;
-    border-bottom: 2px solid #e2e8f0;
+}
+
+th:first-child {
+    border-top-left-radius: 13px;
+}
+
+th:last-child {
+    border-top-right-radius: 13px;
 }
 
 td {
-    padding: 15px 14px;
-    border-bottom: 1px solid #edf0f4;
-    font-size: 13px;
+    padding: 14px;
+    border-bottom: 1px solid #edf1f5;
+    color: #536273;
+    font-size: 12px;
     vertical-align: middle;
 }
 
-tr:hover td {
-    background: #fafcff;
+tbody tr {
+    transition: background .15s ease;
+}
+
+tbody tr:hover td {
+    background: #f9fbfd;
+}
+
+tbody tr:last-child td {
+    border-bottom: 0;
 }
 
 .subject-cell {
-    font-weight: 700;
-    color: #003b70;
+    color: #073b68;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .not-scheduled {
-    color: #999;
+    color: #a0aab5;
+    font-size: 11px;
     font-style: italic;
 }
 
-/* =========================
-   BOOK BUTTON
-========================= */
 
-.book-button {
-    display: inline-flex;
+.lesson-actions {
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 11px 18px;
-    background: #003b70;
-    color: #fff;
-    text-decoration: none;
-    border-radius: 8px;
-    font-weight: 600;
-    font-size: 13px;
-    transition: background 0.2s ease, transform 0.2s ease;
+    gap: 0 8px;
+    margin-top: 2px;
 }
 
-.book-button:hover {
-    background: #075ca5;
-    transform: translateY(-1px);
+.lesson-actions .zoom-button,
+.lesson-actions .classroom-button {
+    margin-top: 15px;
+    margin-left: 0;
+}
+
+/* =========================
+   UPCOMING LESSONS
+========================= */
+
+.section .today-card + .today-card {
+    margin-top: 0;
 }
 
 /* =========================
    RESPONSIVE
 ========================= */
 
-@media (max-width: 1000px) {
+@media (max-width: 1100px) {
     .lesson-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 800px) {
-    .sidebar {
-        position: relative;
-        width: 100%;
-        height: auto;
-        padding: 18px;
-        box-shadow: none;
-    }
-
-    .logo {
-        margin-bottom: 15px;
-    }
-
-    .nav {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-    }
-
-    .nav a {
-        margin: 0;
-    }
-
-    .nav a.logout {
-        margin-top: 0;
-    }
-
+@media (max-width: 900px) {
     .main {
-        margin-left: 0;
-        padding: 15px;
+        padding: 22px;
     }
 
     .stats {
         grid-template-columns: 1fr;
     }
-
-    .lesson-top {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .section-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
 }
 
-@media (max-width: 600px) {
-    .nav {
-        grid-template-columns: 1fr;
+@media (max-width: 800px) {
+    /*
+     * The existing sidebar is intentionally NOT restyled here.
+     * Only the main schedule content becomes responsive.
+     */
+    .main {
+        margin-left: 0;
+        padding: 18px 14px 35px;
     }
 
     .topbar {
-        padding: 20px;
+        padding: 22px;
+        border-radius: 16px;
     }
 
     .topbar h1 {
@@ -1271,53 +1398,64 @@ tr:hover td {
     }
 
     .section {
-        padding: 17px;
-    }
-
-    .lesson-grid {
-        grid-template-columns: 1fr;
+        padding: 18px;
+        border-radius: 16px;
     }
 
     .lesson-top {
-        gap: 10px;
+        flex-direction: column;
     }
 
-    .subject-title {
-        font-size: 18px;
+    .lesson-grid {
+        grid-template-columns: 1fr 1fr;
     }
 
-    .classroom-button,
-    .zoom-button,
-    .book-button {
-        width: 100%;
-    }
-
-    .teacher-box {
+    .section-header {
         align-items: flex-start;
     }
 }
 
-@media (max-width: 400px) {
-    .main {
-        padding: 10px;
+@media (max-width: 560px) {
+    .lesson-grid {
+        grid-template-columns: 1fr;
     }
 
-    .topbar {
-        padding: 17px;
+    .section-header {
+        flex-direction: column;
     }
 
-    .section {
-        padding: 14px;
+    .book-button {
+        width: 100%;
+    }
+
+    .zoom-button,
+    .classroom-button {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .classroom-button {
+        margin-top: 9px;
+    }
+
+    .stats {
+        gap: 12px;
+    }
+
+    .stat-card {
+        min-height: 115px;
+        padding: 18px;
     }
 
     .today-card {
-        padding: 15px;
+        padding: 17px;
     }
 
-    .lesson-info {
-        padding: 11px;
+    .subject-title {
+        font-size: 17px;
     }
 }
+
 </style>
 
 </head>
@@ -1668,10 +1806,19 @@ tr:hover td {
 
                     <!-- ZOOM -->
 
-                    <?= zoomButton(
-                        $today['teacher_zoom_link']
-                        ?? ''
-                    ) ?>
+                    <div class="lesson-actions">
+
+                        <?= zoomButton(
+                            $today['teacher_zoom_link']
+                            ?? ''
+                        ) ?>
+
+                        <?= classroomButton(
+                            $today['id']
+                            ?? 0
+                        ) ?>
+
+                    </div>
 
 
                 </div>
@@ -1891,10 +2038,19 @@ tr:hover td {
 
 
 
-                    <?= zoomButton(
-                        $lesson['teacher_zoom_link']
-                        ?? ''
-                    ) ?>
+                    <div class="lesson-actions">
+
+                        <?= zoomButton(
+                            $lesson['teacher_zoom_link']
+                            ?? ''
+                        ) ?>
+
+                        <?= classroomButton(
+                            $lesson['id']
+                            ?? 0
+                        ) ?>
+
+                    </div>
 
 
                 </div>
