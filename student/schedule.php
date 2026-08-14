@@ -675,1144 +675,649 @@ function zoomButton($zoomLink)
 
 
 <style>
-
 /* =====================================================
-   RESET
+   NISEL ONLINE EDUCATION
+   STUDENT SCHEDULE - MODERN CSS
 ===================================================== */
 
 * {
-
-    box-sizing:
-        border-box;
-
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
 }
 
-
-/* =====================================================
-   BODY
-===================================================== */
+html {
+    scroll-behavior: smooth;
+}
 
 body {
-
-    margin:
-        0;
-
-    font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-    background:
-        #eef3f8;
-
-    color:
-        #333;
-
+    font-family: Arial, Helvetica, sans-serif;
+    background: #eef3f8;
+    color: #333;
+    min-height: 100vh;
 }
 
-
-/* =========================================================
+/* =========================
    SIDEBAR
-========================================================= */
+========================= */
 
 .sidebar {
-
     position: fixed;
-
     left: 0;
     top: 0;
-
-    width: 235px;
-
+    width: 240px;
     height: 100vh;
-
-    background:
-        linear-gradient(
-            180deg,
-            #003b70,
-            #063d70
-        );
-
-    color: white;
-
-    padding:
-        25px 14px;
-
+    background: linear-gradient(180deg, #003b70 0%, #002b55 100%);
+    color: #fff;
+    padding: 25px 15px;
     z-index: 1000;
-
+    overflow-y: auto;
+    box-shadow: 4px 0 18px rgba(0, 0, 0, 0.10);
 }
-
 
 .logo {
-
     text-align: center;
-
-    padding:
-        0 10px 24px;
-
-    margin-bottom: 18px;
-
-    border-bottom:
-        1px solid
-        rgba(255,255,255,.15);
-
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin-bottom: 35px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-
-.logo-title {
-
-    font-size: 20px;
-
-    font-weight: 800;
-
-    letter-spacing:
-        .5px;
-
+/* The HTML uses .nav */
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
-
-.logo-subtitle {
-
-    font-size: 10px;
-
-    letter-spacing:
-        2px;
-
-    opacity: .65;
-
-    margin-top: 4px;
-
+.nav a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    color: rgba(255, 255, 255, 0.88);
+    text-decoration: none;
+    padding: 13px 14px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
 }
 
-
-.menu {
-
-    display:
-        flex;
-
-    flex-direction:
-        column;
-
-    gap: 7px;
-
+.nav a:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    transform: translateX(3px);
 }
 
-
-.menu a {
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    gap: 11px;
-
-    padding:
-        13px 14px;
-
-    border-radius:
-        9px;
-
-    color:
-        white;
-
-    text-decoration:
-        none;
-
-    font-size:
-        13px;
-
-    transition:
-        .2s ease;
-
+.nav a.active {
+    background: #0867b8;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: inset 3px 0 #62c4ff;
 }
 
-
-.menu a:hover {
-
-    background:
-        rgba(255,255,255,.12);
-
-    transform:
-        translateX(2px);
-
+.nav a.logout {
+    margin-top: 25px;
+    background: rgba(220, 53, 69, 0.92);
+    color: #fff;
 }
 
-
-.menu a.active {
-
-    background:
-        rgba(255,255,255,.16);
-
-    box-shadow:
-        inset 3px 0 0 #39bdf8;
-
+.nav a.logout:hover {
+    background: #c82333;
+    transform: translateX(2px);
 }
 
-
-/* =========================================================
+/* =========================
    MAIN
-========================================================= */
+========================= */
 
 .main {
-
-    margin-left:
-        235px;
-
-    padding:
-        28px;
-
-    min-height:
-        100vh;
-
+    margin-left: 240px;
+    padding: 30px;
+    min-height: 100vh;
 }
 
-
-
-/* =====================================================
+/* =========================
    HEADER
-===================================================== */
+========================= */
 
 .topbar {
-
-    background:
-        white;
-
-    padding:
-        24px 28px;
-
-    border-radius:
-        14px;
-
-    margin-bottom:
-        25px;
-
-    box-shadow:
-        0 4px 15px rgba(
-            0,
-            0,
-            0,
-            0.05
-        );
-
+    background: #fff;
+    padding: 24px 28px;
+    border-radius: 14px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.03);
 }
-
 
 .topbar h1 {
-
-    margin:
-        0 0 8px;
-
-    color:
-        #003b70;
-
-    font-size:
-        28px;
-
+    margin: 0 0 8px;
+    color: #003b70;
+    font-size: 28px;
+    line-height: 1.2;
 }
-
 
 .topbar p {
-
-    margin:
-        0;
-
-    color:
-        #777;
-
-    font-size:
-        15px;
-
+    margin: 0;
+    color: #777;
+    font-size: 14px;
+    line-height: 1.5;
 }
 
-
-/* =====================================================
+/* =========================
    STATISTICS
-===================================================== */
+========================= */
 
 .stats {
-
-    display:
-        grid;
-
-    grid-template-columns:
-        repeat(
-            3,
-            1fr
-        );
-
-    gap:
-        20px;
-
-    margin-bottom:
-        25px;
-
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
 }
-
 
 .stat-card {
-
-    background:
-        white;
-
-    padding:
-        22px;
-
-    border-radius:
-        14px;
-
-    box-shadow:
-        0 4px 15px rgba(
-            0,
-            0,
-            0,
-            0.05
-        );
-
-    position:
-        relative;
-
-    overflow:
-        hidden;
-
+    position: relative;
+    background: #fff;
+    padding: 22px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.09);
+}
 
 .stat-card::after {
-
-    content:
-        "";
-
-    position:
-        absolute;
-
-    width:
-        70px;
-
-    height:
-        70px;
-
-    border-radius:
-        50%;
-
-    background:
-        rgba(
-            0,
-            83,
-            151,
-            0.08
-        );
-
-    right:
-        -20px;
-
-    top:
-        -20px;
-
+    content: "";
+    position: absolute;
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    background: rgba(0, 83, 151, 0.07);
+    right: -20px;
+    top: -20px;
 }
-
 
 .stat-icon {
-
-    font-size:
-        25px;
-
-    margin-bottom:
-        8px;
-
+    position: relative;
+    z-index: 1;
+    font-size: 25px;
+    margin-bottom: 8px;
 }
-
 
 .stat-number {
-
-    font-size:
-        30px;
-
-    font-weight:
-        bold;
-
-    color:
-        #003b70;
-
+    position: relative;
+    z-index: 1;
+    font-size: 30px;
+    font-weight: 700;
+    color: #003b70;
 }
-
 
 .stat-title {
-
-    margin-top:
-        5px;
-
-    color:
-        #777;
-
-    font-size:
-        14px;
-
+    position: relative;
+    z-index: 1;
+    margin-top: 5px;
+    color: #777;
+    font-size: 14px;
 }
 
-
-/* =====================================================
-   SECTION
-===================================================== */
+/* =========================
+   SECTIONS
+========================= */
 
 .section {
-
-    background:
-        white;
-
-    border-radius:
-        14px;
-
-    padding:
-        25px;
-
-    margin-bottom:
-        25px;
-
-    box-shadow:
-        0 4px 15px rgba(
-            0,
-            0,
-            0,
-            0.05
-        );
-
+    background: #fff;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 25px;
+    border: 1px solid #e8edf3;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
-
 
 .section-header {
-
-    display:
-        flex;
-
-    justify-content:
-        space-between;
-
-    align-items:
-        center;
-
-    margin-bottom:
-        20px;
-
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
 }
-
 
 .section-header h2 {
-
-    margin:
-        0;
-
-    color:
-        #003b70;
-
-    font-size:
-        20px;
-
+    margin: 0;
+    color: #003b70;
+    font-size: 20px;
 }
 
-
-/* =====================================================
+/* =========================
    TODAY CARD
-===================================================== */
+========================= */
 
 .today-card {
-
-    border:
-        1px solid #e3e8ef;
-
-    border-radius:
-        12px;
-
-    padding:
-        20px;
-
-    margin-bottom:
-        15px;
-
-    transition:
-        0.2s;
-
+    background: #fff;
+    border: 1px solid #e3e8ef;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
-
 
 .today-card:hover {
-
-    box-shadow:
-        0 5px 18px rgba(
-            0,
-            0,
-            0,
-            0.08
-        );
-
-    transform:
-        translateY(-1px);
-
+    transform: translateY(-2px);
+    border-color: #cbdceb;
+    box-shadow: 0 7px 22px rgba(0, 0, 0, 0.08);
 }
-
 
 .lesson-top {
-
-    display:
-        flex;
-
-    justify-content:
-        space-between;
-
-    align-items:
-        flex-start;
-
-    gap:
-        15px;
-
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 15px;
 }
-
 
 .subject-title {
-
-    font-size:
-        20px;
-
-    font-weight:
-        bold;
-
-    color:
-        #003b70;
-
-    margin-bottom:
-        6px;
-
+    font-size: 20px;
+    font-weight: 700;
+    color: #003b70;
+    margin-bottom: 6px;
+    line-height: 1.3;
 }
-
 
 .lesson-reference {
-
-    font-size:
-        12px;
-
-    color:
-        #888;
-
+    font-size: 12px;
+    color: #888;
+    word-break: break-word;
 }
-
 
 .lesson-grid {
-
-    display:
-        grid;
-
-    grid-template-columns:
-        repeat(
-            4,
-            1fr
-        );
-
-    gap:
-        15px;
-
-    margin-top:
-        18px;
-
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 15px;
+    margin-top: 18px;
 }
-
 
 .lesson-info {
-
-    background:
-        #f7f9fc;
-
-    padding:
-        13px;
-
-    border-radius:
-        9px;
-
+    background: #f7f9fc;
+    padding: 13px;
+    border-radius: 9px;
+    border: 1px solid #edf1f5;
+    min-width: 0;
 }
-
 
 .lesson-label {
-
-    display:
-        block;
-
-    font-size:
-        11px;
-
-    color:
-        #888;
-
-    text-transform:
-        uppercase;
-
-    margin-bottom:
-        5px;
-
+    display: block;
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 5px;
 }
-
 
 .lesson-value {
-
-    font-size:
-        14px;
-
-    font-weight:
-        600;
-
-    color:
-        #333;
-
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    word-break: break-word;
 }
 
-
-/* =====================================================
+/* =========================
    TEACHER
-===================================================== */
+========================= */
 
 .teacher-box {
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    gap:
-        10px;
-
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
 }
-
 
 .teacher-avatar {
-
-    width:
-        40px;
-
-    height:
-        40px;
-
-    border-radius:
-        50%;
-
-    background:
-        #e7f2ff;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    font-size:
-        18px;
-
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e7f2ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
 }
-
 
 .teacher-name {
-
-    font-weight:
-        600;
-
-    color:
-        #003b70;
-
+    font-weight: 600;
+    color: #003b70;
+    word-break: break-word;
 }
 
-
-/* =====================================================
+/* =========================
    BADGES
-===================================================== */
+========================= */
 
 .badge {
-
-    display:
-        inline-block;
-
-    padding:
-        6px 10px;
-
-    border-radius:
-        20px;
-
-    font-size:
-        11px;
-
-    font-weight:
-        bold;
-
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    white-space: nowrap;
 }
-
 
 .badge.scheduled {
-
-    background:
-        #e8f2ff;
-
-    color:
-        #0867b8;
-
+    background: #e8f2ff;
+    color: #0867b8;
 }
-
 
 .badge.completed {
-
-    background:
-        #e7f7ed;
-
-    color:
-        #16803d;
-
+    background: #e7f7ed;
+    color: #16803d;
 }
-
 
 .badge.cancelled {
-
-    background:
-        #fdecec;
-
-    color:
-        #c62828;
-
+    background: #fdecec;
+    color: #c62828;
 }
-
 
 .badge.paid {
-
-    background:
-        #e7f7ed;
-
-    color:
-        #16803d;
-
+    background: #e7f7ed;
+    color: #16803d;
 }
-
 
 .badge.pending {
-
-    background:
-        #fff5dc;
-
-    color:
-        #9a6b00;
-
+    background: #fff5dc;
+    color: #9a6b00;
 }
 
+/* =========================
+   CLASSROOM BUTTON
+========================= */
 
-/* =====================================================
+.classroom-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+    padding: 11px 18px;
+    background: linear-gradient(135deg, #003b70, #0867b8);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 59, 112, 0.18);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.classroom-button:hover {
+    background: linear-gradient(135deg, #00529a, #0878d0);
+    transform: translateY(-2px);
+    box-shadow: 0 7px 16px rgba(0, 59, 112, 0.25);
+}
+
+.classroom-button:active {
+    transform: translateY(0);
+}
+
+/* =========================
    ZOOM BUTTON
-===================================================== */
+========================= */
 
 .zoom-button {
-
-    display:
-        inline-block;
-
-    margin-top:
-        18px;
-
-    padding:
-        11px 17px;
-
-    background:
-        #0b65b7;
-
-    color:
-        white;
-
-    text-decoration:
-        none;
-
-    border-radius:
-        8px;
-
-    font-weight:
-        600;
-
-    font-size:
-        13px;
-
-    transition:
-        0.2s;
-
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    margin-top: 18px;
+    padding: 11px 17px;
+    background: #0b65b7;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
-
 
 .zoom-button:hover {
-
-    background:
-        #084f8f;
-
-    transform:
-        translateY(-1px);
-
+    background: #084f8f;
+    transform: translateY(-1px);
+    box-shadow: 0 5px 12px rgba(8, 79, 143, 0.18);
 }
-
 
 .no-zoom {
-
-    display:
-        inline-block;
-
-    margin-top:
-        18px;
-
-    color:
-        #999;
-
-    font-size:
-        13px;
-
+    display: inline-block;
+    margin-top: 18px;
+    color: #999;
+    font-size: 13px;
 }
 
-
-/* =====================================================
+/* =========================
    EMPTY STATE
-===================================================== */
+========================= */
 
 .empty-state {
-
-    text-align:
-        center;
-
-    padding:
-        50px 20px;
-
-    color:
-        #777;
-
+    text-align: center;
+    padding: 50px 20px;
+    color: #777;
 }
-
 
 .empty-icon {
-
-    font-size:
-        45px;
-
-    margin-bottom:
-        12px;
-
+    font-size: 45px;
+    margin-bottom: 12px;
 }
-
 
 .empty-state h3 {
-
-    color:
-        #555;
-
-    margin:
-        5px 0 8px;
-
+    color: #555;
+    margin: 5px 0 8px;
+    font-size: 18px;
 }
-
 
 .empty-state p {
-
-    margin:
-        0;
-
-    font-size:
-        14px;
-
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
 }
 
-
-/* =====================================================
-   ALL LESSONS TABLE
-===================================================== */
+/* =========================
+   TABLE
+========================= */
 
 .table-wrapper {
-
-    overflow-x:
-        auto;
-
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 10px;
 }
-
 
 table {
-
-    width:
-        100%;
-
-    border-collapse:
-        collapse;
-
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 850px;
 }
-
 
 th {
-
-    background:
-        #f4f7fb;
-
-    color:
-        #003b70;
-
-    font-size:
-        12px;
-
-    text-transform:
-        uppercase;
-
-    text-align:
-        left;
-
-    padding:
-        14px;
-
-    white-space:
-        nowrap;
-
+    background: #f4f7fb;
+    color: #003b70;
+    font-size: 12px;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 14px;
+    white-space: nowrap;
+    border-bottom: 2px solid #e2e8f0;
 }
-
 
 td {
-
-    padding:
-        15px 14px;
-
-    border-bottom:
-        1px solid #edf0f4;
-
-    font-size:
-        13px;
-
-    vertical-align:
-        middle;
-
+    padding: 15px 14px;
+    border-bottom: 1px solid #edf0f4;
+    font-size: 13px;
+    vertical-align: middle;
 }
-
 
 tr:hover td {
-
-    background:
-        #fafcff;
-
+    background: #fafcff;
 }
-
 
 .subject-cell {
-
-    font-weight:
-        bold;
-
-    color:
-        #003b70;
-
+    font-weight: 700;
+    color: #003b70;
 }
-
 
 .not-scheduled {
-
-    color:
-        #999;
-
-    font-style:
-        italic;
-
+    color: #999;
+    font-style: italic;
 }
 
-
-/* =====================================================
-   BOOKING BUTTON
-===================================================== */
+/* =========================
+   BOOK BUTTON
+========================= */
 
 .book-button {
-
-    display:
-        inline-block;
-
-    padding:
-        11px 18px;
-
-    background:
-        #003b70;
-
-    color:
-        white;
-
-    text-decoration:
-        none;
-
-    border-radius:
-        8px;
-
-    font-weight:
-        600;
-
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 11px 18px;
+    background: #003b70;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    transition: background 0.2s ease, transform 0.2s ease;
 }
-
 
 .book-button:hover {
-
-    background:
-        #075ca5;
-
+    background: #075ca5;
+    transform: translateY(-1px);
 }
 
-
-/* =====================================================
+/* =========================
    RESPONSIVE
-===================================================== */
+========================= */
 
-@media(max-width: 1000px) {
-
+@media (max-width: 1000px) {
     .lesson-grid {
-
-        grid-template-columns:
-            repeat(
-                2,
-                1fr
-            );
-
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-
 }
 
-
-@media(max-width: 800px) {
-
+@media (max-width: 800px) {
     .sidebar {
-
-        position:
-            relative;
-
-        width:
-            100%;
-
-        height:
-            auto;
-
-        padding:
-            18px;
-
+        position: relative;
+        width: 100%;
+        height: auto;
+        padding: 18px;
+        box-shadow: none;
     }
-
 
     .logo {
-
-        margin-bottom:
-            15px;
-
+        margin-bottom: 15px;
     }
 
-
-    .menu {
-
-        display:
-            grid;
-
-        grid-template-columns:
-            repeat(
-                2,
-                1fr
-            );
-
-        gap:
-            6px;
-
+    .nav {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
     }
 
-
-    .menu a {
-
-        margin:
-            0;
-
+    .nav a {
+        margin: 0;
     }
 
-
-    .menu a.logout {
-
-        margin-top:
-            0;
-
+    .nav a.logout {
+        margin-top: 0;
     }
-
 
     .main {
-
-        margin-left:
-            0;
-
-        padding:
-            15px;
-
+        margin-left: 0;
+        padding: 15px;
     }
-
 
     .stats {
-
-        grid-template-columns:
-            1fr;
-
+        grid-template-columns: 1fr;
     }
-
 
     .lesson-top {
-
-        flex-direction:
-            column;
-
+        flex-direction: column;
+        align-items: flex-start;
     }
 
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
 }
 
-
-@media(max-width: 600px) {
-
-    .menu {
-
-        grid-template-columns:
-            1fr;
-
+@media (max-width: 600px) {
+    .nav {
+        grid-template-columns: 1fr;
     }
-
 
     .topbar {
-
-        padding:
-            20px;
-
+        padding: 20px;
     }
-
 
     .topbar h1 {
-
-        font-size:
-            23px;
-
+        font-size: 23px;
     }
-
 
     .section {
-
-        padding:
-            17px;
-
+        padding: 17px;
     }
-
 
     .lesson-grid {
-
-        grid-template-columns:
-            1fr;
-
+        grid-template-columns: 1fr;
     }
-
 
     .lesson-top {
-
-        gap:
-            10px;
-
+        gap: 10px;
     }
 
+    .subject-title {
+        font-size: 18px;
+    }
+
+    .classroom-button,
+    .zoom-button,
+    .book-button {
+        width: 100%;
+    }
+
+    .teacher-box {
+        align-items: flex-start;
+    }
 }
 
+@media (max-width: 400px) {
+    .main {
+        padding: 10px;
+    }
+
+    .topbar {
+        padding: 17px;
+    }
+
+    .section {
+        padding: 14px;
+    }
+
+    .today-card {
+        padding: 15px;
+    }
+
+    .lesson-info {
+        padding: 11px;
+    }
+}
 </style>
 
 </head>
