@@ -110,7 +110,7 @@ $totalLessons = count($schedules);
 |--------------------------------------------------------------------------
 */
 
-$todayStmt = $conn->prepare("
+$todayStmt = $pdo->prepare("
     SELECT
         b.id,
         b.booking_reference,
@@ -158,7 +158,7 @@ $totalToday = count($todayLessons);
 |--------------------------------------------------------------------------
 */
 
-$upcomingStmt = $conn->prepare("
+$upcomingStmt = $pdo->prepare("
     SELECT
         b.id,
         b.booking_reference,
