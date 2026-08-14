@@ -1091,7 +1091,7 @@ body {
                         </th>
 
                         <th>
-                            Zoom
+                           Classroom
                         </th>
 
                     </tr>
@@ -1286,7 +1286,7 @@ body {
                     </th>
 
                     <th>
-                        Zoom Class
+                       Classroom
                     </th>
 
                 </tr>
