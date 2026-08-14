@@ -304,30 +304,6 @@ function paymentStatusBadge($status)
 }
 
 
-function zoomButton($zoomLink)
-{
-    if (!empty($zoomLink)) {
-
-        return '
-            <a
-                href="' . h($zoomLink) . '"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="zoom-button"
-            >
-                🎥 Join Zoom Class
-            </a>
-        ';
-
-    }
-
-    return '
-        <span class="no-zoom">
-            Zoom link not available
-        </span>
-    ';
-}
-
 function classroomButton($bookingId)
 {
     $bookingId = (int) $bookingId;
@@ -769,10 +745,9 @@ body {
 }
 
 /* =========================================================
-   ZOOM / CLASSROOM BUTTONS
+   CLASSROOM BUTTON
 ========================================================= */
 
-.zoom-button,
 .classroom-button {
     display: inline-flex;
     align-items: center;
@@ -785,37 +760,16 @@ body {
     font-size: 11px;
     font-weight: 800;
     white-space: nowrap;
-    transition: .2s ease;
-}
-
-.zoom-button {
-    background: #eaf4ff;
-    color: #0867b8;
-}
-
-.zoom-button:hover {
-    background: #d9edff;
-    color: #075a9f;
-    transform: translateY(-1px);
-}
-
-.classroom-button {
-    margin-left: 6px;
     background: linear-gradient(135deg, #003366, #0877c9);
     color: #fff;
     box-shadow: 0 5px 12px rgba(8,119,201,.18);
+    transition: .2s ease;
 }
 
 .classroom-button:hover {
     color: #fff;
     transform: translateY(-2px);
     box-shadow: 0 8px 17px rgba(8,119,201,.24);
-}
-
-.no-zoom {
-    color: #9aa5b1;
-    font-size: 11px;
-    white-space: nowrap;
 }
 
 /* =========================================================
@@ -908,10 +862,7 @@ body {
         border-radius: 10px;
     }
 
-    .zoom-button,
-    .classroom-button {
-        margin: 4px 0 0;
-    }
+    
 }
 
 </style>
@@ -1232,11 +1183,6 @@ body {
 
                             <td>
 
-                                <?= zoomButton(
-                                    $today['teacher_zoom_link']
-                                    ?? ''
-                                ) ?>
-
                                 <?= classroomButton(
                                     $today['id']
                                     ?? 0
@@ -1548,11 +1494,6 @@ body {
                         <!-- ZOOM -->
 
                         <td>
-
-                            <?= zoomButton(
-                                $row['teacher_zoom_link']
-                                ?? ''
-                            ) ?>
 
                             <?= classroomButton(
                                 $row['id']
