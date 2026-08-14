@@ -812,66 +812,138 @@ body {
 }
 
 
-/* =========================================================
+/* =====================================================
    SIDEBAR
-========================================================= */
+===================================================== */
 
 .sidebar {
 
     position: fixed;
 
     left: 0;
+
     top: 0;
 
     width: 250px;
+
     height: 100vh;
 
     background:
         linear-gradient(
             180deg,
-            #003366,
-            #00264d
+            #003b70 0%,
+            #002b55 100%
         );
 
     color: white;
 
-    padding: 25px 15px;
+    padding: 24px 15px;
 
     z-index: 1000;
+
+    overflow-y: auto;
+
 }
 
 
 .logo {
 
+    padding:
+        10px 8px 28px;
+
     text-align: center;
 
-    padding: 10px;
+    border-bottom:
+        1px solid
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
 
-    margin-bottom: 30px;
+    margin-bottom: 22px;
 
-    font-weight: 800;
-
-    letter-spacing: 1px;
-
-    font-size: 18px;
 }
 
 
-.logo span {
+.logo-icon {
 
-    display: block;
+    width: 55px;
 
-    font-size: 11px;
+    height: 55px;
 
-    opacity: .7;
+    margin:
+        0 auto 12px;
 
-    margin-top: 5px;
+    border-radius: 15px;
+
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .12
+        );
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 27px;
+
+}
+
+
+.logo h2 {
+
+    font-size: 19px;
+
+    line-height: 1.25;
+
+    letter-spacing: .3px;
+
+}
+
+
+.logo p {
+
+    margin-top: 6px;
+
+    font-size: 9px;
 
     letter-spacing: 2px;
+
+    opacity: .65;
+
 }
 
 
-.menu a {
+.menu-title {
+
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            .42
+        );
+
+    font-size: 9px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1.5px;
+
+    padding:
+        0 13px 10px;
+
+}
+
+
+.sidebar a {
 
     display: flex;
 
@@ -879,39 +951,102 @@ body {
 
     gap: 12px;
 
-    color: #dcecff;
+    color:
+        rgba(
+            255,
+            255,
+            255,
+            .82
+        );
 
     text-decoration: none;
 
-    padding: 13px 15px;
+    padding:
+        12px 13px;
 
-    margin-bottom: 6px;
+    margin-bottom: 5px;
 
-    border-radius: 10px;
+    border-radius: 9px;
 
-    font-size: 14px;
+    font-size: 13px;
 
-    transition: .25s;
+    transition:
+        .2s ease;
+
 }
 
 
-.menu a:hover,
-.menu a.active {
+.sidebar a:hover {
 
     background:
-        rgba(255,255,255,.13);
+        rgba(
+            255,
+            255,
+            255,
+            .10
+        );
 
     color: white;
 
-    transform: translateX(3px);
+    transform:
+        translateX(2px);
+
 }
 
 
-.menu .logout {
+.sidebar a.active {
 
-    margin-top: 25px;
+    background:
+        rgba(
+            255,
+            255,
+            255,
+            .16
+        );
 
-    color: #ffcccc;
+    color: white;
+
+    font-weight: 700;
+
+    box-shadow:
+        inset 3px 0 #4db8ff;
+
+}
+
+
+.menu-icon {
+
+    width: 23px;
+
+    text-align: center;
+
+    font-size: 16px;
+
+}
+
+
+.logout {
+
+    margin-top: 25px !important;
+
+    background:
+        rgba(
+            220,
+            53,
+            69,
+            .95
+        ) !important;
+
+    color: white !important;
+
+}
+
+
+.logout:hover {
+
+    background:
+        #c82333 !important;
+
 }
 
 
