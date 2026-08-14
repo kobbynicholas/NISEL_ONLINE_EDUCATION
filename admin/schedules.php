@@ -71,131 +71,6 @@ if (
 
 
 /* =========================================================
-   ADMIN: ASSIGN TEACHER + CREATE VIRTUAL CLASSROOM
-========================================================= */
-$assignment_message = '';
-$assignment_type = '';
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assign_classroom'])) {
-
-    $booking_id = (int)($_POST['booking_id'] ?? 0);
-    $selected_teacher_id = trim((string)($_POST['teacher_id'] ?? ''));
-
-    if ($booking_id <= 0) {
-        $assignment_message = 'Invalid booking selected.';
-        $assignment_type = 'error';
-    } elseif ($selected_teacher_id === '') {
-        $assignment_message = 'Please select a teacher.';
-        $assignment_type = 'error';
-    } else {
-        try {
-            /* Get the selected teacher. */
-            $teacher_lookup = $pdo->prepare(''
-                . 'SELECT teacher_id, teacher_name '
-                . 'FROM teachers '
-                . 'WHERE teacher_id = ? LIMIT 1'
-            );
-            $teacher_lookup->execute([$selected_teacher_id]);
-            $selected_teacher = $teacher_lookup->fetch(PDO::FETCH_ASSOC);
-
-            if (!$selected_teacher) {
-                throw new RuntimeException('The selected teacher could not be found.');
-            }
-
-            /* Make sure the booking exists. */
-            $booking_lookup = $pdo->prepare(''
-                . 'SELECT id, booking_reference, student_name '
-                . 'FROM bookings WHERE id = ? LIMIT 1'
-            );
-            $booking_lookup->execute([$booking_id]);
-            $selected_booking = $booking_lookup->fetch(PDO::FETCH_ASSOC);
-
-            if (!$selected_booking) {
-                throw new RuntimeException('The selected booking could not be found.');
-            }
-
-            /* Generate a fresh NISEL virtual classroom room code. */
-            $room_code = 'NISEL-' . $booking_id . '-' . strtoupper(
-                substr(
-                    hash(
-                        'sha256',
-                        $booking_id . microtime(true) . bin2hex(random_bytes(8))
-                    ),
-                    0,
-                    8
-                )
-            );
-
-            /*
-             * Keep the classroom state in bookings because the working
-             * teacher/student classroom reads live_room_code from there.
-             */
-            $update = $pdo->prepare(''
-                . 'UPDATE bookings SET '
-                . 'teacher_id = ?, '
-                . 'teacher_name = ?, '
-                . 'live_room_code = ?, '
-                . 'live_status = ?, '
-                . 'live_started_at = NULL, '
-                . 'live_ended_at = NULL '
-                . 'WHERE id = ?'
-            );
-
-            $update->execute([
-                $selected_teacher['teacher_id'],
-                $selected_teacher['teacher_name'],
-                $room_code,
-                'waiting',
-                $booking_id
-            ]);
-
-            /*
-             * Also update schedules.json so this schedule page remains
-             * consistent with the booking table used by the classroom.
-             */
-            $json_changed = false;
-
-            foreach ($schedules as &$scheduled_lesson) {
-                $lesson_booking_id = (int)($scheduled_lesson['booking_id'] ?? 0);
-                $lesson_reference = (string)($scheduled_lesson['booking_reference'] ?? '');
-
-                if (
-                    $lesson_booking_id === $booking_id ||
-                    ($lesson_booking_id === 0 && $lesson_reference !== '' &&
-                     $lesson_reference === (string)$selected_booking['booking_reference'])
-                ) {
-                    $scheduled_lesson['booking_id'] = $booking_id;
-                    $scheduled_lesson['teacher_id'] = $selected_teacher['teacher_id'];
-                    $scheduled_lesson['teacher_name'] = $selected_teacher['teacher_name'];
-                    $scheduled_lesson['live_room_code'] = $room_code;
-                    $scheduled_lesson['live_status'] = 'waiting';
-                    $json_changed = true;
-                }
-            }
-            unset($scheduled_lesson);
-
-            if ($json_changed) {
-                file_put_contents(
-                    $schedule_file,
-                    json_encode($schedules, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
-                    LOCK_EX
-                );
-            }
-
-            $assignment_message = 'Teacher assigned and NISEL Virtual Classroom created successfully for ' .
-                ($selected_booking['student_name'] ?? 'this booking') .
-                '. Room: ' . $room_code;
-            $assignment_type = 'success';
-
-        } catch (Throwable $e) {
-            $assignment_message = 'Unable to assign teacher/classroom: ' . $e->getMessage();
-            $assignment_type = 'error';
-        }
-    }
-}
-
-
-/* =========================================================
    GET TEACHERS
 ========================================================= */
 
@@ -243,8 +118,7 @@ try {
             class_year,
             payment_status,
             teacher_id,
-            teacher_name,
-            live_room_code
+            teacher_name
 
         FROM bookings
 
@@ -263,6 +137,732 @@ try {
 
 }
 
+
+/* =========================================================
+   SCHEDULE ASSIGNMENT ACTIONS
+   Restored controls:
+   - Assign Teacher
+   - Assign Time
+   - Assign Classroom
+   - Unassign
+========================================================= */
+
+$schedule_message = '';
+$schedule_message_type = '';
+
+function saveSchedulesJson($schedule_file, $schedules)
+{
+    return file_put_contents(
+        $schedule_file,
+        json_encode(
+            $schedules,
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        ),
+        LOCK_EX
+    ) !== false;
+}
+
+function bookingColumnExists($pdo, $column)
+{
+    try {
+        $stmt = $pdo->prepare(
+            "SHOW COLUMNS FROM bookings LIKE ?"
+        );
+
+        $stmt->execute([$column]);
+
+        return (bool) $stmt->fetch(PDO::FETCH_ASSOC);
+
+    } catch (PDOException $e) {
+
+        return false;
+
+    }
+}
+
+function findTeacherById($pdo, $teacher_id)
+{
+    $stmt = $pdo->prepare("
+        SELECT teacher_id, teacher_name
+        FROM teachers
+        WHERE teacher_id = ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([$teacher_id]);
+
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+function updateScheduleLesson(&$schedules, $booking_id, $lesson_number, $changes)
+{
+    $updated = false;
+
+    foreach ($schedules as &$lesson) {
+
+        if (
+            (string)($lesson['booking_id'] ?? '') ===
+                (string)$booking_id
+            &&
+            (int)($lesson['lesson_number'] ?? 0) ===
+                (int)$lesson_number
+        ) {
+
+            foreach ($changes as $key => $value) {
+                $lesson[$key] = $value;
+            }
+
+            $updated = true;
+            break;
+        }
+    }
+
+    unset($lesson);
+
+    return $updated;
+}
+
+if (
+    $_SERVER['REQUEST_METHOD'] === 'POST'
+    &&
+    isset($_POST['schedule_action'])
+) {
+
+    $action = trim(
+        $_POST['schedule_action']
+    );
+
+    $booking_id = (int)(
+        $_POST['booking_id'] ?? 0
+    );
+
+    $lesson_number = (int)(
+        $_POST['lesson_number'] ?? 0
+    );
+
+    if (
+        $booking_id <= 0
+        ||
+        $lesson_number <= 0
+    ) {
+
+        $schedule_message =
+            'Invalid booking or lesson selected.';
+
+        $schedule_message_type = 'error';
+
+    } else {
+
+        try {
+
+            /* =====================================================
+               ASSIGN TEACHER
+            ===================================================== */
+
+            if ($action === 'assign_teacher') {
+
+                $teacher_id = trim(
+                    $_POST['teacher_id'] ?? ''
+                );
+
+                if ($teacher_id === '') {
+
+                    throw new RuntimeException(
+                        'Please select a teacher.'
+                    );
+
+                }
+
+                $teacher = findTeacherById(
+                    $pdo,
+                    $teacher_id
+                );
+
+                if (!$teacher) {
+
+                    throw new RuntimeException(
+                        'The selected teacher was not found.'
+                    );
+
+                }
+
+                $updated = updateScheduleLesson(
+                    $schedules,
+                    $booking_id,
+                    $lesson_number,
+                    [
+                        'teacher_id' =>
+                            $teacher['teacher_id'],
+
+                        'teacher_name' =>
+                            $teacher['teacher_name']
+                    ]
+                );
+
+                if (!$updated) {
+
+                    throw new RuntimeException(
+                        'The lesson could not be found in schedules.json.'
+                    );
+
+                }
+
+                $stmt = $pdo->prepare("
+                    UPDATE bookings
+                    SET
+                        teacher_id = ?,
+                        teacher_name = ?
+                    WHERE id = ?
+                ");
+
+                $stmt->execute([
+                    $teacher['teacher_id'],
+                    $teacher['teacher_name'],
+                    $booking_id
+                ]);
+
+                if (
+                    !saveSchedulesJson(
+                        $schedule_file,
+                        $schedules
+                    )
+                ) {
+
+                    throw new RuntimeException(
+                        'The schedule file could not be saved.'
+                    );
+
+                }
+
+                $schedule_message =
+                    'Teacher assigned successfully.';
+
+                $schedule_message_type = 'success';
+            }
+
+
+            /* =====================================================
+               ASSIGN TIME
+            ===================================================== */
+
+            elseif ($action === 'assign_time') {
+
+                $lesson_time = trim(
+                    $_POST['lesson_time'] ?? ''
+                );
+
+                if ($lesson_time === '') {
+
+                    throw new RuntimeException(
+                        'Please select a lesson time.'
+                    );
+
+                }
+
+                if (
+                    !preg_match(
+                        '/^(?:[01]\d|2[0-3]):[0-5]\d$/',
+                        $lesson_time
+                    )
+                ) {
+
+                    throw new RuntimeException(
+                        'Please enter a valid time.'
+                    );
+
+                }
+
+                $updated = updateScheduleLesson(
+                    $schedules,
+                    $booking_id,
+                    $lesson_number,
+                    [
+                        'lesson_time' =>
+                            $lesson_time
+                    ]
+                );
+
+                if (!$updated) {
+
+                    throw new RuntimeException(
+                        'The lesson could not be found in schedules.json.'
+                    );
+
+                }
+
+                /*
+                 * If the bookings table also has lesson_time,
+                 * keep the database synchronized. This is optional
+                 * so the page remains compatible with existing schemas.
+                 */
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'lesson_time'
+                    )
+                ) {
+
+                    $stmt = $pdo->prepare("
+                        UPDATE bookings
+                        SET lesson_time = ?
+                        WHERE id = ?
+                    ");
+
+                    $stmt->execute([
+                        $lesson_time,
+                        $booking_id
+                    ]);
+                }
+
+                if (
+                    !saveSchedulesJson(
+                        $schedule_file,
+                        $schedules
+                    )
+                ) {
+
+                    throw new RuntimeException(
+                        'The schedule file could not be saved.'
+                    );
+
+                }
+
+                $schedule_message =
+                    'Lesson time assigned successfully.';
+
+                $schedule_message_type = 'success';
+            }
+
+
+            /* =====================================================
+               ASSIGN CLASSROOM
+            ===================================================== */
+
+            elseif ($action === 'assign_classroom') {
+
+                $existing_room_code = '';
+
+                foreach ($schedules as $lesson) {
+
+                    if (
+                        (string)($lesson['booking_id'] ?? '') ===
+                            (string)$booking_id
+                        &&
+                        (int)($lesson['lesson_number'] ?? 0) ===
+                            (int)$lesson_number
+                    ) {
+
+                        $existing_room_code =
+                            trim(
+                                $lesson['live_room_code']
+                                ?? ''
+                            );
+
+                        break;
+                    }
+                }
+
+                if ($existing_room_code === '') {
+
+                    $existing_room_code =
+                        'NISEL-'
+                        . $booking_id
+                        . '-'
+                        . strtoupper(
+                            bin2hex(
+                                random_bytes(4)
+                            )
+                        );
+                }
+
+                $updated = updateScheduleLesson(
+                    $schedules,
+                    $booking_id,
+                    $lesson_number,
+                    [
+                        'live_room_code' =>
+                            $existing_room_code,
+
+                        'classroom_status' =>
+                            'waiting',
+
+                        'classroom_started_at' =>
+                            null,
+
+                        'classroom_ended_at' =>
+                            null
+                    ]
+                );
+
+                if (!$updated) {
+
+                    throw new RuntimeException(
+                        'The lesson could not be found in schedules.json.'
+                    );
+
+                }
+
+                /*
+                 * These are the classroom fields already used by the
+                 * working NISEL Virtual Classroom.
+                 */
+                $classroom_fields = [];
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'live_room_code'
+                    )
+                ) {
+
+                    $classroom_fields[] =
+                        'live_room_code = ?';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'classroom_status'
+                    )
+                ) {
+
+                    $classroom_fields[] =
+                        'classroom_status = ?';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'classroom_started_at'
+                    )
+                ) {
+
+                    $classroom_fields[] =
+                        'classroom_started_at = NULL';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'classroom_ended_at'
+                    )
+                ) {
+
+                    $classroom_fields[] =
+                        'classroom_ended_at = NULL';
+                }
+
+                if (count($classroom_fields) > 0) {
+
+                    $sql = "
+                        UPDATE bookings
+                        SET "
+                        . implode(
+                            ', ',
+                            $classroom_fields
+                        )
+                        . "
+                        WHERE id = ?
+                    ";
+
+                    $params = [];
+
+                    if (
+                        bookingColumnExists(
+                            $pdo,
+                            'live_room_code'
+                        )
+                    ) {
+
+                        $params[] =
+                            $existing_room_code;
+                    }
+
+                    if (
+                        bookingColumnExists(
+                            $pdo,
+                            'classroom_status'
+                        )
+                    ) {
+
+                        $params[] =
+                            'waiting';
+                    }
+
+                    $params[] = $booking_id;
+
+                    $stmt = $pdo->prepare($sql);
+
+                    $stmt->execute($params);
+                }
+
+                if (
+                    !saveSchedulesJson(
+                        $schedule_file,
+                        $schedules
+                    )
+                ) {
+
+                    throw new RuntimeException(
+                        'The schedule file could not be saved.'
+                    );
+
+                }
+
+                $schedule_message =
+                    'NISEL Virtual Classroom assigned successfully.';
+
+                $schedule_message_type = 'success';
+            }
+
+
+            /* =====================================================
+               UNASSIGN
+               Clears teacher, time and virtual classroom assignment.
+            ===================================================== */
+
+            elseif ($action === 'unassign') {
+
+                $updated = updateScheduleLesson(
+                    $schedules,
+                    $booking_id,
+                    $lesson_number,
+                    [
+                        'teacher_id' =>
+                            null,
+
+                        'teacher_name' =>
+                            null,
+
+                        'lesson_time' =>
+                            null,
+
+                        'live_room_code' =>
+                            null,
+
+                        'classroom_status' =>
+                            null,
+
+                        'classroom_started_at' =>
+                            null,
+
+                        'classroom_ended_at' =>
+                            null
+                    ]
+                );
+
+                if (!$updated) {
+
+                    throw new RuntimeException(
+                        'The lesson could not be found in schedules.json.'
+                    );
+
+                }
+
+                /*
+                 * Always clear teacher assignment because these columns
+                 * are present in the current schedules page query.
+                 */
+                $stmt = $pdo->prepare("
+                    UPDATE bookings
+                    SET
+                        teacher_id = NULL,
+                        teacher_name = NULL
+                    WHERE id = ?
+                ");
+
+                $stmt->execute([
+                    $booking_id
+                ]);
+
+                /*
+                 * Clear optional classroom/time columns only when
+                 * they exist in the current database.
+                 */
+                $optional_sets = [];
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'lesson_time'
+                    )
+                ) {
+
+                    $optional_sets[] =
+                        'lesson_time = NULL';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'live_room_code'
+                    )
+                ) {
+
+                    $optional_sets[] =
+                        'live_room_code = NULL';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'classroom_status'
+                    )
+                ) {
+
+                    $optional_sets[] =
+                        'classroom_status = NULL';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'classroom_started_at'
+                    )
+                ) {
+
+                    $optional_sets[] =
+                        'classroom_started_at = NULL';
+                }
+
+                if (
+                    bookingColumnExists(
+                        $pdo,
+                        'classroom_ended_at'
+                    )
+                ) {
+
+                    $optional_sets[] =
+                        'classroom_ended_at = NULL';
+                }
+
+                if (count($optional_sets) > 0) {
+
+                    $stmt = $pdo->prepare("
+                        UPDATE bookings
+                        SET "
+                        . implode(
+                            ', ',
+                            $optional_sets
+                        )
+                        . "
+                        WHERE id = ?
+                    ");
+
+                    $stmt->execute([
+                        $booking_id
+                    ]);
+                }
+
+                if (
+                    !saveSchedulesJson(
+                        $schedule_file,
+                        $schedules
+                    )
+                ) {
+
+                    throw new RuntimeException(
+                        'The schedule file could not be saved.'
+                    );
+
+                }
+
+                $schedule_message =
+                    'Teacher, time and classroom assignment removed.';
+
+                $schedule_message_type = 'success';
+            }
+
+
+            else {
+
+                throw new RuntimeException(
+                    'Unknown schedule action.'
+                );
+            }
+
+        } catch (
+            Throwable $e
+        ) {
+
+            $schedule_message =
+                $e->getMessage();
+
+            $schedule_message_type =
+                'error';
+        }
+
+        /*
+         * Redirect after a successful/failed POST so refreshing the page
+         * does not submit the action again.
+         */
+        $redirect_url =
+            'schedules.php';
+
+        if (
+            $search !== ''
+            ||
+            isset($_GET['search'])
+        ) {
+            $redirect_url .=
+                '?search='
+                .
+                urlencode(
+                    $_GET['search'] ?? ''
+                );
+        }
+
+        if (
+            $schedule_message !== ''
+        ) {
+
+            $separator =
+                strpos(
+                    $redirect_url,
+                    '?'
+                ) === false
+                ? '?'
+                : '&';
+
+            $redirect_url .=
+                $separator
+                . 'message='
+                . urlencode(
+                    $schedule_message
+                )
+                . '&message_type='
+                . urlencode(
+                    $schedule_message_type
+                );
+        }
+
+        header(
+            'Location: '
+            . $redirect_url
+        );
+
+        exit;
+    }
+}
+
+
+/* =========================================================
+   DISPLAY ACTION MESSAGE
+========================================================= */
+
+if (
+    isset($_GET['message'])
+) {
+
+    $schedule_message =
+        trim(
+            $_GET['message']
+        );
+
+    $schedule_message_type =
+        $_GET['message_type']
+        ?? 'success';
+}
 
 /* =========================================================
    FILTER VALUES
@@ -1126,108 +1726,6 @@ tr:hover {
 
 
 /* =====================================================
-   ASSIGNMENT / CLASSROOM
-===================================================== */
-
-.assignment-message {
-    padding: 14px 17px;
-    margin-bottom: 22px;
-    border-radius: 10px;
-    font-size: 13px;
-    font-weight: 700;
-}
-
-.assignment-message.success {
-    background: #e8f7ed;
-    color: #176b37;
-    border: 1px solid #b9e7c8;
-}
-
-.assignment-message.error {
-    background: #fff0f0;
-    color: #a52828;
-    border: 1px solid #f1c1c1;
-}
-
-.classroom-cell {
-    min-width: 235px;
-}
-
-.room-code {
-    display: inline-block;
-    max-width: 220px;
-    margin-bottom: 7px;
-    padding: 5px 8px;
-    border-radius: 6px;
-    background: #eef6ff;
-    color: #075a9f;
-    font-family: Consolas, monospace;
-    font-size: 10px;
-    font-weight: 700;
-    word-break: break-all;
-}
-
-.room-empty {
-    display: block;
-    margin-bottom: 8px;
-    color: #999;
-    font-size: 11px;
-}
-
-.assign-form {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    min-width: 230px;
-}
-
-.assign-form select {
-    min-width: 145px;
-    flex: 1;
-    padding: 8px 9px;
-    border: 1px solid #ccd7e2;
-    border-radius: 7px;
-    background: #fff;
-    color: #333;
-    font-size: 11px;
-}
-
-.assign-button {
-    flex: 0 0 auto;
-    padding: 8px 10px;
-    border: 0;
-    border-radius: 7px;
-    background: linear-gradient(135deg, #003366, #0877c9);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.assign-button:hover {
-    background: #0055a5;
-}
-
-.classroom-ready {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    margin-top: 3px;
-    color: #16803d;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.classroom-ready::before {
-    content: '';
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #20a65a;
-}
-
-/* =====================================================
    BADGES
 ===================================================== */
 
@@ -1272,6 +1770,134 @@ tr:hover {
 
 }
 
+
+/* =====================================================
+   ASSIGNMENT ACTIONS
+===================================================== */
+
+.actions-cell {
+    min-width: 245px;
+    width: 245px;
+    background: #fbfdff;
+}
+
+.assignment-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.action-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.action-row select,
+.action-row input[type="time"] {
+    flex: 1;
+    min-width: 0;
+    height: 34px;
+    padding: 6px 8px;
+    border: 1px solid #d5dee8;
+    border-radius: 7px;
+    background: #fff;
+    color: #26384a;
+    font-size: 11px;
+    outline: none;
+}
+
+.action-row select:focus,
+.action-row input[type="time"]:focus {
+    border-color: #1685cf;
+    box-shadow: 0 0 0 2px rgba(22,133,207,.10);
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 34px;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 7px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: .18s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
+
+.btn-teacher {
+    background: #0b65b7;
+}
+
+.btn-time {
+    background: #7a4db8;
+}
+
+.btn-classroom {
+    background: #078447;
+}
+
+.btn-unassign {
+    width: 100%;
+    background: #c53030;
+}
+
+.assignment-current {
+    padding: 8px 9px;
+    border-radius: 7px;
+    background: #eef6ff;
+    border: 1px solid #dcecf9;
+    color: #31536f;
+    font-size: 10px;
+    line-height: 1.45;
+}
+
+.assignment-current strong {
+    color: #003b70;
+}
+
+.room-code {
+    display: block;
+    margin-top: 3px;
+    padding: 3px 5px;
+    border-radius: 5px;
+    background: #e9f8ef;
+    color: #08743e;
+    font-family: Consolas, monospace;
+    font-size: 9px;
+    font-weight: 700;
+    word-break: break-all;
+}
+
+.assignment-message {
+    margin-bottom: 18px;
+    padding: 12px 15px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.assignment-message.success {
+    background: #eaf8ef;
+    border: 1px solid #ccebd8;
+    color: #14743b;
+}
+
+.assignment-message.error {
+    background: #fff0f0;
+    border: 1px solid #f0cccc;
+    color: #b42323;
+}
 
 /* =====================================================
    EMPTY
@@ -1366,10 +1992,7 @@ tr:hover {
 
 
 
-    <a
-        href="dashboard.php"
-        class="active"
-    >
+    <a href="dashboard.php">
 
         <span class="menu-icon">
             🏠
@@ -1467,7 +2090,10 @@ tr:hover {
 
 
 
-    <a href="schedules.php">
+    <a
+        href="schedules.php"
+        class="active"
+    >
 
         <span class="menu-icon">
             📅
@@ -1540,10 +2166,20 @@ tr:hover {
     </div>
 
 
-    <?php if ($assignment_message !== ''): ?>
+    <?php if ($schedule_message !== ''): ?>
 
-        <div class="assignment-message <?= htmlspecialchars($assignment_type, ENT_QUOTES, 'UTF-8') ?>">
-            <?= htmlspecialchars($assignment_message, ENT_QUOTES, 'UTF-8') ?>
+        <div class="assignment-message <?php
+            echo htmlspecialchars(
+                $schedule_message_type
+            );
+        ?>">
+
+            <?php
+            echo htmlspecialchars(
+                $schedule_message
+            );
+            ?>
+
         </div>
 
     <?php endif; ?>
@@ -1974,12 +2610,9 @@ tr:hover {
                             Booking
                         </th>
 
-                        <th>
-                            Virtual Classroom
-                        </th>
 
                         <th>
-                            Assign Teacher
+                            Assignment Actions
                         </th>
 
 
@@ -2323,99 +2956,177 @@ tr:hover {
 
                                 ?>
 
-                            </td>
+                            <td class="actions-cell">
+
+                                <?php
+                                $current_teacher_id =
+                                    $lesson['teacher_id']
+                                    ?? '';
+
+                                $current_teacher_name =
+                                    $lesson['teacher_name']
+                                    ?? '';
+
+                                $current_time =
+                                    $lesson['lesson_time']
+                                    ?? '';
+
+                                $current_room =
+                                    $lesson['live_room_code']
+                                    ?? '';
+
+                                $current_classroom_status =
+                                    $lesson['classroom_status']
+                                    ?? '';
+                                ?>
 
 
-                            <?php
+                                <div class="assignment-actions">
 
-                            /* Resolve the real booking ID for this schedule row. */
-                            $row_booking_id = (int)(
-                                $lesson['booking_id']
-                                ?? 0
-                            );
+                                    <?php if (
+                                        $current_teacher_name !== ''
+                                    ): ?>
 
-                            if ($row_booking_id <= 0 && !empty($lesson['booking_reference'])) {
-                                foreach ($bookings as $booking_row) {
-                                    if (
-                                        (string)($booking_row['booking_reference'] ?? '') ===
-                                        (string)$lesson['booking_reference']
-                                    ) {
-                                        $row_booking_id = (int)$booking_row['id'];
-                                        break;
-                                    }
-                                }
-                            }
+                                        <div class="assignment-current">
 
-                            $row_room_code = trim((string)(
-                                $lesson['live_room_code']
-                                ?? ''
-                            ));
+                                            <strong>
+                                                👨‍🏫 Teacher
+                                            </strong>
 
-                            if ($row_room_code === '' && $row_booking_id > 0) {
-                                foreach ($bookings as $booking_row) {
-                                    if ((int)$booking_row['id'] === $row_booking_id) {
-                                        $row_room_code = trim((string)(
-                                            $booking_row['live_room_code'] ?? ''
-                                        ));
-                                        break;
-                                    }
-                                }
-                            }
+                                            <br>
 
-                            ?>
+                                            <?= htmlspecialchars(
+                                                $current_teacher_name
+                                            ) ?>
 
-                            <td class="classroom-cell">
+                                        </div>
 
-                                <?php if ($row_room_code !== ''): ?>
-
-                                    <span class="room-code">
-                                        <?= htmlspecialchars($row_room_code, ENT_QUOTES, 'UTF-8') ?>
-                                    </span>
-
-                                    <span class="classroom-ready">
-                                        Classroom Ready
-                                    </span>
-
-                                <?php else: ?>
-
-                                    <span class="room-empty">
-                                        No classroom assigned yet
-                                    </span>
-
-                                <?php endif; ?>
-
-                            </td>
+                                    <?php endif; ?>
 
 
-                            <td>
+                                    <?php if (
+                                        $current_time !== ''
+                                    ): ?>
 
-                                <?php if ($row_booking_id > 0): ?>
+                                        <div class="assignment-current">
 
-                                    <form method="POST" class="assign-form">
+                                            <strong>
+                                                🕐 Time
+                                            </strong>
+
+                                            <br>
+
+                                            <?= htmlspecialchars(
+                                                date(
+                                                    "h:i A",
+                                                    strtotime(
+                                                        $current_time
+                                                    )
+                                                )
+                                            ) ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+
+                                    <?php if (
+                                        $current_room !== ''
+                                    ): ?>
+
+                                        <div class="assignment-current">
+
+                                            <strong>
+                                                🎥 Classroom
+                                            </strong>
+
+                                            <span class="room-code">
+                                                <?= htmlspecialchars(
+                                                    $current_room
+                                                ) ?>
+                                            </span>
+
+                                            <?php if (
+                                                $current_classroom_status !== ''
+                                            ): ?>
+
+                                                <small>
+                                                    Status:
+                                                    <?= htmlspecialchars(
+                                                        $current_classroom_status
+                                                    ) ?>
+                                                </small>
+
+                                            <?php endif; ?>
+
+                                        </div>
+
+                                    <?php endif; ?>
+
+
+                                    <!-- ASSIGN TEACHER -->
+
+                                    <form
+                                        method="POST"
+                                        class="action-row"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="schedule_action"
+                                            value="assign_teacher"
+                                        >
 
                                         <input
                                             type="hidden"
                                             name="booking_id"
-                                            value="<?= $row_booking_id ?>"
+                                            value="<?= (int)(
+                                                $lesson['booking_id']
+                                                ?? 0
+                                            ) ?>"
                                         >
 
-                                        <select name="teacher_id" required>
-                                            <option value="">Select teacher</option>
+                                        <input
+                                            type="hidden"
+                                            name="lesson_number"
+                                            value="<?= (int)(
+                                                $lesson['lesson_number']
+                                                ?? 0
+                                            ) ?>"
+                                        >
 
-                                            <?php foreach ($teachers as $teacher): ?>
+                                        <select
+                                            name="teacher_id"
+                                            required
+                                        >
+
+                                            <option value="">
+                                                🧑‍🏫 Assign Teacher
+                                            </option>
+
+                                            <?php foreach (
+                                                $teachers
+                                                as $teacher
+                                            ): ?>
 
                                                 <option
-                                                    value="<?= htmlspecialchars($teacher['teacher_id'], ENT_QUOTES, 'UTF-8') ?>"
-                                                    <?php
-                                                    if (
-                                                        (string)($lesson['teacher_id'] ?? '') ===
-                                                        (string)$teacher['teacher_id']
-                                                    ) {
-                                                        echo 'selected';
-                                                    }
+                                                    value="<?= htmlspecialchars(
+                                                        $teacher['teacher_id']
+                                                    ) ?>"
+                                                    <?= (
+                                                        (string)(
+                                                            $teacher['teacher_id']
+                                                        )
+                                                        ===
+                                                        (string)$current_teacher_id
+                                                    )
+                                                    ? 'selected'
+                                                    : ''
                                                     ?>
                                                 >
-                                                    <?= htmlspecialchars($teacher['teacher_name'], ENT_QUOTES, 'UTF-8') ?>
+                                                    <?= htmlspecialchars(
+                                                        $teacher['teacher_name']
+                                                    ) ?>
                                                 </option>
 
                                             <?php endforeach; ?>
@@ -2424,23 +3135,166 @@ tr:hover {
 
                                         <button
                                             type="submit"
-                                            name="assign_classroom"
-                                            value="1"
-                                            class="assign-button"
-                                            onclick="return confirm('Assign this teacher and create a NISEL Virtual Classroom for this lesson?');"
+                                            class="action-btn btn-teacher"
                                         >
-                                            <?= $row_room_code !== '' ? 'Update' : 'Assign & Create' ?>
+                                            Assign
                                         </button>
 
                                     </form>
 
-                                <?php else: ?>
 
-                                    <span class="room-empty">
-                                        Booking ID unavailable
-                                    </span>
+                                    <!-- ASSIGN TIME -->
 
-                                <?php endif; ?>
+                                    <form
+                                        method="POST"
+                                        class="action-row"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="schedule_action"
+                                            value="assign_time"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="booking_id"
+                                            value="<?= (int)(
+                                                $lesson['booking_id']
+                                                ?? 0
+                                            ) ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="lesson_number"
+                                            value="<?= (int)(
+                                                $lesson['lesson_number']
+                                                ?? 0
+                                            ) ?>"
+                                        >
+
+                                        <input
+                                            type="time"
+                                            name="lesson_time"
+                                            value="<?= htmlspecialchars(
+                                                substr(
+                                                    $current_time,
+                                                    0,
+                                                    5
+                                                )
+                                            ) ?>"
+                                            required
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="action-btn btn-time"
+                                        >
+                                            🕐 Set
+                                        </button>
+
+                                    </form>
+
+
+                                    <!-- ASSIGN CLASSROOM -->
+
+                                    <form
+                                        method="POST"
+                                    >
+
+                                        <input
+                                            type="hidden"
+                                            name="schedule_action"
+                                            value="assign_classroom"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="booking_id"
+                                            value="<?= (int)(
+                                                $lesson['booking_id']
+                                                ?? 0
+                                            ) ?>"
+                                        >
+
+                                        <input
+                                            type="hidden"
+                                            name="lesson_number"
+                                            value="<?= (int)(
+                                                $lesson['lesson_number']
+                                                ?? 0
+                                            ) ?>"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="action-btn btn-classroom"
+                                            style="width:100%;"
+                                        >
+                                            🎥
+                                            <?= $current_room !== ''
+                                                ? 'Classroom Ready'
+                                                : 'Assign Classroom'
+                                            ?>
+                                        </button>
+
+                                    </form>
+
+
+                                    <!-- UNASSIGN -->
+
+                                    <?php if (
+                                        $current_teacher_name !== ''
+                                        ||
+                                        $current_time !== ''
+                                        ||
+                                        $current_room !== ''
+                                    ): ?>
+
+                                        <form
+                                            method="POST"
+                                            onsubmit="return confirm(
+                                                'Unassign the teacher, time and classroom from this lesson?'
+                                            );"
+                                        >
+
+                                            <input
+                                                type="hidden"
+                                                name="schedule_action"
+                                                value="unassign"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="booking_id"
+                                                value="<?= (int)(
+                                                    $lesson['booking_id']
+                                                    ?? 0
+                                                ) ?>"
+                                            >
+
+                                            <input
+                                                type="hidden"
+                                                name="lesson_number"
+                                                value="<?= (int)(
+                                                    $lesson['lesson_number']
+                                                    ?? 0
+                                                ) ?>"
+                                            >
+
+                                            <button
+                                                type="submit"
+                                                class="action-btn btn-unassign"
+                                            >
+                                                ❌ Unassign
+                                            </button>
+
+                                        </form>
+
+                                    <?php endif; ?>
+
+                                </div>
 
                             </td>
 
