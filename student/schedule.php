@@ -1797,53 +1797,41 @@ tr:hover td {
     </div>
 
 
-    <div class="menu">
+    <nav class="nav">
 
-        <a href="dashboard.php">
-
+        <a
+            href="dashboard.php"
+            class="active"
+        >
             🏠 Dashboard
-
         </a>
 
-
-        <div class="lesson-actions">
-
-    <a
-        href="classroom.php?id=<?= (int)$booking['id'] ?>"
-        class="join-class"
-    >
-        🎥 Join Live Classroom
-    </a>
-
-</div>
-
-
-        <a href="book_lesson.php">
-
-            📚 My Subjects
-
+        <a href="schedule.php">
+            📅 My Schedule
         </a>
 
+        <a href="classroom.php">
+            🎥 Live Classroom
+        </a>
 
         <a href="profile.php">
-
             👤 My Profile
-
         </a>
 
+        <a href="payments.php">
+            💳 My Payments
+        </a>
 
         <a
             href="logout.php"
             class="logout"
         >
-
             🚪 Logout
-
         </a>
 
-    </div>
+    </nav>
 
-</div>
+
 
 
 
