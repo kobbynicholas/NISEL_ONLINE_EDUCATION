@@ -908,13 +908,6 @@ body {
         </a>
 
 
-        <a href="subjects.php">
-
-            📚 My Subjects
-
-        </a>
-
-
         <a href="profile.php">
 
             👤 My Profile
